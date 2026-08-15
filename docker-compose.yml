@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: treino_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 1234
+      POSTGRES_DB: exactafitdb
+    ports:
+      - '5433:5432'
+    volumes:
+      - 'exactafitvolume:/var/lib/postgresql/data' 
+volumes:
+  exactafitvolume:
