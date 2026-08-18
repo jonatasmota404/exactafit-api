@@ -5,14 +5,14 @@ import { CreateExercisesDto } from "./dto/create-exercises.dto";
 @Controller('exercises')
 
 export class ExercisesController {
-    constructor(private readonly ExercisesService: ExercisesService) {}
+    constructor(private readonly exercisesService: ExercisesService) {}
 
     @Post()
     create(@Body() dto: CreateExercisesDto) {
-        return this.ExercisesService.create(dto)
+        return this.exercisesService.create(dto)
     }
     @Get()
     list(){
-        return this.ExercisesService.list()
+        return this.exercisesService.list()
     }
 }

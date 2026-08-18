@@ -7,9 +7,9 @@ import { CreateExercisesDto } from "./dto/create-exercises.dto";
 export class ExercisesService {
     constructor(private readonly prisma: PrismaService) {}
 
-    async create(dataDtos: CreateExercisesDto){
+    async create(dataDto: CreateExercisesDto){
         return this.prisma.exercise.create({
-            data: dataDtos,
+            data: dataDto,
         })
     }
 
