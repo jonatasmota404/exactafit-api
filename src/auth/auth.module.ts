@@ -3,15 +3,20 @@ import { JwtModule } from '@nestjs/jwt';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import 'dotenv/config';
+import { AuthGuard } from './auth.guard';
 
 @Module({
-  imports:[JwtModule.register({
-    global:true,
-    secret: process.env.JWT_SECRET || 'oDVCXALaROLyjK9JoeGNhqdbi1wmKqNdC8wd5u0Eblc=',
-    signOptions: {expiresIn: '7d'},
-  }),
-],
+  imports: [
+    JwtModule.register({
+      global: true,
+      secret:
+        process.env.JWT_SECRET ||
+        'oDVCXALaROLyjK9JoeGNhqdbi1wmKqNdC8wd5u0Eblc=',
+      signOptions: { expiresIn: '7d' },
+    }),
+  ],
   controllers: [AuthController],
-  providers: [AuthService],
+  providers: [AuthService, AuthGuard],
+  exports: [AuthGuard],
 })
 export class AuthModule {}
