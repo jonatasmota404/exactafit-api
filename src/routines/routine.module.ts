@@ -1,10 +1,9 @@
-import { Module } from "@nestjs/common";
-import { RoutineController } from "./routine.controller";
-import { RoutineService } from "./routine.service";
+import { Module } from '@nestjs/common';
+import { RoutineController } from './routine.controller';
+import { RoutineService } from './routine.service';
 
 @Module({
-    providers:[RoutineService],
-    controllers:[RoutineController],
+  providers: [RoutineService],
+  controllers: [RoutineController],
 })
-
-export class RoutineModule{}
+export class RoutineModule {}

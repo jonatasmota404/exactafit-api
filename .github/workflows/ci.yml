@@ -31,3 +31,6 @@ jobs:
       
       - name: Linter
         run: npm run lint
+
+      - name: Testes E2E
+        run: npm run test:e2e

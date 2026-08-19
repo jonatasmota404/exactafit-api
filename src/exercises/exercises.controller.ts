@@ -3,7 +3,6 @@ import { ExercisesService } from './exercises.service';
 import { CreateExercisesDto } from './dto/create-exercises.dto';
 import { AuthGuard } from '../auth/auth.guard';
 
-
 @UseGuards(AuthGuard)
 @Controller('exercises')
 export class ExercisesController {

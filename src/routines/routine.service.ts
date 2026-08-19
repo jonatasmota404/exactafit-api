@@ -6,8 +6,8 @@ import { CreateRoutineDto } from './dto/create-routine.dto';
 export class RoutineService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(userId, dto: CreateRoutineDto) {
-   return await this.prisma.workoutRoutine.create({
+  async create(userId: string, dto: CreateRoutineDto) {
+    return await this.prisma.workoutRoutine.create({
       data: {
         userId: userId,
         name: dto.name,
