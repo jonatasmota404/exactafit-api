@@ -16,10 +16,13 @@ model Exercise {
   name String
   muscleGroup String @map("muscle_group")
   type          String   @default("strength")
+
+  routineItems RoutineItem[]
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  @@map("exercices")
+  @@map("exercises")
 }
 
 model User {
@@ -27,8 +30,41 @@ model User {
   name String
   email String @unique
   password String
+
+  workoutRoutines WorkoutRoutine[]
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("users")
+}
+
+model WorkoutRoutine {
+  id String @id @default(uuid())
+  userId String @map("user_id")
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name String
+  description String?
+
+  routineItems RoutineItem[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("workout_routines")
+}
+
+model RoutineItem {
+  id String @id @default(uuid())
+  routineId String @map("routine_id")
+  workoutRoutine WorkoutRoutine @relation(fields: [routineId], references:[id], onDelete:Cascade)
+  exerciseId String @map("exercise_id")
+  exercices Exercise @relation(fields: [exerciseId], references:[id], onDelete:Cascade)
+  order Int
+  targetSets Int @map("target_sets")
+  targetReps Int @map("target_reps")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("routine_items")
 }
