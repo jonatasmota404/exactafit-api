@@ -27,9 +27,9 @@ model Exercise {
 
 model User {
   id String @id @default(uuid())
-  name String
-  email String @unique
-  password String
+  name String @db.VarChar(100)
+  email String @unique @db.VarChar(255)
+  password String @db.VarChar(255)
 
   workoutRoutines WorkoutRoutine[]
 
@@ -43,8 +43,8 @@ model WorkoutRoutine {
   id String @id @default(uuid())
   userId String @map("user_id")
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name String
-  description String?
+  name String @db.VarChar(100)
+  description String? @db.VarChar(255)
 
   routineItems RoutineItem[]
 
