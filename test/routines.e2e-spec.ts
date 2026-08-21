@@ -8,7 +8,44 @@ import { Server } from 'http';
 type RoutineResponse = {
   id: string;
   name: string;
-  routineItems: unknown[];
+  routineItems: RoutineItemResponse[];
+};
+
+type RoutineItemResponse = {
+  id: string;
+  order: number;
+  targetSets: number;
+  targetReps: number;
+  exerciseId: string;
+};
+
+type RoutineListItem = {
+  id: string;
+  name: string;
+  description: string | null;
+  routineItems: Array<{
+    id: string;
+    order: number;
+    targetSets: number;
+    targetReps: number;
+    exercices: {
+      id: string;
+      name: string;
+      muscleGroup: string;
+    };
+  }>;
+};
+
+type RoutineDetailResponse = {
+  id: string;
+  name: string;
+  routineItems: Array<{
+    id: string;
+    order: number;
+    exercices: {
+      name: string;
+    };
+  }>;
 };
 
 describe('Routines e2e', () => {
@@ -16,6 +53,7 @@ describe('Routines e2e', () => {
   let prisma: PrismaService;
   let token: string;
   let exerciseId: string;
+  let routineId: string;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -82,6 +120,7 @@ describe('Routines e2e', () => {
       });
 
     const body = response.body as RoutineResponse;
+    routineId = body.id;
 
     expect(response.status).toBe(201);
     expect(body).toHaveProperty('id');
@@ -111,5 +150,56 @@ describe('Routines e2e', () => {
       });
 
     expect(response.status).toBe(400);
+  });
+
+  it('GET /routine -> deve listar apenas as rotinas do usuário autenticado', async () => {
+    const response = await request(app.getHttpServer() as Server)
+      .get('/routine')
+      .set('Authorization', `Bearer ${token}`);
+
+    const list = response.body as RoutineListItem[];
+
+    expect(response.status).toBe(200);
+    expect(Array.isArray(list)).toBe(true);
+    expect(list.length).toBeGreaterThanOrEqual(1);
+    expect(list[0]).toHaveProperty('id');
+    expect(list[0]).toHaveProperty('routineItems');
+    expect(list[0].routineItems[0]).toHaveProperty('exercices');
+  });
+
+  it('GET /routine:id -> deve listar apenas a rotina do usuário autenticado', async () => {
+    const response = await request(app.getHttpServer() as Server)
+      .get(`/routine/${routineId}`)
+      .set('Authorization', `Bearer ${token}`);
+
+    const body = response.body as RoutineDetailResponse;
+    expect(body.id).toBe(routineId);
+    expect(body.routineItems).toBeDefined();
+  });
+
+  it('PUT /routine:id -> deve dar update na rotina', async () => {
+    const response = await request(app.getHttpServer() as Server)
+      .put(`/routine/${routineId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        name: 'Treino A - Peito e Tríceps',
+        description: 'Foco em força',
+        items: [
+          {
+            exerciseId,
+            order: 1,
+            targetSets: 4,
+            targetReps: 12,
+          },
+        ],
+      });
+
+    const body = response.body as RoutineResponse;
+    routineId = body.id;
+
+    expect(response.status).toBe(200);
+    expect(body).toHaveProperty('id');
+    expect(body.name).toBe('Treino A - Peito e Tríceps');
+    expect(body.routineItems[0].targetReps).toBe(12);
   });
 });
