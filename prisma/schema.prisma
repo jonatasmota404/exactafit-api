@@ -18,6 +18,7 @@ model Exercise {
   type          String   @default("strength")
 
   routineItems RoutineItem[]
+  setLogs      SetLog[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -32,6 +33,7 @@ model User {
   password String @db.VarChar(255)
 
   workoutRoutines WorkoutRoutine[]
+  workoutSessions WorkoutSession[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -47,6 +49,7 @@ model WorkoutRoutine {
   description String? @db.VarChar(255)
 
   routineItems RoutineItem[]
+  workoutSessions WorkoutSession[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -67,4 +70,35 @@ model RoutineItem {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("routine_items")
+}
+
+model WorkoutSession {
+  id String @id @default(uuid())
+  userId String @map("user_id")
+  routineId String @map("routine_id")
+  startedAt DateTime @default(now()) @map("started_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workoutRoutine WorkoutRoutine @relation(fields: [routineId], references:[id], onDelete:Cascade)
+
+  setLogs SetLog[]
+
+  @@map("workout_sessions")
+}
+
+model SetLog{
+    id String @id @default(uuid())
+    sessionId String @map("session_id")
+    exerciseId String @map("exercise_id")
+    setNumber Int @map("set_number")
+    weightKg Float @map("weight_kg")
+    repsCompleted Int @map("reps_completed")
+    failed  Boolean @default(false)
+    workoutSession WorkoutSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+    exercise       Exercise       @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+    createdAt DateTime @default(now()) @map("created_at")
+    updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("set_logs")
 }
