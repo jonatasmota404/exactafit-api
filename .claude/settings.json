@@ -24,6 +24,7 @@
       "Bash(git show*)",
       "Bash(git branch*)",
       "Bash(git switch *)",
+      "Bash(git pull --ff-only*)",
       "Bash(git add *)",
       "Bash(git commit *)",
       "Edit(src/**)",
@@ -35,6 +36,7 @@
     "deny": [
       "Bash(rm -rf *)",
       "Bash(rm -fr *)",
+      "Bash(gh pr merge*)",
       "Bash(git push --force*)",
       "Bash(git push -f*)",
       "Bash(git push * --force*)",
@@ -77,6 +79,11 @@
           {
             "type": "command",
             "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/block-destructive.mjs\"",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard-main.mjs\"",
             "timeout": 10
           }
         ]
