@@ -34,13 +34,20 @@ API de treino (NestJS 11 + TypeScript + Prisma 7 + PostgreSQL 16). Contexto: `do
 4. **Diffs pequenos**: um commit por tarefa; se o diff passar de ~300 linhas, pare e divida.
 5. **Nunca declare "pronto" com typecheck, testes ou lint falhando.** Se não conseguir corrigir, diga o que falha.
 6. Não invente comandos: use só os da tabela acima.
-7. Na dúvida sobre regra de negócio, pergunte. Não presuma (veja `docs/domain.md`).
+7. Na dúvida sobre regra de negócio ou faltando informação de domínio, pergunte. Não presuma (veja `docs/domain.md`).
+
+## Regras de verificação
+1. Antes de chamar um problema de "pré-existente" ou "dívida antiga", reproduza-o na `main` limpa.
+2. Afirmação sobre dependências, build, ambiente ou deploy exige comando executado e saída citada. Sem execução, marque **"não verificado"**.
 
 ## Fluxo de trabalho
-1. Tarefa não trivial → plano em `docs/PLAN_TEMPLATE.md`, aprovado pelo humano.
-2. Subagente `implementador` executa o plano aprovado (um commit por tarefa).
-3. Subagente `revisor` revisa o diff (somente leitura).
-4. Decisão estrutural → ADR em `docs/adr/` (copie `0000-template.md`).
+1. O modelo da sessão é definido no início. Se a tarefa recomenda outro modelo, avise antes de começar; não siga com o errado.
+2. Toda branch nasce da `main`. Se depende de outra branch, mergeie a outra primeiro (merge commit, não squash).
+3. Tarefa não trivial → plano em `docs/PLAN_TEMPLATE.md`, aprovado pelo humano.
+4. Subagente `implementador` executa o plano aprovado (um commit por tarefa).
+5. Subagente `revisor` revisa o diff (somente leitura).
+6. Decisão estrutural → ADR em `docs/adr/` (copie `0000-template.md`).
+7. Ao fechar cada tarefa, adicione uma linha em `docs/RETRO.md`.
 
 ## Zonas de risco (pedem confirmação)
 `prisma/migrations/`, `prisma/schema.prisma`, `src/auth/`, `.github/workflows/`, `package.json`, `.claude/`.
