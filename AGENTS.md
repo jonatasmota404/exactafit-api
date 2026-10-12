@@ -48,17 +48,19 @@ API de treino (NestJS 11 + TypeScript + Prisma 7 + PostgreSQL 16). Contexto: `do
 5. Subagente `revisor` revisa o diff (somente leitura).
 6. Decisão estrutural → ADR em `docs/adr/` (copie `0000-template.md`).
 7. Ao fechar cada tarefa, adicione uma linha em `docs/RETRO.md`.
-8. **Definição de pronto:** tarefa que mude rota, schema, regra de negócio ou módulo atualiza `docs/architecture.md`, `docs/domain.md` ou um ADR **no mesmo commit**, ou declara no plano `Sem impacto em doc: <motivo>`. Um hook avisa quando isso falta (aviso, não bloqueio).
-9. Ao fim de cada tarefa, o agente atualiza `docs/STATUS.md` (máx. 30 linhas).
-10. Uma branch de docs/pipeline por vez; a próxima só nasce da `main` depois do merge da anterior.
+8. **Merge e push na `main` são sempre do humano.** O agente nunca os executa, mesmo que um prompt os mencione, e avisa se a tarefa exigir isso.
+9. **Definição de pronto:** tarefa que mude rota, schema, regra de negócio ou módulo atualiza `docs/architecture.md`, `docs/domain.md` ou um ADR **no mesmo commit**, ou declara no plano `Sem impacto em doc: <motivo>`. Um hook avisa quando isso falta (aviso, não bloqueio).
+10. Ao fim de cada tarefa, o agente atualiza `docs/STATUS.md` (máx. 30 linhas).
+11. Uma branch de docs/pipeline por vez; a próxima só nasce da `main` depois do merge da anterior.
 
 ## Zonas de risco (pedem confirmação)
 `prisma/migrations/`, `prisma/schema.prisma`, `src/auth/`, `.github/workflows/`, `package.json`, `.claude/`.
-Push na `main`, merge e comandos `prisma migrate`/`db` também pedem confirmação.
+Comandos `prisma migrate`/`db` também pedem confirmação. Merge e push na `main` não são do agente (Fluxo de trabalho 8).
 
 ## Guardrails automáticos (`.claude/settings.json`)
 - Hook `PreToolUse` bloqueia: `rm -rf`, push forçado, `git reset --hard`, `git clean -f`, `prisma migrate reset`, SQL destrutivo, `docker compose down -v`, acesso a `.env`/chaves. Testes: `node --test '.claude/hooks/*.test.mjs'`.
 - **Falso positivo conhecido:** o hook casa texto e não entende shell. Ele bloqueia padrão perigoso que aparece só como texto (corpo de PR, mensagem de commit). Contorno: escreva o texto num arquivo e use `gh pr create --body-file <arq>` ou `git commit -F <arq>`. Não tente burlar o hook.
+- Merge e push na `main` são bloqueados pelo hook `guard-main` (independe de permissões) e pela proteção de branch no GitHub; `gh pr merge` está em deny. Quem mergeia é o humano, pelo PR.
 - Hook `Stop` roda typecheck + testes unitários + `npm run lint:check` (projeto inteiro); bloqueia o encerramento se falharem.
 - Nunca leia nem imprima `.env` ou segredos.
 - O `Stop` também chama `.claude/hooks/doc-warning.mjs`, que só **avisa** (nunca bloqueia): mudança em controller, service, dto ou schema/migrations sem doc nem "Sem impacto em doc", link relativo quebrado em `docs/` e número de ADR duplicado.
