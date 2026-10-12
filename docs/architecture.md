@@ -1,66 +1,178 @@
 # Arquitetura — exactafit-api
 
-> Preenchido a partir do código em 2026-10-12 (commit `d6dd8c2`). O que não está claro no código está marcado `TODO(humano)`.
+> Mapeado a partir do código da `main` (`0ad9004`) em 2026-10-12. O que o código não responde está marcado `TODO(humano)`.
 
 ## Visão geral
-API REST monolítica em NestJS 11. Cada domínio é um módulo Nest (controller → service → Prisma). Persistência em PostgreSQL 16 via Prisma 7 com `@prisma/adapter-pg`. Autenticação por JWT Bearer (7 dias). `ValidationPipe` global com `whitelist`, `forbidNonWhitelisted` e `transform` (`src/main.ts`).
+API REST monolítica em NestJS 11. Cada domínio é um módulo Nest (controller → service → Prisma). Persistência em PostgreSQL 16 via Prisma 7 com `@prisma/adapter-pg`. Autenticação por JWT Bearer com validade de 7 dias. Não há camada de repositório, filtros de exceção, interceptors nem middlewares próprios.
 
-Fluxo: `HTTP → AuthGuard (se protegido) → Controller → DTO/ValidationPipe → Service → PrismaService → Postgres`.
+### Pontos de entrada
+| Entrada | Arquivo | Observação |
+|---|---|---|
+| Servidor HTTP | `src/main.ts` → `bootstrap()` | Porta `PORT` ou 3000. `ValidationPipe` global com `whitelist`, `forbidNonWhitelisted` e `transform`. Sem CORS, prefixo global, versionamento nem Swagger. |
+| Módulo raiz | `src/app.module.ts` | Importa `PrismaModule`, `ExercisesModule`, `AuthModule` e `RoutineModule`. |
+| Prisma CLI | `prisma.config.ts` | Schema `prisma/schema.prisma`, migrations em `prisma/migrations`, `DATABASE_URL`. |
+| Testes e2e | `test/*.e2e-spec.ts` | Sobem `AppModule` inteiro e **registram de novo** o `ValidationPipe`, porque `main.ts` não roda nos testes. |
+
+### Rotas
+| Método e rota | Auth | Controller → Service |
+|---|---|---|
+| `GET /` | não | `AppController.getHello` → `AppService.getHello` |
+| `POST /auth/register` | não | `AuthController.create` → `AuthService.create` |
+| `POST /auth/login` | não | `AuthController.login` → `AuthService.login` |
+| `POST /exercises` | sim | `ExercisesController.create` → `ExercisesService.create` |
+| `GET /exercises` | sim | `ExercisesController.list` → `ExercisesService.list` |
+| `POST /routine` | sim | `RoutineController.create` → `RoutineService.create` |
+| `GET /routine` | sim | `RoutineController.findAll` → `RoutineService.findAll` |
+| `GET /routine/:id` | sim | `RoutineController.findOne` → `RoutineService.findOne` |
+| `PUT /routine/:id` | sim | `RoutineController.update` → `RoutineService.update` |
+
+### Fluxo de dados
+`HTTP → AuthGuard (rotas protegidas) → ValidationPipe (DTO) → Controller → Service → PrismaService → Postgres`. O `userId` sai de `request.user.sub`, que o `AuthGuard` preenche com o payload do JWT. As respostas são as entidades do Prisma serializadas direto, sem DTO de saída. A única exceção é o `password`, removido à mão no cadastro.
+
+```mermaid
+graph TD
+  main[main.ts<br/>ValidationPipe global] --> App[AppModule]
+  App --> Prisma[PrismaModule @Global<br/>PrismaService]
+  App --> Auth[AuthModule<br/>JwtModule global, AuthGuard]
+  App --> Ex[ExercisesModule]
+  App --> Rt[RoutineModule]
+  Auth --> Prisma
+  Ex --> Prisma
+  Rt --> Prisma
+  Ex -. "@UseGuards(AuthGuard)<br/>sem importar AuthModule" .-> Auth
+  Rt -. "@UseGuards(AuthGuard)<br/>sem importar AuthModule" .-> Auth
+  Prisma --> PG[(PostgreSQL 16)]
+```
 
 ## Módulos
 
-### `prisma` (`src/prisma/`)
-- **Faz:** expõe `PrismaService` (um `PrismaClient` com adapter pg, lendo `DATABASE_URL`) como módulo `@Global`.
-- **Não faz:** não contém regra de negócio nem repositórios.
-- **Depende de:** `@prisma/client`, `@prisma/adapter-pg`, `DATABASE_URL`.
+**`prisma`** (`src/prisma/`): expõe `PrismaService`, que estende `PrismaClient` com o adapter `PrismaPg` lendo `DATABASE_URL` e conecta em `onModuleInit`. É `@Global`, então qualquer módulo injeta o serviço sem importar o módulo. Não contém regra de negócio, repositórios nem `enableShutdownHooks`/`$disconnect`. Depende de `@prisma/client`, `@prisma/adapter-pg` e `dotenv/config`.
 
-### `auth` (`src/auth/`)
-- **Faz:** `POST /auth/register` (bcrypt, salt 10, e-mail único) e `POST /auth/login` (retorna `accessToken` JWT com `sub`=userId e `email`). Exporta `AuthGuard`, que valida o Bearer e popula `request.user`.
-- **Não faz:** refresh token, logout, troca/recuperação de senha, papéis/permissões.
-- **Depende de:** `prisma`, `@nestjs/jwt`, `bcrypt`, `JWT_SECRET`.
+**`auth`** (`src/auth/`): cadastro (`AuthService.create`: e-mail único, bcrypt com custo 10, retorna o usuário sem `password`) e login (`AuthService.login`: compara o hash e assina um JWT `{ sub, email }`). Registra o `JwtModule` como **global**, com `JWT_SECRET` ou um segredo fixo de fallback, e exporta o `AuthGuard`, que extrai o `Bearer`, verifica com `process.env.JWT_SECRET` e grava o payload em `request.user`. Não faz refresh token, logout/revogação, recuperação ou troca de senha, papéis, rate limit nem normalização de e-mail. Depende de `prisma`, `@nestjs/jwt`, `bcrypt` e `dotenv/config`.
 
-### `exercises` (`src/exercises/`)
-- **Faz:** `POST /exercises` e `GET /exercises`: catálogo de exercícios (nome, grupo muscular, tipo; padrão `strength`). Rotas protegidas por `AuthGuard`.
-- **Não faz:** edição, remoção, filtro ou paginação. O catálogo é **global**: não pertence a um usuário.
-- **Depende de:** `prisma`, `auth` (guard).
-- `TODO(humano)`: qualquer usuário autenticado pode criar exercício no catálogo global. Isso é intencional?
+**`exercises`** (`src/exercises/`): catálogo de exercícios com criação e listagem completa. O catálogo é **global**: `Exercise` não tem `userId` e qualquer usuário autenticado cria itens visíveis para todos. Não edita, não remove, não filtra, não pagina e não impede nomes duplicados. Depende de `prisma` e do `AuthGuard`. A dependência do guard é implícita: o módulo não importa `AuthModule` e funciona porque o `JwtModule` é global.
 
-### `routines` (`src/routines/`)
-- **Faz:** CRUD parcial de fichas de treino do usuário logado: `POST /routine`, `GET /routine`, `GET /routine/:id`, `PUT /routine/:id`. Itens ordenados por `order`. O `PUT` com `items` substitui todos os itens dentro de `$transaction`. Todas as queries filtram por `userId` do token.
-- **Não faz:** `DELETE` de ficha; validação de que `exerciseId` existe antes de inserir (fica para a FK).
-- **Depende de:** `prisma`, `auth` (guard).
+**`routines`** (`src/routines/`): fichas de treino (`WorkoutRoutine`) com itens (`RoutineItem`) do usuário logado: criar, listar, detalhar e atualizar. Itens vêm ordenados por `order` na leitura. O `PUT` com `items` apaga e recria todos os itens numa `$transaction`. As leituras filtram por `userId`. Não tem `DELETE`, não valida se o `exerciseId` existe (a FK rejeita), não valida faixas de `targetSets`/`targetReps`/`order` e não impede exercício repetido. Depende de `prisma` e do `AuthGuard`, também de forma implícita. A interface `AuthenticatedRequest` está declarada em `routine.controller.ts`.
 
-### `sessions`: em desenvolvimento (branch `wip/sessions`)
-- Schema já existe na `main` (`WorkoutSession`, `SetLog`, migration `20260822181835`). O módulo ainda não está mergeado.
-- `TODO(humano)`: descrever o que faz, o que não faz e as dependências quando o módulo for integrado.
+**`app`** (`src/app.*`): boilerplate do Nest (`GET /` → `"Hello World!"`), sem autenticação. `TODO(humano)`: manter como health check ou remover?
 
-### `app` (`src/app.*`)
-- Controller/service do boilerplate Nest (`GET /` → "Hello World!").
-- `TODO(humano)`: manter como health check ou remover?
+**`sessions`**: não existe na `main`. O schema (`WorkoutSession`, `SetLog`) e a migration `20260822181835` já estão na `main`, mas nenhum código usa esses modelos. O módulo está em andamento na branch `wip/sessions` (commit `e7300a8`) e não foi mapeado aqui. `TODO(humano)`: documentar quando for integrado.
 
-## Modelo de dados (resumo de `prisma/schema.prisma`)
-`User 1─N WorkoutRoutine 1─N RoutineItem N─1 Exercise` · `User 1─N WorkoutSession N─1 WorkoutRoutine` · `WorkoutSession 1─N SetLog N─1 Exercise`. Todas as FKs usam `onDelete: Cascade`.
-- `TODO(humano)`: o cascade de `Exercise` apaga itens de ficha e históricos de séries (`SetLog`) de todos os usuários. Isso é desejado?
+## Modelo de dados (`prisma/schema.prisma`)
+```mermaid
+erDiagram
+  User ||--o{ WorkoutRoutine : "possui"
+  User ||--o{ WorkoutSession : "realiza"
+  WorkoutRoutine ||--o{ RoutineItem : "contém"
+  Exercise ||--o{ RoutineItem : "referenciado (relação 'exercices')"
+  WorkoutRoutine ||--o{ WorkoutSession : "origina"
+  WorkoutSession ||--o{ SetLog : "registra"
+  Exercise ||--o{ SetLog : "referenciado"
+```
+| Modelo (tabela) | Campos de negócio | Observação |
+|---|---|---|
+| `User` (`users`) | `name` varchar(100), `email` varchar(255) único, `password` varchar(255) (hash) | |
+| `Exercise` (`exercises`) | `name`, `muscleGroup`, `type` (default `"strength"`) | `TEXT` sem limite no banco; o DTO limita a 100. Sem dono. |
+| `WorkoutRoutine` (`workout_routines`) | `userId`, `name` varchar(100), `description?` varchar(255) | |
+| `RoutineItem` (`routine_items`) | `routineId`, `exerciseId`, `order`, `targetSets`, `targetReps` | A relação com `Exercise` se chama `exercices` (grafia). |
+| `WorkoutSession` (`workout_sessions`) | `userId`, `routineId`, `startedAt` | Sem `finishedAt`, `createdAt` ou `updatedAt`. |
+| `SetLog` (`set_logs`) | `sessionId`, `exerciseId`, `setNumber`, `weightKg` (Float), `repsCompleted`, `failed` (default `false`) | Sem unicidade por (sessão, exercício, série). |
 
-## Zonas de risco
-| Caminho | Por quê |
-|---|---|
-| `prisma/migrations/` | Histórico aplicado em produção/CI; nunca editar migration existente. |
-| `prisma/schema.prisma` | Mudança exige migration e afeta todos os módulos. |
-| `src/auth/` | Autenticação e segredo JWT. |
-| `.github/workflows/` | Pipeline de CI. |
+Todas as FKs usam `ON DELETE CASCADE`. Ids são UUID em `TEXT`. Não há índices nas colunas de FK.
 
-## Dívidas e pontos de atenção (não corrigidos)
-- **Lint:** na `main` (`d6dd8c2`), `npm run lint:check` passa limpo, e o hook de encerramento roda o lint do projeto inteiro. Os 42 erros encontrados na leitura inicial estão no WIP da branch `wip/sessions` (`test/session.e2e-spec.ts` e specs de `sessions`). Precisam ser corrigidos antes de ela voltar para a `main`.
-- **Testes unitários de `sessions`** (na `wip/sessions`): 2 suítes falham por injeção de dependência (`PrismaService` não provido no `TestingModule`).
-- **CI** usa `npx tsc --noEmit` em vez de `npm run typecheck`. Ver TODO abaixo.
-- **Segredo JWT com fallback hardcoded** em `src/auth/auth.module.ts`. Se `JWT_SECRET` faltar no ambiente, tokens são assinados e aceitos com um segredo que está público no repositório (o `@nestjs/jwt` cai no secret do módulo quando o guard passa `undefined`). Avaliar falhar no boot sem a env.
-- **Segredos do CI** (`JWT_SECRET` e senha do Postgres de teste) estão em texto no `ci.yml`.
-- Relação nomeada `exercices` (grafia) em `RoutineItem`. Renomear exige cuidado com o client gerado.
-- `Exercise` não tem limites `VarChar` no banco (o DTO limita a 100).
+## Fluxos ponta a ponta
+
+### 1. Cadastro de usuário (`POST /auth/register`)
+1. `src/main.ts` `bootstrap()`: o `ValidationPipe` valida o body contra `RegisterUserDto` (`src/auth/dto/register.dto.ts`): `name` 1–100, `email` válido ≤255, `password` 6–72. Campo extra → 400.
+2. `src/auth/auth.controller.ts` `AuthController.create(dto)` → delega.
+3. `src/auth/auth.service.ts` `AuthService.create`: `prisma.user.findUnique({ email })`. Se existir → `ConflictException` (409).
+4. Mesmo método: `bcrypt.hash(password, 10)` → `prisma.user.create`.
+5. Remove `password` do objeto e retorna 201 com `id, name, email, createdAt, updatedAt`.
+- Coberto por `test/auth.e2e-spec.ts` (sucesso e duplicado).
+
+### 2. Login e acesso autenticado (`POST /auth/login` → `GET /routine/:id`)
+1. `LoginUserDto` (`src/auth/dto/login.dto.ts`) valida `email` e `password` (6–72).
+2. `AuthController.login` → `AuthService.login`: `findUnique({ email })`. Usuário inexistente ou senha errada (`bcrypt.compare`) → 401 `"Credenciais inválidas"`.
+3. `jwtService.signAsync({ sub: user.id, email })` com o segredo e o `expiresIn: '7d'` de `src/auth/auth.module.ts`. Retorna 201 `{ accessToken }`.
+4. Na requisição seguinte, `src/auth/auth.guard.ts` `AuthGuard.canActivate` → `extractTokenFromHeader` (`Bearer <token>`) → `verifyAsync(token, { secret: process.env.JWT_SECRET })` → `request.user = payload`. Qualquer falha → 401 `"Token inválido"`.
+5. `src/routines/routine.controller.ts` `RoutineController.findOne`: `ParseUUIDPipe` no `:id` (400 se não for UUID) e `userId = req.user.sub`.
+6. `src/routines/routine.service.ts` `RoutineService.findOne`: `workoutRoutine.findFirst({ id, userId })` com `routineItems` + `exercices` ordenados por `order`. Se não achar (inexistente ou de outro usuário) → 404 `"Ficha de treino não encontrada"`.
+- Coberto por `test/auth.e2e-spec.ts` e `test/routines.e2e-spec.ts` (o teste de `GET /routine/:id` não confere o status, e não há teste de acesso a ficha de outro usuário).
+
+### 3. Atualização de ficha (`PUT /routine/:id`)
+1. `AuthGuard` (como no fluxo 2) e `ParseUUIDPipe`.
+2. `UpdateRoutineDto` (`src/routines/dto/update-routine.dto.ts`) = `PartialType(CreateRoutineDto)`: todos os campos opcionais. Se `items` vier, cada item é validado por `CreateRoutineItemDto` (`exerciseId` UUID; `order`, `targetSets` e `targetReps` inteiros).
+3. `RoutineController.update` → `RoutineService.update(userId, id, dto)`.
+4. `RoutineService.update` chama `this.findOne(userId, id)` para checar a posse (404 se não for dono). Essa checagem roda **fora** da transação.
+5. `prisma.$transaction`: se `dto.items` existir, `routineItem.deleteMany({ routineId: id })`. Depois `workoutRoutine.update({ where: { id } })` com `name`/`description` e `routineItems.create` dos novos itens. Os ids dos itens mudam a cada update.
+6. Retorna 200 com a ficha e os itens (com `exercices`) ordenados.
+- Coberto por `test/routines.e2e-spec.ts` (apenas o caminho feliz).
+
+## Zonas de risco e dívidas
+
+### Código sem teste
+- Teste unitário só existe para o boilerplate (`src/app.controller.spec.ts`). Nenhum service ou guard tem teste unitário.
+- `exercises`: sem nenhum teste (nem e2e).
+- `routines`: e2e só no caminho feliz. Faltam 404, acesso a ficha de outro usuário, `PUT` sem `items`, `exerciseId` inexistente e `GET /routine/:id` com status conferido.
+- `AuthGuard`: sem teste de token expirado ou malformado.
+- Os e2e não limpam os dados que criam (usuários e exercícios ficam no banco).
+
+### Duplicação
+- O bloco `include: { routineItems: { include: { exercices: true }, orderBy: { order: 'asc' } } }` aparece 3× em `routine.service.ts` (`findAll`, `findOne`, `update`).
+- O `map` de `items` → `RoutineItem` aparece 2× (`create`, `update`).
+- A configuração do `ValidationPipe` aparece em `src/main.ts` e é copiada nos e2e. Se mudar em um lugar, os testes deixam de refletir a produção.
+- `import 'dotenv/config'` aparece em 3 arquivos (`auth.module.ts`, `auth.guard.ts`, `prisma.service.ts`).
+- A forma do payload JWT é declarada 2× (`JwtPayload` no guard e `AuthenticatedRequest` no controller de rotinas).
+
+### Acoplamento
+- `exercises` e `routines` usam `AuthGuard` sem importar `AuthModule`. Funcionam só porque `JwtModule` é `global: true`.
+- O segredo JWT tem duas fontes: o módulo usa `JWT_SECRET || '<fallback fixo>'` e o guard passa `process.env.JWT_SECRET`. Sem a env, o guard passa `undefined` e o `@nestjs/jwt` cai no fallback, que está público no repositório (`src/auth/auth.module.ts:14`).
+- `dotenv` é importado em runtime mas **não está no `package.json`**. Ele chega como dependência transitiva de desenvolvimento (`c12`, via `prisma`). Uma instalação só com dependências de produção pode quebrar no boot. `TODO(humano)`: confirmar como é feito o deploy.
+- `RoutineItem` → `Exercise` com cascade: apagar um exercício do catálogo global apagaria itens de fichas e `SetLog` de **todos** os usuários. Hoje nenhuma rota apaga exercícios.
+- `WorkoutRoutine` → `WorkoutSession` → `SetLog` com cascade: apagar uma ficha apagaria o histórico de sessões. Hoje nenhuma rota apaga fichas.
+
+### Validação e autenticação dos endpoints
+- `GET /` é público. É intencional se for health check.
+- `POST /exercises`: qualquer usuário autenticado escreve no catálogo global.
+- `POST/PUT /routine`: `items` aceita lista vazia. `order`, `targetSets` e `targetReps` aceitam zero e negativos. `exerciseId` inexistente gera erro de FK do Prisma, que não é tratado e provavelmente vira 500. Itens com `order` ou exercício repetido são aceitos.
+- `PUT /routine/:id`: o `PartialType` torna os campos `@IsOptional`, que aceita `null`. Um `name: null` passaria pela validação e falharia no Prisma (coluna `NOT NULL`). Não verificado em execução.
+- `PUT /routine/:id`: `deleteMany` e `update` filtram só por `id`/`routineId`, não por `userId`. A posse é garantida pelo `findOne` anterior, fora da transação. Isso foge da convenção "toda query filtra por `userId`".
+- `POST /auth/register`: a corrida entre `findUnique` e `create` resulta em violação de unicidade não tratada (500 em vez de 409). O e-mail não é normalizado (maiúsculas/minúsculas).
+- `POST /auth/login`: sem limite de tentativas. Senha com menos de 6 caracteres retorna 400, não 401.
+- Não há filtro global para erros do Prisma (`P2002`, `P2003`, `P2025`).
+
+### Migrations
+- `20260818145558_rename_exercise_table` e `20260819144834_create_routines_and_routine_items_tables` fazem `DROP TABLE` + `CREATE` para renomear tabelas (`exercicios` → `exercices` → `exercises`). Aplicadas sobre um banco com dados, essas migrations apagam os dados. `TODO(humano)`: já existe algum ambiente com dados?
+- `20260820002725_add_varchar_limits` converte `TEXT` → `VARCHAR`. Falha se houver valor maior que o limite.
+- `exercises` ficou sem limites `VARCHAR`, diferente das outras tabelas.
+- Nenhuma migration cria índice nas FKs (`user_id`, `routine_id`, `exercise_id`, `session_id`).
+- `weight_kg` é `DOUBLE PRECISION` (ponto flutuante) para carga.
+
+### Outros
+- Na `main`, o CI roda `npx tsc --noEmit` (o ajuste para `npm run typecheck` está na branch `chore/ci-typecheck`). O passo de lint usa `npm run lint`, que tem `--fix`: o CI corrige em vez de falhar em problemas auto-corrigíveis.
+- O CI tem `JWT_SECRET` e a senha do Postgres de teste em texto puro no `ci.yml`.
+- `tsconfig.json` com `noImplicitAny: false`.
 - `README.md` é o boilerplate do Nest.
+- Branch `wip/sessions`: tem 42 erros de lint e 2 suítes unitárias falhando (ver `AGENTS.md`).
 
-## TODO(humano)
-- [ ] Trocar no CI `npx tsc --noEmit` por `npm run typecheck` (pasta de risco, não alterada).
-- [ ] Rodar `npm run test:e2e` com Postgres local e confirmar que passa (não verificado na baseline).
-- [ ] Responder as perguntas marcadas acima (catálogo global, cascade de `Exercise`, `app` controller).
+## Contrato OpenAPI
+**Não existe.** `@nestjs/swagger` não está nas dependências e o `main.ts` não monta documento algum. Não há arquivo `openapi.*` no repositório.
+
+Proposta (não implementada; exige aprovação de dependência nova):
+1. Adicionar `@nestjs/swagger`.
+2. Em `main.ts`, usar `DocumentBuilder` (título, versão, `addBearerAuth()`) + `SwaggerModule.createDocument` + `SwaggerModule.setup('docs', ...)`.
+3. Ativar o plugin do CLI em `nest-cli.json` (`"plugins": [{ "name": "@nestjs/swagger", "options": { "classValidatorShim": true } }]`), que infere os schemas a partir dos DTOs e do `class-validator` sem decorators manuais.
+4. Marcar as rotas protegidas com `@ApiBearerAuth()`. Para tipar as respostas, criar DTOs de saída (hoje as respostas são entidades Prisma).
+5. Opcional: gerar um `openapi.json` versionado e comparar no CI para detectar quebra de contrato.
+
+## Perguntas em aberto
+1. O catálogo de exercícios deve continuar global e editável por qualquer usuário autenticado? Ou é por usuário, ou só admin?
+2. Apagar um exercício ou uma ficha deve apagar o histórico (`SetLog`/`WorkoutSession`) em cascata? Ou o correto é bloquear ou fazer soft delete?
+3. Quais faixas são válidas para `targetSets`, `targetReps` e `order`? `order` precisa ser único e sequencial? Uma ficha pode ficar sem itens?
+4. O mesmo exercício pode aparecer mais de uma vez na mesma ficha?
+5. `PUT /routine/:id` é atualização parcial (semântica de PATCH) por design? Recriar os itens com ids novos é aceitável para as sessões que referenciam a ficha?
+6. Sessões precisam de fim (`finishedAt`) e de estado (aberta/encerrada)? Pode haver mais de uma sessão aberta?
+7. Quais são os valores válidos de `Exercise.type` e `muscleGroup` (lista fechada?) e o que significa `SetLog.failed`?
+8. A unidade de carga é sempre kg? `Float` é aceitável ou deve ser decimal com precisão fixa?
+9. O e-mail deve ser case-insensitive? Qual a política de senha e de expiração (7 dias sem refresh é o desejado)?
+10. Como é o deploy (há `npm ci --omit=dev`)? Isso define se `dotenv` precisa virar dependência direta e se o fallback do `JWT_SECRET` deve ser removido.
