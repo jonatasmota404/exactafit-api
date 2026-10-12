@@ -1,6 +1,6 @@
 # Arquitetura — exactafit-api
 
-> Mapeado a partir do código da `main` (`0ad9004`) em 2026-10-12. O que o código não responde está marcado `TODO(humano)`.
+> Mapeado a partir do código da versão da `main` de 2026-10-12. O que o código não responde está marcado `TODO(humano)`.
 
 ## Visão geral
 API REST monolítica em NestJS 11. Cada domínio é um módulo Nest (controller → service → Prisma). Persistência em PostgreSQL 16 via Prisma 7 com `@prisma/adapter-pg`. Autenticação por JWT Bearer com validade de 7 dias. Não há camada de repositório, filtros de exceção, interceptors nem middlewares próprios.
@@ -83,7 +83,7 @@ Todas as FKs usam `ON DELETE CASCADE`. Ids são UUID em `TEXT`. Não há índice
 ## Fluxos ponta a ponta
 
 ### 1. Cadastro de usuário (`POST /auth/register`)
-1. `src/main.ts` `bootstrap()`: o `ValidationPipe` valida o body contra `RegisterUserDto` (`src/auth/dto/register.dto.ts`): `name` 1–100, `email` válido ≤255, `password` 6–72. Campo extra → 400.
+1. `src/main.ts` `bootstrap()`: o `ValidationPipe` valida o body contra `RegisterUserDto` (`src/auth/dto/register.dto.ts`): `name` 1–100, `email` válido ≤255, `password` 6–72 (comportamento atual; decidido em U3: ver `docs/domain.md`). Campo extra → 400.
 2. `src/auth/auth.controller.ts` `AuthController.create(dto)` → delega.
 3. `src/auth/auth.service.ts` `AuthService.create`: `prisma.user.findUnique({ email })`. Se existir → `ConflictException` (409).
 4. Mesmo método: `bcrypt.hash(password, 10)` → `prisma.user.create`.
@@ -91,7 +91,7 @@ Todas as FKs usam `ON DELETE CASCADE`. Ids são UUID em `TEXT`. Não há índice
 - Coberto por `test/auth.e2e-spec.ts` (sucesso e duplicado).
 
 ### 2. Login e acesso autenticado (`POST /auth/login` → `GET /routine/:id`)
-1. `LoginUserDto` (`src/auth/dto/login.dto.ts`) valida `email` e `password` (6–72).
+1. `LoginUserDto` (`src/auth/dto/login.dto.ts`) valida `email` e `password` (6–72; comportamento atual; decidido em U3: ver `docs/domain.md`).
 2. `AuthController.login` → `AuthService.login`: `findUnique({ email })`. Usuário inexistente ou senha errada (`bcrypt.compare`) → 401 `"Credenciais inválidas"`.
 3. `jwtService.signAsync({ sub: user.id, email })` com o segredo e o `expiresIn: '7d'` de `src/auth/auth.module.ts`. Retorna 201 `{ accessToken }`.
 4. Na requisição seguinte, `src/auth/auth.guard.ts` `AuthGuard.canActivate` → `extractTokenFromHeader` (`Bearer <token>`) → `verifyAsync(token, { secret: process.env.JWT_SECRET })` → `request.user = payload`. Qualquer falha → 401 `"Token inválido"`.
@@ -111,11 +111,14 @@ Todas as FKs usam `ON DELETE CASCADE`. Ids são UUID em `TEXT`. Não há índice
 ## Zonas de risco e dívidas
 
 ### Código sem teste
-- Teste unitário só existe para o boilerplate (`src/app.controller.spec.ts`). Nenhum service ou guard tem teste unitário.
-- `exercises`: sem nenhum teste (nem e2e).
-- `routines`: e2e só no caminho feliz. Faltam 404, acesso a ficha de outro usuário, `PUT` sem `items`, `exerciseId` inexistente e `GET /routine/:id` com status conferido.
-- `AuthGuard`: sem teste de token expirado ou malformado.
-- Os e2e não limpam os dados que criam (usuários e exercícios ficam no banco).
+- Teste unitário (`src/**/*.spec.ts`): só `src/app.controller.spec.ts`, do boilerplate. Nenhum service ou guard tem teste unitário.
+- Testes e2e (`test/`, exigem Postgres): `app.e2e-spec.ts`, `auth.e2e-spec.ts`, `routines.e2e-spec.ts` e os de caracterização `authguard-caracterizacao.e2e-spec.ts`, `exercises-caracterizacao.e2e-spec.ts` e `routines-caracterizacao.e2e-spec.ts`.
+- Caracterização (cobre `AuthGuard`, `exercises` e `routines`: 401, validação, posse, itens e ordenação). As divergências de `domain.md` travadas por teste, em `describe('comportamento atual (diverge de domain.md)')`, que quebram de propósito quando a regra for implementada:
+  - `AuthGuard`: C1 (token de usuário inexistente ou removido continua aceito, 200).
+  - `exercises`: E1/E2 (exercício sem dono, visível a todos), E4 (`muscleGroup` texto livre) e E4 (`type` aceito no POST).
+  - `routines`: F4 (faixas e `order` zero ou negativo), F11 (`order` repetido), F10 (51 itens e mais de 10 fichas), F6 (`exerciseId` inexistente dá 500; também com exercício de outro usuário, F6/E1) e caso 1 (`PUT` com `name: null` dá 500).
+- Ainda sem teste: services e guard em nível unitário; `AuthService` (cadastro e login) só tem o e2e `auth.e2e-spec.ts`.
+- Os e2e antigos (`auth.e2e-spec.ts`, `routines.e2e-spec.ts`) não limpam os dados que criam; os de caracterização removem usuários e exercícios no `afterAll`.
 
 ### Duplicação
 - O bloco `include: { routineItems: { include: { exercices: true }, orderBy: { order: 'asc' } } }` aparece 3× em `routine.service.ts` (`findAll`, `findOne`, `update`).
