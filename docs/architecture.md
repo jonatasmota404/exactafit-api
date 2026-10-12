@@ -101,7 +101,7 @@ Todas as FKs usam `ON DELETE CASCADE`. Ids são UUID em `TEXT`. Não há índice
 
 ### 3. Atualização de ficha (`PUT /routine/:id`)
 1. `AuthGuard` (como no fluxo 2) e `ParseUUIDPipe`.
-2. `UpdateRoutineDto` (`src/routines/dto/update-routine.dto.ts`) = `PartialType(CreateRoutineDto)`: todos os campos opcionais. Se `items` vier, cada item é validado por `CreateRoutineItemDto` (`exerciseId` UUID; `order`, `targetSets` e `targetReps` inteiros).
+2. `UpdateRoutineDto` (`src/routines/dto/update-routine.dto.ts`) = `PartialType(OmitType(CreateRoutineDto, ['name']))` + `name` redeclarado, validado sempre que presente (inclusive `null`, que dá 400): os demais campos são opcionais. Se `items` vier, cada item é validado por `CreateRoutineItemDto` (`exerciseId` UUID; `order`, `targetSets` e `targetReps` inteiros).
 3. `RoutineController.update` → `RoutineService.update(userId, id, dto)`.
 4. `RoutineService.update` chama `this.findOne(userId, id)` para checar a posse (404 se não for dono). Essa checagem roda **fora** da transação.
 5. `prisma.$transaction`: se `dto.items` existir, `routineItem.deleteMany({ routineId: id })`. Depois `workoutRoutine.update({ where: { id } })` com `name`/`description` e `routineItems.create` dos novos itens. Os ids dos itens mudam a cada update.
@@ -116,7 +116,7 @@ Todas as FKs usam `ON DELETE CASCADE`. Ids são UUID em `TEXT`. Não há índice
 - Caracterização (cobre `AuthGuard`, `exercises` e `routines`: 401, validação, posse, itens e ordenação). As divergências de `domain.md` travadas por teste, em `describe('comportamento atual (diverge de domain.md)')`, que quebram de propósito quando a regra for implementada:
   - `AuthGuard`: C1 (token de usuário inexistente ou removido continua aceito, 200).
   - `exercises`: E1/E2 (exercício sem dono, visível a todos), E4 (`muscleGroup` texto livre) e E4 (`type` aceito no POST).
-  - `routines`: F4 (faixas e `order` zero ou negativo), F11 (`order` repetido), F10 (51 itens e mais de 10 fichas), F6 (`exerciseId` inexistente dá 500; também com exercício de outro usuário, F6/E1) e caso 1 (`PUT` com `name: null` dá 500).
+  - `routines`: F4 (faixas e `order` zero ou negativo), F11 (`order` repetido), F10 (51 itens e mais de 10 fichas), F6 (`exerciseId` inexistente dá 500; também com exercício de outro usuário, F6/E1).
 - Ainda sem teste: services e guard em nível unitário; `AuthService` (cadastro e login) só tem o e2e `auth.e2e-spec.ts`.
 - Os e2e antigos (`auth.e2e-spec.ts`, `routines.e2e-spec.ts`) não limpam os dados que criam; os de caracterização removem usuários e exercícios no `afterAll`.
 
@@ -138,7 +138,6 @@ Todas as FKs usam `ON DELETE CASCADE`. Ids são UUID em `TEXT`. Não há índice
 - `GET /` é público. É intencional se for health check.
 - `POST /exercises`: qualquer usuário autenticado escreve no catálogo global.
 - `POST/PUT /routine`: `items` aceita lista vazia. `order`, `targetSets` e `targetReps` aceitam zero e negativos. `exerciseId` inexistente gera erro de FK do Prisma, que não é tratado e provavelmente vira 500. Itens com `order` ou exercício repetido são aceitos.
-- `PUT /routine/:id`: o `PartialType` torna os campos `@IsOptional`, que aceita `null`. Um `name: null` passaria pela validação e falharia no Prisma (coluna `NOT NULL`). Não verificado em execução.
 - `PUT /routine/:id`: `deleteMany` e `update` filtram só por `id`/`routineId`, não por `userId`. A posse é garantida pelo `findOne` anterior, fora da transação. Isso foge da convenção "toda query filtra por `userId`".
 - `POST /auth/register`: a corrida entre `findUnique` e `create` resulta em violação de unicidade não tratada (500 em vez de 409). O e-mail não é normalizado (maiúsculas/minúsculas).
 - `POST /auth/login`: sem limite de tentativas. Senha com menos de 6 caracteres retorna 400, não 401.
