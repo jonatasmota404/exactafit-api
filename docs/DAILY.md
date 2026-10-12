@@ -29,6 +29,7 @@ Plano gerado em modo leitura; você corta o excesso e aprova ANTES de qualquer c
 
 ## Executar (automático)
 Testes primeiro, implementação em loop até typecheck, testes e lint:check passarem, e revisor em sessão limpa. Seu papel: não interferir. Se travar, pare e replaneje; não force. O agente nunca faz merge nem push na main.
+Uma sessão por diretório de trabalho; para sessões paralelas, use `git worktree add ../<repo>-<branch> <branch>`.
 
 ## Aceitar (você)
 - Leia o diff dos pontos de risco e da documentação; não leia tudo.

@@ -31,7 +31,7 @@ API de treino (NestJS 11 + TypeScript + Prisma 7 + PostgreSQL 16). Contexto: `do
 1. Faça a **menor mudança que resolve** o problema pedido. Nada além do escopo.
 2. **Sem abstração antes do segundo uso real** (nada de helpers, bases genéricas ou interfaces "para o futuro").
 3. **Sem dependência nova** sem aprovação explícita do humano.
-4. **Diffs pequenos**: um commit por tarefa; se o diff passar de ~300 linhas, pare e divida.
+4. **Diffs pequenos**: um commit por tarefa; se o diff de código de produção passar de ~300 linhas, pare e divida. Testes de caracterização e docs podem exceder, em commits coesos.
 5. **Nunca declare "pronto" com typecheck, testes ou lint falhando.** Se não conseguir corrigir, diga o que falha.
 6. Não invente comandos: use só os da tabela acima.
 7. Na dúvida sobre regra de negócio ou faltando informação de domínio, pergunte. Não presuma (veja `docs/domain.md`).
