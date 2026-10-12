@@ -131,6 +131,20 @@ DATABASE_URL="postgresql://postgres:1234@localhost:5433/exactafitdb" npm run tes
 3. **Lugar do teste:** ok mover o teste do caso 1 de `comportamento atual (diverge de domain.md)` para `PUT /routine/:id`, já que deixa de ser divergência?
 4. **Quem mergeou o PR #18?** O acréscimo ao prompt deixou o campo sem preencher (`[PREENCHA: eu mesmo | não sei]`). O `gh pr view 18` mostra a conta `jonatasmota404` em `mergedBy`, mas isso não diz por que o PR foi mergeado sem plano nem revisão. Não registro a autoria na RETRO até você responder.
 
+## Aprovação e respostas do humano (2026-10-12)
+Plano **aprovado** com estas respostas:
+1. Nome só com espaços: não alterar agora. Registrar como pendência no `domain.md` (decisão futura do humano sobre trim).
+2. Abordagem aprovada: `PartialType(OmitType(CreateRoutineDto, ['name']))` com `name` redeclarado e `ValidateIf(v !== undefined)`. Alternativa `skipNullProperties: false` descartada. `description: null` continua limpando a descrição (comportamento atual); registrar no `domain.md` como regra `CONFIRMAR(humano)`.
+3. O teste do caso 1 passa para `describe('PUT /routine/:id')` e sai do bloco de divergências.
+4. O PR #18 foi mergeado pelo humano, pelo navegador.
+
+Ajustes decorrentes, além do que já está acima:
+- **Branch:** implementação nesta mesma branch (`plan/caso1-put-name-null`), sem branch `fix/*` e sem merge de nenhuma branch; o PR leva plano e código juntos (decisão do humano).
+- **Prompt de implementação:** não chegou colado; o humano mandou seguir com este plano e o fluxo do `AGENTS.md`.
+- **Tarefa 2, `domain.md`:** além do caso 1, (a) pendência sobre `name` só com espaços (trim), marcada `TODO(humano)`; (b) regra "`description: null` no `PUT` limpa a descrição", marcada `CONFIRMAR(humano)`.
+- **Tarefa 3, `RETRO.md`:** terceira linha: "O hook guard-main deu falso positivo num comando composto `git switch -c <branch> main && git merge ...` (leu o `main` do switch como a branch ativa); o agente parou sem contornar e relatou o comando", com "onde virou regra" = pendência de ajuste do hook (fila). A linha do PR #18 registra que ele foi mergeado pelo humano, pelo navegador.
+- **Tarefa 3, `STATUS.md`:** a fila ganha o ajuste do falso positivo do `guard-main`.
+
 ## Resultado (preencher ao concluir)
 - **O que foi feito:**
 - **Desvios do plano:**
