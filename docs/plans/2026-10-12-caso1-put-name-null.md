@@ -14,6 +14,14 @@ Hoje `PUT /routine/:id` com `{"name": null}` passa na validação e quebra no Pr
 - O 500 nasce no Prisma Client, não no banco: `src/routines/routine.service.ts:83` (`tx.workoutRoutine.update`) lança `Argument \`name\` must not be null.` (saída do e2e `-t "caso 1"`, rodado nesta sessão). O texto do teste e do `domain.md` diz "falha no banco"; é impreciso, sem efeito no plano.
 - Linha de base do e2e (`DATABASE_URL=...5433... npm run test:e2e -- routines-caracterizacao`): `Tests: 2 todo, 31 passed, 33 total`. Inclui `test/routines-caracterizacao.e2e-spec.ts:354`, que já afirma `PUT` com `name: ''` → 400. **"Valor vazio" (`''`) já está coberto e já dá 400;** a tarefa real é só o `null`.
 
+## Contexto: a `main` mudou depois do plano (conferido nesta sessão)
+- `git fetch --all --prune` e depois `git log --oneline -1 origin/main` → `0b0814b Merge pull request #18 from jonatasmota404/wip/sessions`. `git diff --stat main origin/main` vazio: a branch do plano nasceu dessa `main`.
+- `git log --oneline 150ce1c..0b0814b`: o PR #18 trouxe `e7300a8 wip: sessions`, o merge da `main` (`9f616b8`) e dois commits de correção fora desta fila: `2e0d960 fix(sessions): corrige as suítes unitárias de sessions` e `965eee9 chore(sessions): corrige lint de sessions`.
+- Entraram 6 arquivos em `src/sessions/` (107 linhas, `git diff --stat 150ce1c 0b0814b`). Nenhum e2e nem teste de caracterização de sessions (`ls test | grep -i session` vazio).
+- `gh pr view 18`: `"reviews":[]`, `mergedBy.login: "jonatasmota404"`, `mergedAt: 2026-10-12T20:43:48Z`.
+- CI (`.github/workflows/ci.yml`): não tem passo de `npm test`. A linha 48 roda `npm run lint`, que é `eslint ... --fix` (`package.json:15`): corrige em vez de falhar.
+- Linha de base na `main` atual: `npm test` → `Tests: 3 passed, 3 total`; `npm run lint:check` sem erros.
+
 ## Abordagem
 Em `update-routine.dto.ts`, tirar `name` do `PartialType` e redeclarar só ele, validando quando vier (inclusive `null`) e pulando só quando ausente:
 
@@ -55,7 +63,11 @@ export class UpdateRoutineDto extends PartialType(
 ## Tarefas (um commit cada)
 1. **Teste primeiro (commit 1, `test(routines): ...`):** em `test/routines-caracterizacao.e2e-spec.ts`, o teste `caso 1` (linhas 447-458) deixa de afirmar o 500 e passa a afirmar 400 + `name` inalterado. Como não diverge mais do `domain.md`, sai de `describe('comportamento atual (diverge de domain.md)')` (linha 370) e vai para `describe('PUT /routine/:id')` (linha 270), junto do teste `400 com name vazio ou campo desconhecido` (linha 347). Acrescentar os casos dos critérios 3 e 5 (sem `name` → 200; 101 caracteres → 400). Rodar o e2e e **registrar que o caso `null` falha** (recebe 500) antes da correção. Os casos novos dos critérios 3 e 5 devem passar já aqui (caracterizam o comportamento que precisa ser preservado).
 2. **Correção + docs (commit 2, `fix(routines): ...`):** alterar `src/routines/dto/update-routine.dto.ts` conforme a abordagem; atualizar `docs/domain.md` e `docs/architecture.md` (seção Documentação) **no mesmo commit**. Rodar tudo de "Como verificar"; o teste do commit 1 passa a passar.
-3. **Fechamento (commit 3, `docs: ...`):** preencher "Resultado" neste plano, uma linha em `docs/RETRO.md`, atualizar `docs/STATUS.md` (tirar o caso 1 de "Divergências" e da "Fila de código").
+3. **Fechamento (commit 3, `docs: ...`):**
+   - Preencher "Resultado" neste plano.
+   - `docs/STATUS.md`: reescrever com o estado conferido por comando (hoje cita `5722f6e` e `wip/sessions` como pendente). Tirar o caso 1 de "Divergências" e da "Fila de código". Registrar, com este texto: "módulo sessions entrou na main via PR #18 sem plano nem revisão contra domain.md (S1–S9) e sem testes de caracterização; auditoria pendente antes de qualquer deploy". Na fila, logo depois do Caso 1 (que sai por estar feito, então no topo): (1) auditar e travar o módulo sessions; (2) endurecer o CI (manter o nome do job `build-and-check`, rodar unitários e `lint:check`). O resto da fila segue a ordem atual, sem o item "Endurecer o CI" duplicado.
+   - `AGENTS.md`, "Dívida conhecida": trocar a linha de `wip/sessions` (42 erros de lint e 2 suítes falhando, hoje desatualizada) pelo mesmo texto registrado no STATUS.
+   - `docs/RETRO.md`, duas linhas: (a) a do caso 1; (b) "wip/sessions foi mergeada via PR sem plano nem revisão; o CI não detecta suíte unitária quebrada nem lint com --fix; o merge passou pela proteção da main (PR e check) como projetado, mas a proteção não substitui o plano", indicando quem mergeou conforme a pergunta 4.
 
 Diff estimado de produção: ~10 linhas (um arquivo). Testes: ~30 linhas.
 
@@ -67,8 +79,9 @@ Diff estimado de produção: ~10 linhas (um arquivo). Testes: ~30 linhas.
 | `docs/domain.md` | Caso 1 resolvido; linha "Caso 1" sai de "Mudanças de código decorrentes". |
 | `docs/architecture.md` | Linhas 104, 119 e 141: descrição do `UpdateRoutineDto` e das divergências. |
 | `docs/plans/2026-10-12-caso1-put-name-null.md` | "Resultado". |
-| `docs/RETRO.md` | Uma linha. |
-| `docs/STATUS.md` | Caso 1 resolvido. |
+| `docs/RETRO.md` | Duas linhas: caso 1 e merge do PR #18. |
+| `docs/STATUS.md` | Reescrito: caso 1 resolvido, registro de sessions, fila nova. |
+| `AGENTS.md` | Só a linha de `wip/sessions` em "Dívida conhecida". |
 
 Qualquer outro arquivo no diff é suspeito (em especial `create-routine.dto.ts`, `routine.service.ts`, `routine.controller.ts`, `src/main.ts`).
 
@@ -109,12 +122,14 @@ DATABASE_URL="postgresql://postgres:1234@localhost:5433/exactafitdb" npm run tes
 - Trim de `name`, mensagens de erro customizadas, filtro global de erros do Prisma.
 - `POST /routine` com `name: null`: pelo código já dá 400 (`IsString` roda, sem `IsOptional`); **não verificado em execução**, sem mudança.
 - F6 (`exerciseId` inexistente → 400), F4, F11: próximos itens da fila.
-- `AGENTS.md` "Dívida conhecida" ainda cita `wip/sessions` como pendente, mas o PR #18 já a mergeou (`git log`: `0b0814b Merge pull request #18 from jonatasmota404/wip/sessions`); `STATUS.md` também está defasado (cita `5722f6e`). Não corrigir aqui além do caso 1 no STATUS; registrar como pendência.
+- Auditar o módulo sessions contra S1–S9 e escrever testes de caracterização: fica só enfileirado no STATUS.
+- Mudar `.github/workflows/ci.yml` (zona de risco): fica só enfileirado no STATUS.
 
 ## Perguntas para o humano
 1. **Só espaços conta como "vazio"?** O pedido diz "rejeitar `null` e valor vazio". `''` já dá 400. `"   "` hoje é aceito no `POST` e no `PUT`; o `domain.md` (F2, caso 1) não diz nada. Recomendo **não** mexer agora (mudaria também o `POST`, fora do caso 1) e, se quiser, abrir regra nova em F2. Confirma?
 2. **Abordagem:** confirma a redeclaração só de `name` (escopo exato, três decoradores duplicados) em vez de `skipNullProperties: false` (uma linha, mas `description: null` e `items: null` também viram 400)? Ligado a isso: `description: null` no `PUT` deve continuar limpando a descrição? O `domain.md` não responde.
 3. **Lugar do teste:** ok mover o teste do caso 1 de `comportamento atual (diverge de domain.md)` para `PUT /routine/:id`, já que deixa de ser divergência?
+4. **Quem mergeou o PR #18?** O acréscimo ao prompt deixou o campo sem preencher (`[PREENCHA: eu mesmo | não sei]`). O `gh pr view 18` mostra a conta `jonatasmota404` em `mergedBy`, mas isso não diz por que o PR foi mergeado sem plano nem revisão. Não registro a autoria na RETRO até você responder.
 
 ## Resultado (preencher ao concluir)
 - **O que foi feito:**
