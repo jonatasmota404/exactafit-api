@@ -127,7 +127,7 @@ Todas as FKs usam `ON DELETE CASCADE`. Ids são UUID em `TEXT`. Não há índice
 ### Acoplamento
 - `exercises` e `routines` usam `AuthGuard` sem importar `AuthModule`. Funcionam só porque `JwtModule` é `global: true`.
 - O segredo JWT tem duas fontes: o módulo usa `JWT_SECRET || '<fallback fixo>'` e o guard passa `process.env.JWT_SECRET`. Sem a env, o guard passa `undefined` e o `@nestjs/jwt` cai no fallback, que está público no repositório (`src/auth/auth.module.ts:14`).
-- `dotenv` é importado em runtime mas **não está declarado no `package.json`** (severidade baixa). Ele está na árvore de produção: `npm ls dotenv --omit=dev` mostra `@prisma/client@7.9.1 → prisma@7.9.1 → @prisma/config@7.9.1 → c12@3.3.4 → dotenv@17.4.2`. O risco é ser uma dependência não declarada, que pode sumir ou mudar de versão numa atualização do Prisma. Decidido: virar dependência direta ([domain.md U8](domain.md#usuários-e-acesso)). Forma de deploy: `TODO(humano)`.
+- `dotenv` é importado em runtime e já é dependência direta (`package.json:35`, PR #5). Deploy no V1: VPS própria ([domain.md U8](domain.md#usuários-e-acesso)).
 - `RoutineItem` → `Exercise` com cascade: apagar um exercício do catálogo global apagaria itens de fichas e `SetLog` de **todos** os usuários. Hoje nenhuma rota apaga exercícios.
 - `WorkoutRoutine` → `WorkoutSession` → `SetLog` com cascade: apagar uma ficha apagaria o histórico de sessões. Hoje nenhuma rota apaga fichas.
 
@@ -149,7 +149,7 @@ Todas as FKs usam `ON DELETE CASCADE`. Ids são UUID em `TEXT`. Não há índice
 - `weight_kg` é `DOUBLE PRECISION` (ponto flutuante) para carga.
 
 ### Outros
-- Na `main`, o CI roda `npx tsc --noEmit` (o ajuste para `npm run typecheck` está na branch `chore/ci-typecheck`). O passo de lint usa `npm run lint`, que tem `--fix`: o CI corrige em vez de falhar em problemas auto-corrigíveis.
+- O CI roda `npm run typecheck` (`.github/workflows/ci.yml:45`). O passo de lint usa `npm run lint`, que tem `--fix`: o CI corrige em vez de falhar em problemas auto-corrigíveis.
 - O CI tem `JWT_SECRET` e a senha do Postgres de teste em texto puro no `ci.yml`.
 - `tsconfig.json` com `noImplicitAny: false`.
 - `README.md` é o boilerplate do Nest.
@@ -180,10 +180,11 @@ As 10 perguntas do mapeamento foram respondidas em 2026-10-12 e viraram regras e
 
 O que ficou sem resposta nessas decisões:
 - Expiração do token e refresh: adiado para a fase do front ([U6](domain.md#usuários-e-acesso)).
-- Forma de deploy: `TODO(humano)`.
+- Forma de deploy: VPS própria gerenciada com Coolify (decisão registrada em [U8](domain.md#usuários-e-acesso)). `TODO(humano)`: se a instalação em produção usa `npm ci --omit=dev`.
 - As demais lacunas estão marcadas `TODO(humano)` em `docs/domain.md`.
 
-## Decisões pendentes
-- **(a)** Uso offline na academia e sincronização.
-- **(b)** Como o dataset de exercícios entra no banco. A mídia é só para uso pessoal e a API não deve expô-la publicamente.
-- **(c)** Escopo de alimentação no V1.
+## Decisões de produto
+Antes pendentes, decididas em 2026-10-12 (regras em [`domain.md`](domain.md#decisões-de-produto-antes-pendentes)):
+- Uso offline e sincronização: [ADR 0004](adr/0004-uso-offline-e-sincronizacao.md).
+- Dataset de exercícios: [ADR 0005](adr/0005-carga-do-dataset-de-exercicios.md).
+- Alimentação: fora do V1; não há ADR, a decisão está em [`domain.md` (c)](domain.md#c-alimentação--decidido).
