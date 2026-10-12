@@ -43,12 +43,15 @@ API de treino (NestJS 11 + TypeScript + Prisma 7 + PostgreSQL 16). Contexto: `do
 ## Fluxo de trabalho
 1. O modelo da sessão é definido no início. Se a tarefa recomenda outro modelo, avise antes de começar; não siga com o errado.
 2. Toda branch nasce da `main`. Se depende de outra branch, mergeie a outra primeiro (merge commit, não squash).
-3. Tarefa não trivial → plano em `docs/PLAN_TEMPLATE.md`, aprovado pelo humano.
+3. Tarefa não trivial → plano em `docs/PLAN_TEMPLATE.md`, aprovado pelo humano. O plano preenchido fica em `docs/plans/` e, com a seção "Resultado" preenchida ao concluir, é o registro da tarefa.
 4. Subagente `implementador` executa o plano aprovado (um commit por tarefa).
 5. Subagente `revisor` revisa o diff (somente leitura).
 6. Decisão estrutural → ADR em `docs/adr/` (copie `0000-template.md`).
 7. Ao fechar cada tarefa, adicione uma linha em `docs/RETRO.md`.
 8. **Merge e push na `main` são sempre do humano.** O agente nunca os executa, mesmo que um prompt os mencione, e avisa se a tarefa exigir isso.
+9. **Definição de pronto:** tarefa que mude rota, schema, regra de negócio ou módulo atualiza `docs/architecture.md`, `docs/domain.md` ou um ADR **no mesmo commit**, ou declara no plano `Sem impacto em doc: <motivo>`. Um hook avisa quando isso falta (aviso, não bloqueio).
+10. Ao fim de cada tarefa, o agente atualiza `docs/STATUS.md` (máx. 30 linhas).
+11. Uma branch de docs/pipeline por vez; a próxima só nasce da `main` depois do merge da anterior.
 
 ## Zonas de risco (pedem confirmação)
 `prisma/migrations/`, `prisma/schema.prisma`, `src/auth/`, `.github/workflows/`, `package.json`, `.claude/`.
@@ -60,6 +63,7 @@ Comandos `prisma migrate`/`db` também pedem confirmação. Merge e push na `mai
 - Merge e push na `main` são bloqueados pelo hook `guard-main` (independe de permissões) e pela proteção de branch no GitHub; `gh pr merge` está em deny. Quem mergeia é o humano, pelo PR.
 - Hook `Stop` roda typecheck + testes unitários + `npm run lint:check` (projeto inteiro); bloqueia o encerramento se falharem.
 - Nunca leia nem imprima `.env` ou segredos.
+- O `Stop` também chama `.claude/hooks/doc-warning.mjs`, que só **avisa** (nunca bloqueia): mudança em controller, service, dto ou schema/migrations sem doc nem "Sem impacto em doc", link relativo quebrado em `docs/` e número de ADR duplicado.
 
 ## Dívida conhecida
 - Branch `wip/sessions`: 42 erros de lint e 2 suítes unitárias falhando. **Precisam estar resolvidos antes de ela voltar para a `main`.** A `main` está limpa e o hook `Stop` passa a bloquear.
