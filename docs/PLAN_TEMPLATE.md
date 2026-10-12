@@ -1,6 +1,6 @@
 # Plano: <título da tarefa>
 
-> Copie para `docs/plans/AAAA-MM-DD-<slug>.md` ou cole no PR/issue. O humano aprova antes de o `implementador` começar.
+> Copie para `docs/plans/AAAA-MM-DD-<slug>.md`. O humano aprova antes de o `implementador` começar. O plano preenchido, com o "Resultado" ao concluir, é o registro da tarefa.
 
 ## Intenção
 <!-- 1–3 frases: o que muda para o usuário/sistema e por quê. -->
@@ -39,5 +39,17 @@ npm run lint:check
 ```
 <!-- + passos manuais (curl, etc.), se houver -->
 
+## Documentação (definição de pronto)
+<!-- Se a tarefa muda rota, schema, regra de negócio ou módulo: atualize no mesmo commit. Marque um. -->
+- [ ] Atualiza: `docs/architecture.md` | `docs/domain.md` | ADR `docs/adr/NNNN-...` <!-- risque o que não vale -->
+- [ ] Sem impacto em doc: <!-- motivo; se ficar o texto "<motivo>", a declaração não vale -->
+
 ## Fora de escopo
 - <!-- o que NÃO será feito nesta tarefa, mesmo que pareça relacionado -->
+
+## Resultado (preencher ao concluir)
+- **O que foi feito:**
+- **Desvios do plano:** <!-- ou "nenhum" -->
+- **Pendências:** <!-- ou "nenhuma" -->
+- **PR/commit:**
+- **Docs atualizadas:** <!-- arquivos, ou "Sem impacto em doc: <motivo>" -->
