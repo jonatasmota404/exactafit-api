@@ -151,3 +151,18 @@ Ajustes decorrentes, além do que já está acima:
 - **Pendências:** F2a (trim) e F2b (`CONFIRMAR(humano)`); auditoria de sessions; CI; ajuste do `guard-main` (fila do STATUS). O prompt de implementação não chegou colado; a tarefa seguiu este plano e o `AGENTS.md`, por decisão do humano.
 - **PR/commit:** `a04f8a8`, `fcc6194` e o commit de fechamento; PR aberto a partir de `plan/caso1-put-name-null`, sem merge.
 - **Docs atualizadas:** `docs/domain.md`, `docs/architecture.md`, `docs/STATUS.md`, `docs/RETRO.md`, `AGENTS.md` (Dívida conhecida).
+- **Pós-merge (PR #19, `16e354a`):** ajustes de doc na branch `docs/caso1-ajustes`. F2a: `ADIADO` para a tarefa de F4/F11. F2b: `CONFIRMADO` pelo humano, com o teste que trava a regra na tarefa de F4/F11. Mais esta tabela de métricas.
+
+### Métricas
+Modelo dos subagentes: frontmatter de `.claude/agents/` (`implementador.md`: `model: sonnet`; `revisor.md`: `model: opus`). O frontmatter dá só o apelido, sem a versão exata. Tempo: duração informada pelo harness ao fim de cada subagente; nas outras etapas, nada foi cronometrado.
+
+| Etapa | Modelo | Retrabalho | Quem pegou erro | Tempo |
+|---|---|---|---|---|
+| Plano | Opus 5.5 (sessão principal) | Sim: (1) o acréscimo do humano (PR #18, sessions) entrou depois da 1ª versão; (2) as respostas do humano entraram depois da aprovação. Nos dois casos, fato novo, não erro do plano. | Agente: o diagnóstico descartou o `@ValidateIf` em subclasse de `PartialType` antes de escrever código. Humano: nenhum erro de plano apontado. | não medido |
+| Testes (tarefa 1) | `sonnet` (`implementador`) | Não | Teste: falhou como esperado (`Expected: 400` / `Received: 500`); não era erro | ~61 s, tarefas 1 e 2 juntas (uma execução só do `implementador`) |
+| Correção (tarefa 2) | `sonnet` (`implementador`) | Não | Nenhum erro de código | incluído na linha acima |
+| Revisor | `opus` (`revisor`) | Não | Revisor: 3 sugestões de doc (F2a fora da legenda; F2b sem "não verificado"; rótulo do caso 1) | ~104 s |
+| Docs (fechamento e PR) | Opus 5.5 (sessão principal) | Sim: 2 das 3 sugestões do revisor aplicadas no fechamento | Revisor (as 2 acima). Hook: `guard-main` bloqueou `git switch -c ... main && git merge ...` (falso positivo; o agente parou). Humano: 3 ajustes pós-merge (F2a, F2b e métricas) | não medido |
+| Ajustes pós-merge (`docs/caso1-ajustes`) | Opus 5.5. **Exceção:** o recomendado era Haiku; o humano autorizou o Opus 5.5 pelo contexto acumulado da sessão | Não | não se aplica | não medido |
+
+Também houve atrito de processo, sem erro de código: o prompt de implementação não chegou (uma vez citado como "já passado", outra com só o texto de exemplo) e a autoria do PR #18 veio com o texto de exemplo 3 vezes; o agente perguntou em vez de presumir.
