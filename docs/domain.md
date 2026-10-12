@@ -7,7 +7,8 @@
 > - `CONFIRMADO`: o humano validou o comportamento atual do código.
 > - `DECIDIDO (muda o código)`: o humano decidiu algo diferente do que o código faz hoje. Ver "Mudanças de código decorrentes".
 > - `ADIADO`: a decisão foi explicitamente adiada.
-> - `DECIDIDO (por delegação)`: o humano autorizou aplicar as recomendações da IA sem perguntar caso a caso (a partir do bloco 9).
+> - `DECIDIDO (por delegação)`: o humano autorizou aplicar as recomendações da IA sem perguntar caso a caso (a partir do bloco 9). Itens hoje com essa marca: a regra de F4 "pelo menos um dos dois obrigatório" (**não revisada pelo humano**) e o local da mídia em (b) (confirmado pelo humano).
+> - `ADIADO (decidir no plano)`: detalhe de implementação que fica para o plano de cada tarefa.
 > - `CONFIRMAR(humano)`: regra ainda não validada.
 
 ## Visão do produto
@@ -26,7 +27,7 @@ Ver também "Decisões pendentes" em [`architecture.md`](architecture.md#decisõ
 - Cardio e exercícios em casa (opção A). Cardio registra só o tempo (distância fica fora do V1) e exige campo novo de duração em `SetLog`; exercício sem carga tem carga vazia (S5, S7). Ver "Mudanças de código decorrentes".
 - Histórico de treino.
 
-**Risco aceito:** a mídia do dataset é © Gym visual e o objetivo inclui vender o app. Decidido entregar a mídia a todos os usuários autenticados desde já (ver (b)); conferir os termos da Gym visual é do humano (`TODO(humano)`, não verificado).
+**Mídia do dataset (© Gym visual):** liberada para uso **enquanto o app não for comercial** (decisão do humano). `TODO(humano)`: reconferir a licença da mídia e da "API oficial" **antes de qualquer uso comercial**.
 
 ## Decisões de produto (antes pendentes)
 
@@ -36,17 +37,20 @@ Ver também "Decisões pendentes" em [`architecture.md`](architecture.md#decisõ
 - **Conflito com S3:** se o sincronismo trouxer mais de uma sessão aberta do mesmo usuário, a API aceita todas e deixa aberta a de `startedAt` mais recente, encerrando as demais (critério revisado em 2026-10-12; o inicial era a ordem de chegada, que encerrava a sessão de hoje quando uma esquecida chegava tarde). Exceção de S3 só para o sincronismo.
 - **Datas:** o aparelho envia `startedAt` e `finishedAt` (S1 muda; hoje é `now()` do servidor).
 - **Resolvido depois:** `finishedAt` das encerradas = `startedAt` (S3); a data do cliente não é validada (S1); datas em UTC; duplicata de série evitada pelo id do cliente e pela constraint de S8.
-- `TODO(humano)`: formato do endpoint de sincronismo (no plano).
+- Formato do endpoint de sincronismo: `ADIADO (decidir no plano)`.
 - ADR: [0004](adr/0004-uso-offline-e-sincronizacao.md).
 
 ### (b) Dataset de exercícios — DECIDIDO (muda o código)
 - **Carga repetível:** cada exercício oficial guarda o identificador que tinha no dataset. O script insere o que é novo e atualiza o que já existe, sem duplicar.
-- **Mídia:** a API guarda só a referência e entrega apenas a usuário autenticado; não expõe publicamente. Entregue a todos os usuários autenticados desde já, sem chave que a desligue (decidido: opção B). A atribuição "© Gym visual — https://gymvisual.com/" acompanha toda entrega. A conferência dos termos da Gym visual antes de convidar outros usuários é do humano: **não verificado** pela IA.
+- **Mídia:** a API não expõe a mídia publicamente; ela é entregue apenas a usuário autenticado e a todos os autenticados desde já, sem chave que a desligue (decidido: opção B). A atribuição "© Gym visual — https://gymvisual.com/" acompanha toda entrega.
+- **Licença da mídia e da "API oficial"** (decisão do humano): liberada para uso **enquanto o app não for comercial**; a condição "não comercial" faz parte da decisão. `TODO(humano)`: reconferir a licença antes de qualquer uso comercial.
+- **Onde a mídia fica** (~299 MB, `DECIDIDO (por delegação)`, confirmado pelo humano): volume na VPS servido pelo proxy do Coolify, fora do git e fora do banco; o banco guarda só o caminho. `TODO(humano)`: como a exigência "só usuário autenticado" é aplicada quando o proxy serve o arquivo direto.
+- **Idioma das instruções** (decisão do humano): inglês e português, com **português como padrão**. O dataset não tem português (traz en e outros 9 idiomas, sem pt), então a tradução precisa ser produzida. `TODO(humano)`: como produzir a tradução e quem revisa; tradução do nome dos exercícios e dos 10 valores de `muscleGroup`.
 - **Fonte** (palavras do humano): "eu já tenho o dataset no meu computador baixado, vamos usar ele. Quando o app crescer e for usado comercialmente eu só viro a chave e pago a licença da API oficial." Caminho local: `/home/jonatas/Projetos/exercices-dataset/exercises-dataset/` (fora deste repositório).
 - **Formato** (lido de `data/exercises.json` e `exercises.schema.json`): lista com 1324 exercícios. Campos: `id` (texto de 4 dígitos, único), `name` (inglês), `category` (igual a `body_part`), `body_part` (10 valores: back, cardio, chest, lower arms, lower legs, neck, shoulders, upper arms, upper legs, waist), `equipment` (28 valores), `target` (19 valores), `muscle_group`, `secondary_muscles`, `instructions` e `instruction_steps` em 10 idiomas (en, es, it, tr, ru, zh, hi, pl, ko, fr; **não há português**), `media_id`, `image` (jpg 180×180), `gif_url` (gif 180×180), `attribution`, `created_at`. Não existe campo equivalente a `type` (força/cardio), nem nível ou força.
 - **Licença** (lida de `LICENSE` e `NOTICE.md` do dataset): os dados (nomes, categorias, instruções) são MIT, uso comercial permitido mantendo o aviso de copyright. A **mídia** (`images/`, `videos/`) é © Gym visual, fora da MIT: 180×180 apenas, atribuição "© Gym visual — https://gymvisual.com/" obrigatória em todo uso, regida pelos termos da Gym visual, e "clonar o repositório não concede licença da mídia". Se existe uma "API oficial" e qual o custo: **não verificado**.
 - **Fonte única da verdade** (palavras do humano): "por enquanto vamos assumir o dataset que eu lhe mandei como fonte única da verdade, isso fica um problema para o futuro quando for comercial usar outro dataset oficial." Trocar de dataset ou de licença da mídia fica **adiado**, sem desenho agora.
-- `TODO(humano)`: onde os arquivos de mídia ficam guardados; idioma das instruções (o dataset não tem português). Campo de `muscleGroup`: `body_part` (E4).
+- Campo de `muscleGroup`: `body_part` (E4). Pendências da mídia e do idioma estão acima.
 - ADR: [0005](adr/0005-carga-do-dataset-de-exercicios.md).
 
 ### (c) Alimentação — DECIDIDO
@@ -55,10 +59,10 @@ Ver também "Decisões pendentes" em [`architecture.md`](architecture.md#decisõ
 ## Glossário
 | Termo | Definição | Nome no código |
 |---|---|---|
-| Usuário | Pessoa com conta (e-mail e senha) que monta fichas e registra treinos. Todos têm as mesmas permissões no V1. Nunca é apagado, só desativado. | `User` |
+| Usuário | Pessoa com conta (e-mail e senha) que monta fichas e registra treinos. Todos têm as mesmas permissões no V1. É desativado por padrão e só é apagado a pedido do titular, por fluxo explícito de exclusão de conta. | `User` |
 | Exercício | Item do catálogo oficial (global, somente leitura, vindo do dataset) ou criado pelo usuário (pertence só a ele). Tem nome e grupo muscular. | `Exercise` |
 | Catálogo oficial | Conjunto global e somente leitura de exercícios vindo do dataset local. Cada exercício guarda o id que tinha no dataset. | `Exercise` sem dono (a criar) |
-| Ficha de treino | Plano do usuário: nome, descrição opcional e itens ordenados (até 50). Até 10 por usuário, arquivada e nunca apagada. Sem itens, é rascunho. | `WorkoutRoutine` |
+| Ficha de treino | Plano do usuário: nome, descrição opcional e itens ordenados (até 50). Até 10 fichas **ativas** por usuário; é arquivada e não é apagada (só no fluxo de exclusão de conta). Sem itens, é rascunho. | `WorkoutRoutine` |
 | Item da ficha | Um exercício dentro da ficha, com ordem, número de séries-alvo e repetições-alvo. | `RoutineItem` |
 | Sessão de treino | Um treino realizado a partir de uma ficha. Fica aberta enquanto `finishedAt` estiver vazio. Início e fim vêm do aparelho. | `WorkoutSession` |
 | Série registrada | Um registro dentro da sessão: exercício, número da série e (opcionais) repetições, carga e duração. Pode ser corrigida, nunca apagada. | `SetLog` |
@@ -76,10 +80,10 @@ Ver também "Decisões pendentes" em [`architecture.md`](architecture.md#decisõ
 | U2 | Nome obrigatório, até 100 caracteres. E-mail válido, até 255. | `register.dto.ts` | `CONFIRMADO` |
 | U3 | Senha com **mínimo de 8** caracteres (hoje o código exige 6). O máximo de 72 **caracteres** (limite do bcrypt) foi confirmado; o bcrypt conta bytes e ignora o excedente em silêncio, risco aceito. O **login também exige mínimo de 8**: contas com senha de 6–7 caracteres ficam sem acesso e, como não há troca de senha, sem como voltar. | `register.dto.ts`, `login.dto.ts` | `DECIDIDO (muda o código)` |
 | U4 | A senha é guardada como hash bcrypt (custo 10) e nunca volta em resposta da API. Como evitar devolver o `password` (hoje removido à mão no cadastro) é decisão de implementação, no plano. | `auth.service.ts` `create` | `CONFIRMADO` |
-| U5 | Login com e-mail inexistente e login com senha errada dão **respostas diferentes**, ambas 401 (hoje as duas são 401 `"Credenciais inválidas"`). Texto exato: `SUGESTÃO(IA, não confirmada)`: "E-mail não cadastrado" e "Senha incorreta". O cadastro já revela se o e-mail existe (409), então a separação não abre um vazamento novo. | `auth.service.ts` `login` | `DECIDIDO (muda o código)` |
+| U5 | Login com e-mail inexistente e login com senha errada dão **respostas diferentes**, ambas 401 (hoje as duas são 401 `"Credenciais inválidas"`). Texto exato: `ADIADO (decidir no plano)`; sugestão da IA, não confirmada: "E-mail não cadastrado" e "Senha incorreta". `TODO(humano)`: reavaliar a resposta genérica (que não revela se o e-mail existe) se o app for aberto a terceiros; exigiria mudar também o 409 do cadastro (U1). O cadastro já revela se o e-mail existe (409), então a separação não abre um vazamento novo. | `auth.service.ts` `login` | `DECIDIDO (muda o código)` |
 | U6 | O token é um JWT com `sub` = id do usuário e `email`, válido por 7 dias, sem refresh nem revogação. A decisão sobre expiração e refresh fica para a fase do front. Reconfirmado adiado mesmo com o offline do V1: aparelho com mais de 7 dias sem sincronizar recebe 401 e precisa de novo login antes de enviar (risco aceito). | `auth.module.ts`, `auth.service.ts` | `ADIADO` |
 | U7 | Não existem papéis: todo usuário autenticado tem as mesmas permissões no V1 (professor e academia ficam fora do V1). | ausência no código | `CONFIRMADO` |
-| U8 | A aplicação não sobe sem `JWT_SECRET` (hoje usa um segredo fixo de reserva). Deploy no V1: VPS própria. Onde guardar a variável na VPS: `TODO(humano)`, no plano. | `auth.module.ts` | `DECIDIDO (muda o código)` |
+| U8 | A aplicação não sobe sem `JWT_SECRET` (hoje usa um segredo fixo de reserva). Deploy no V1: VPS própria. `JWT_SECRET` é variável de ambiente do serviço no Coolify, **somente em runtime** (não em build), com cópia do valor em gerenciador de senhas; nunca no repositório. | `auth.module.ts` | `DECIDIDO (muda o código)` |
 
 ### Exercícios
 | # | Regra | Onde | Status |
@@ -99,11 +103,11 @@ Ver também "Decisões pendentes" em [`architecture.md`](architecture.md#decisõ
 | F3 | Ficha sem itens é permitida, como rascunho. "Rascunho" **não** é um estado explícito: é só uma ficha sem itens (decidido: opção A). | `create-routine.dto.ts` | `CONFIRMADO` |
 | F4 | `targetSets` de 1 a 20, `targetReps` de 1 a 100 **quando informado**, `order` ≥ 0 (hoje qualquer inteiro passa). Para cardio, o item ganha a duração-alvo em segundos (campo novo, opcional) e `targetReps` passa a ser opcional (decidido: opção A). Pelo menos um dos dois é obrigatório (`DECIDIDO (por delegação)`). `TODO(humano)`: faixa da duração-alvo. | `create-routine.dto.ts` | `DECIDIDO (muda o código)` |
 | F5 | O mesmo exercício pode aparecer mais de uma vez na ficha, desde que o `order` seja único. | ausência de constraint | `CONFIRMADO` |
-| F6 | O item só aceita exercício do catálogo oficial ou do próprio usuário (E1). Exercício inexistente e exercício de outro usuário dão a **mesma** resposta: 400 "Exercício não encontrado" (hoje a FK recusa e o erro provavelmente vira 500). Qual item falhou na mensagem: `TODO(humano)`, no plano. | `schema.prisma`, `routine.service.ts` | `DECIDIDO (muda o código)` |
+| F6 | O item só aceita exercício do catálogo oficial ou do próprio usuário (E1). Exercício inexistente e exercício de outro usuário dão a **mesma** resposta: 400 "Exercício não encontrado" (hoje a FK recusa e o erro provavelmente vira 500). Qual item falhou na mensagem: `ADIADO (decidir no plano)`. | `schema.prisma`, `routine.service.ts` | `DECIDIDO (muda o código)` |
 | F7 | Os itens são devolvidos em ordem crescente de `order`, com os dados do exercício. | `routine.service.ts` | `CONFIRMADO` |
 | F8 | A atualização é parcial. Se `items` vier, substitui todos os itens, que ganham ids novos. Isso é aceitável porque o histórico (`SetLog`) guarda o `exerciseId` e não depende dos itens da ficha. | `routine.service.ts` `update` | `CONFIRMADO` |
-| F9 | A ficha é **arquivada**, nunca apagada. Hoje não há exclusão nem arquivamento. A ficha arquivada pode **voltar a ser ativa** (arquivar e desarquivar). `GET /routine` devolve só as ativas por padrão; as arquivadas só vêm se pedidas e continuam acessíveis pelo id. A ficha arquivada **pode ser editada**. Ver [ADR 0001](adr/0001-exclusao-sem-cascata-de-historico.md). `TODO(humano)`: formato da ação de arquivar/desarquivar, no plano. | `schema.prisma`, `routine.*` | `DECIDIDO (muda o código)` |
-| F10 | Limites: **no máximo 10 fichas por usuário** e **no máximo 50 itens por ficha**. A ficha arquivada **conta** no limite de 10; como a ficha não é apagada, o usuário que chega a 10 nunca mais cria outra (consequência aceita). Resposta de erro ao passar do limite: `TODO(humano)`, no plano. | ausência no código | `DECIDIDO (muda o código)` |
+| F9 | A ficha é **arquivada**, nunca apagada. Hoje não há exclusão nem arquivamento. A ficha arquivada pode **voltar a ser ativa** (arquivar e desarquivar). `GET /routine` devolve só as ativas por padrão; as arquivadas só vêm se pedidas e continuam acessíveis pelo id. A ficha arquivada **pode ser editada**. Ver [ADR 0001](adr/0001-exclusao-sem-cascata-de-historico.md). Formato da ação de arquivar/desarquivar: `ADIADO (decidir no plano)`. | `schema.prisma`, `routine.*` | `DECIDIDO (muda o código)` |
+| F10 | Limites: **no máximo 10 fichas ativas por usuário** e **no máximo 50 itens por ficha**. A ficha arquivada **não conta** no limite: arquivar libera espaço e o histórico continua guardado (**revisão** da decisão anterior, em que a arquivada contava; confirmada pelo humano). Consequência: fichas arquivadas não têm teto; `TODO(humano)`: se precisa de um. Resposta de erro ao passar do limite: `ADIADO (decidir no plano)`. | ausência no código | `DECIDIDO (muda o código)` |
 | F11 | O `order` é único dentro da ficha (hoje pode repetir). Só precisa ser única: lacunas são permitidas (decidido: opção A). | `create-routine.dto.ts`, `schema.prisma` | `DECIDIDO (muda o código)` |
 
 ### Sessões e séries (só schema; nenhum código usa ainda)
@@ -122,7 +126,7 @@ Ver também "Decisões pendentes" em [`architecture.md`](architecture.md#decisõ
 ### Exclusão (ver [ADR 0001](adr/0001-exclusao-sem-cascata-de-historico.md))
 | # | Regra | Status |
 |---|---|---|
-| C1 | O usuário **nunca é apagado**, só desativado (decidido: opção B). `User` ganha um campo de desativação e as FKs de `User` viram restrição. O `AuthGuard` consulta o usuário a cada pedido e recusa o desativado com 401, mesmo com token válido (decidido: opção A; custo: uma consulta por requisição, toca `src/auth/`). O e-mail do desativado continua ocupado (cadastro com ele dá 409). `TODO(humano)`: se a LGPD exige apagar de verdade a pedido do titular (não verificado). | `DECIDIDO (muda o código)` |
+| C1 | O usuário **nunca é apagado**, só desativado (decidido: opção B). `User` ganha um campo de desativação e as FKs de `User` viram restrição. O `AuthGuard` consulta o usuário a cada pedido e recusa o desativado com 401, mesmo com token válido (decidido: opção A; custo: uma consulta por requisição, toca `src/auth/`). O e-mail do desativado continua ocupado (cadastro com ele dá 409). **Exceção:** a pedido do titular, um fluxo explícito de **exclusão de conta apaga todos os dados do usuário** (decisão do humano; sem texto jurídico). Como as FKs de `User` são restrição (C3), a exclusão apaga explicitamente fichas, sessões e séries, numa transação. `TODO(humano)`: o processo (canal de contato e prazo), antes de haver usuários de terceiros. | `DECIDIDO (muda o código)` |
 | C2 | Histórico (sessões e séries) nunca é apagado em cascata. Fichas são arquivadas (F9). Hoje apagar uma ficha apaga as sessões e séries dela. | `DECIDIDO (muda o código)` |
 | C3 | Um exercício com séries registradas **ou em alguma ficha** não pode ser apagado (E6, E2); a remoção é recusada (409). FKs que viram restrição: `SetLog.exerciseId`, `RoutineItem.exerciseId`, `WorkoutSession.routineId`, `SetLog.sessionId`, `WorkoutSession.userId`, `WorkoutRoutine.userId`. `RoutineItem.routineId` continua cascade. | `DECIDIDO (muda o código)` |
 
@@ -133,18 +137,18 @@ Ver também "Decisões pendentes" em [`architecture.md`](architecture.md#decisõ
 ## Invariantes (devem sempre ser verdade)
 1. Um usuário nunca lê nem altera a ficha de outro (F1). `CONFIRMADO`
 2. A senha nunca é devolvida em resposta da API (U4). `CONFIRMADO`
-3. Histórico de sessões e séries nunca é apagado em cascata (C2). `DECIDIDO`
+3. Histórico de sessões e séries nunca é apagado em cascata (C2); só o fluxo de exclusão de conta a pedido do titular apaga histórico (C1). `DECIDIDO`
 4. Cada usuário tem no máximo uma sessão aberta (S3), valendo depois de cada sincronismo, que encerra as excedentes. `DECIDIDO`
 5. O `order` é único dentro de cada ficha; lacunas são permitidas (F11). `DECIDIDO`
 6. O catálogo oficial nunca é alterado nem apagado pela API (E1, E2). `DECIDIDO`
 7. Um item de ficha e uma série só referenciam exercício do catálogo oficial ou do próprio usuário (F6, S8). `DECIDIDO`
-8. Série e sessão registradas nunca são apagadas, só corrigidas (S9). `DECIDIDO`
-9. O usuário nunca é apagado, só desativado (C1). `DECIDIDO`
-10. Um usuário tem no máximo 10 fichas, e uma ficha tem no máximo 50 itens (F10). `DECIDIDO`
+8. Série e sessão registradas nunca são apagadas, só corrigidas (S9), exceto pela exclusão de conta (C1). `DECIDIDO`
+9. O usuário é desativado, não apagado, exceto pelo fluxo de exclusão de conta a pedido do titular (C1). `DECIDIDO`
+10. Um usuário tem no máximo 10 fichas ativas, e uma ficha tem no máximo 50 itens (F10). `DECIDIDO`
 11. O número da série é único por sessão e exercício (S8). `DECIDIDO`
 
 ## Casos de borda conhecidos (comportamento atual, não verificado em execução)
-Cada caso virou correção, validação ou comportamento aceito. Os casos 1 a 5 foram decididos com o humano; o 6 foi decidido por **delegação** (o humano autorizou aplicar as recomendações da IA sem perguntar).
+Cada caso virou correção, validação ou comportamento aceito. Os casos foram decididos com o humano; o 6 começou por delegação e foi depois **confirmado** por ele.
 
 | # | Caso | Decisão |
 |---|---|---|
@@ -153,7 +157,7 @@ Cada caso virou correção, validação ou comportamento aceito. Os casos 1 a 5 
 | 3 | Dois cadastros simultâneos com o mesmo e-mail: um deles provavelmente recebe 500 em vez de 409. | **Correção:** a violação de unicidade do banco responde 409. |
 | 4 | `Joao@x.com` e `joao@x.com` são contas diferentes. | **Resolvido por U1:** e-mail normalizado. |
 | 5 | Sessão antiga esquecida aberta, sincronizada tarde, encerrava a sessão de hoje. | **Resolvido em S3:** vence a de `startedAt` mais recente. |
-| 6 | Login sem limite de tentativas; com as mensagens separadas de U5, permite descobrir e-mails e tentar senhas sem teto. | **Correção, por delegação:** limite de tentativas no login (por e-mail e por endereço). Se for biblioteca, é dependência nova e **precisa de aprovação do humano** (regra anti-overengineering 3); os números do limite: `TODO(humano)`. |
+| 6 | Login sem limite de tentativas; com as mensagens separadas de U5, permite descobrir e-mails e tentar senhas sem teto. | **Correção (confirmada pelo humano):** no máximo **5 tentativas por 15 minutos, por e-mail e IP**. Revisão: o humano pediu também resposta genérica, mas manteve U5 (mensagens separadas); reavaliar a resposta genérica se o app for aberto a terceiros (`TODO(humano)`, ver U5). Se a implementação exigir dependência nova, ela **precisa da aprovação do humano no plano**. |
 
 ## Mudanças de código decorrentes
 Nada disso está implementado. Cada item precisa de plano (`docs/PLAN_TEMPLATE.md`) aprovado antes. O risco é **baixo**, **médio** ou **alto**.
@@ -163,9 +167,9 @@ Nada disso está implementado. Cada item precisa de plano (`docs/PLAN_TEMPLATE.m
 | U1, caso 4 | Normalizar o e-mail (trim + minúsculas) no cadastro e no login. Antes de mudar, verificar se o banco já tem e-mails que colidem depois de normalizados. | **Médio**: toca `src/auth/`; dados existentes podem colidir. |
 | U3 | `@MinLength(8)` em `register.dto.ts` **e** `login.dto.ts`. Contas com senha de 6–7 caracteres ficam sem acesso e sem troca de senha. | **Médio**: toca `src/auth/`; bloqueia contas existentes. |
 | U5 | Respostas 401 distintas para e-mail inexistente e senha errada. Texto exato no plano. | **Baixo**: toca `src/auth/`, mudança de mensagem. |
-| U8 | Remover o fallback fixo em `auth.module.ts` e falhar na inicialização sem `JWT_SECRET`. (`dotenv` já é dependência direta: `package.json:35`.) Onde guardar a variável na VPS: `TODO(humano)`. | **Médio**: toca `src/auth/`; quebra ambientes sem a variável. |
+| U8 | Remover o fallback fixo em `auth.module.ts` e falhar na inicialização sem `JWT_SECRET`. (`dotenv` já é dependência direta: `package.json:35`.) `JWT_SECRET` como variável de ambiente do serviço no Coolify, só em runtime, com cópia em gerenciador de senhas. | **Médio**: toca `src/auth/`; quebra ambientes sem a variável. |
 | Caso 3 | Tratar a violação de unicidade no cadastro e responder 409. | **Baixo**: toca `src/auth/`. |
-| Caso 6 | Limite de tentativas no login. Número e mecanismo no plano; biblioteca exige aprovação. | **Médio**: toca `src/auth/`; pode bloquear usuário legítimo; possível dependência nova. |
+| Caso 6 | Limite de 5 tentativas por 15 minutos, por e-mail e IP, no login. Mecanismo no plano; se exigir dependência nova, precisa da aprovação do humano. | **Médio**: toca `src/auth/`; pode bloquear usuário legítimo; possível dependência nova. |
 | C1 | Campo de desativação em `User` + migration; FKs de `User` viram restrição; `AuthGuard` consulta o usuário a cada pedido e recusa o desativado (401). | **Médio**: schema e `src/auth/`; uma consulta a mais por requisição. |
 | E1 | Schema: dono opcional em `Exercise` (nulo = catálogo oficial) + coluna do id do dataset + migration. Filtrar `GET /exercises` (oficiais + do usuário), gravar `userId` no `POST`, bloquear escrita no catálogo oficial. | **Médio**: schema, migration e todas as consultas de exercício. |
 | E2 | Rotas `PUT` e `DELETE` de exercício do próprio usuário; 404 para oficial ou de outro usuário; 409 ao remover com séries ou em ficha. | **Médio**: rotas novas dependem de E1 e das FKs de C3. |
@@ -175,7 +179,7 @@ Nada disso está implementado. Cada item precisa de plano (`docs/PLAN_TEMPLATE.m
 | F4 | `targetSets` 1–20, `order` ≥ 0, `targetReps` 1–100 quando informado. Em `RoutineItem`, `targetReps` passa a opcional e entra a duração-alvo em segundos (opcional) + migration. Pelo menos um dos dois obrigatório (decidido por delegação). Faixa da duração: `TODO(humano)`. | **Médio**: schema; requisições que hoje passam recebem 400. |
 | F6 | Ao salvar item, conferir que o exercício existe e é oficial ou do usuário; senão 400. | **Baixo**: uma consulta a mais. |
 | F9 | Campo de arquivamento em `WorkoutRoutine` (nulo = ativa) + migration; ação de arquivar e desarquivar; `GET /routine` devolve só as ativas por padrão. | **Médio**: schema e contrato da listagem. |
-| F10 | Limites de 10 fichas por usuário (arquivadas contam) e 50 itens por ficha; erro ao passar. | **Baixo**. |
+| F10 | Limites de 10 fichas **ativas** por usuário (arquivadas não contam) e 50 itens por ficha; erro ao passar. | **Baixo**. |
 | F11 | Constraint única (`routineId`, `order`) + migration. Lacunas permitidas. | **Médio**: a migration falha se já houver `order` repetido. |
 | S1, S2 | `startedAt` e `finishedAt` (opcional) enviados pelo aparelho + migration. | **Baixo**: nenhum código usa sessões ainda. |
 | S3 | Uma sessão aberta por usuário. No sincronismo: aceitar todas, manter a de `startedAt` mais recente, encerrar as demais com `finishedAt = startedAt`, numa transação. | **Alto**: concorrência; índice parcial em SQL; regra de exceção. |
@@ -184,6 +188,9 @@ Nada disso está implementado. Cada item precisa de plano (`docs/PLAN_TEMPLATE.m
 | S8 | Constraint única (`sessionId`, `exerciseId`, `setNumber`); 409 na duplicata; um conflito não derruba o lote do sincronismo. | **Baixo**: tabela sem uso por código. |
 | S9 | Rotas de atualização por id para sessão e série; sem rota de exclusão; `finishedAt` preenchido não volta a vazio. | **Médio**: rotas novas com regras de posse. |
 | (a) Offline | Endpoint de sincronismo; ids de sessão e série gerados no cliente; envio idempotente. Ver [ADR 0004](adr/0004-uso-offline-e-sincronizacao.md). | **Alto**: contrato novo, idempotência e concorrência. |
-| (b) Dataset | Script repetível de carga do dataset local (id do dataset como chave); referência de mídia em `Exercise`; entrega de mídia só a usuário autenticado, com a atribuição. Ver [ADR 0005](adr/0005-carga-do-dataset-de-exercicios.md). | **Alto**: carga de 1324 registros, mídia de 299 MB fora do repositório e licença não verificada. |
+| (b) Dataset | Script repetível de carga do dataset local (id do dataset como chave); referência de mídia em `Exercise`; entrega de mídia só a usuário autenticado, com a atribuição. Ver [ADR 0005](adr/0005-carga-do-dataset-de-exercicios.md). | **Alto**: carga de 1324 registros, mídia de ~299 MB em volume na VPS servido pelo proxy do Coolify, caminho no banco; licença liberada só para uso não comercial. |
 | Ficha por IA | Endpoint que gera ficha com exercícios do catálogo, respeitando F4, F6 e F10. Ver [ADR 0007](adr/0007-ficha-por-ia-no-v1.md). | **Alto**: serviço externo, dependência nova (precisa de aprovação), custo por uso, dados do usuário saem da API. |
 | Cardio | Ver S5, S7, F4 e E4. Ver [ADR 0006](adr/0006-cardio-no-v1-e-remocao-do-type.md). | incluído nas linhas acima |
+| Exclusão de conta (C1) | Fluxo explícito, a pedido do titular, que apaga todos os dados do usuário (fichas, sessões e séries, em ordem, numa transação, porque as FKs são restrição). Processo (canal e prazo): `TODO(humano)`. | **Alto**: apaga histórico de forma irreversível; interage com as FKs de restrição de C3. |
+| Idioma (pt/en) | Instruções dos exercícios em inglês e português, com português como padrão. Modelo de dados (colunas, tabela ou JSON por idioma) e API a definir no plano; a tradução do dataset ainda precisa ser produzida, e COMO e por QUEM é `TODO(humano)`. Ver [ADR 0005](adr/0005-carga-do-dataset-de-exercicios.md). | **Alto**: mexe no modelo de `Exercise`, na carga do dataset (1324 exercícios × instruções) e em todas as respostas com instruções; conteúdo traduzido sem revisor definido. |
+| Mídia em volume | Volume na VPS servido pelo proxy do Coolify; o banco guarda só o caminho. Configuração de deploy (Coolify) e regra de acesso por usuário autenticado. | **Médio**: infra fora do repositório; a autenticação da mídia direta pelo proxy é `TODO(humano)`. |

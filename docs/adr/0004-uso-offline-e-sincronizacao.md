@@ -25,5 +25,6 @@ Na academia o sinal pode faltar. Hoje a API gera os ids, o início da sessão é
 - **Positivas:** o treino na academia não depende de sinal.
 - **Negativas / custos:** endpoint de sincronismo novo; ids no cliente; S3 deixa de ser recusa e vira regra de encerramento; a API confia no relógio do aparelho (treino no futuro ou duração negativa possíveis); o token dura 7 dias sem refresh (U6), então um aparelho que fique mais de 7 dias sem enviar precisa de novo login antes.
 - **O que passa a ser obrigatório:** o envio do sincronismo é idempotente por id. Nenhuma regra nova pode depender de a API gerar o id de sessão ou série.
-- **Em aberto (`TODO(humano)`):** formato do endpoint de sincronismo; como o aparelho lida com a resposta de uma sessão encerrada automaticamente.
+- Formato do endpoint de sincronismo: `ADIADO (decidir no plano)`.
+- **Em aberto (`TODO(humano)`):** como o aparelho lida com a resposta de uma sessão encerrada automaticamente.
 - Regras: `docs/domain.md` S1, S3, S4, S5, S8 e bloco (a).
