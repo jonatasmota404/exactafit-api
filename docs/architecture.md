@@ -127,7 +127,7 @@ Todas as FKs usam `ON DELETE CASCADE`. Ids são UUID em `TEXT`. Não há índice
 ### Acoplamento
 - `exercises` e `routines` usam `AuthGuard` sem importar `AuthModule`. Funcionam só porque `JwtModule` é `global: true`.
 - O segredo JWT tem duas fontes: o módulo usa `JWT_SECRET || '<fallback fixo>'` e o guard passa `process.env.JWT_SECRET`. Sem a env, o guard passa `undefined` e o `@nestjs/jwt` cai no fallback, que está público no repositório (`src/auth/auth.module.ts:14`).
-- `dotenv` é importado em runtime mas **não está no `package.json`**. Ele chega como dependência transitiva de desenvolvimento (`c12`, via `prisma`). Uma instalação só com dependências de produção pode quebrar no boot. `TODO(humano)`: confirmar como é feito o deploy.
+- `dotenv` é importado em runtime mas **não está declarado no `package.json`** (severidade baixa). Ele está na árvore de produção: `npm ls dotenv --omit=dev` mostra `@prisma/client@7.9.1 → prisma@7.9.1 → @prisma/config@7.9.1 → c12@3.3.4 → dotenv@17.4.2`. O risco é ser uma dependência não declarada, que pode sumir ou mudar de versão numa atualização do Prisma. Decidido: virar dependência direta ([domain.md U8](domain.md#usuários-e-acesso)). Forma de deploy: `TODO(humano)`.
 - `RoutineItem` → `Exercise` com cascade: apagar um exercício do catálogo global apagaria itens de fichas e `SetLog` de **todos** os usuários. Hoje nenhuma rota apaga exercícios.
 - `WorkoutRoutine` → `WorkoutSession` → `SetLog` com cascade: apagar uma ficha apagaria o histórico de sessões. Hoje nenhuma rota apaga fichas.
 
@@ -165,14 +165,25 @@ Proposta (não implementada; exige aprovação de dependência nova):
 4. Marcar as rotas protegidas com `@ApiBearerAuth()`. Para tipar as respostas, criar DTOs de saída (hoje as respostas são entidades Prisma).
 5. Opcional: gerar um `openapi.json` versionado e comparar no CI para detectar quebra de contrato.
 
-## Perguntas em aberto
-1. O catálogo de exercícios deve continuar global e editável por qualquer usuário autenticado? Ou é por usuário, ou só admin?
-2. Apagar um exercício ou uma ficha deve apagar o histórico (`SetLog`/`WorkoutSession`) em cascata? Ou o correto é bloquear ou fazer soft delete?
-3. Quais faixas são válidas para `targetSets`, `targetReps` e `order`? `order` precisa ser único e sequencial? Uma ficha pode ficar sem itens?
-4. O mesmo exercício pode aparecer mais de uma vez na mesma ficha?
-5. `PUT /routine/:id` é atualização parcial (semântica de PATCH) por design? Recriar os itens com ids novos é aceitável para as sessões que referenciam a ficha?
-6. Sessões precisam de fim (`finishedAt`) e de estado (aberta/encerrada)? Pode haver mais de uma sessão aberta?
-7. Quais são os valores válidos de `Exercise.type` e `muscleGroup` (lista fechada?) e o que significa `SetLog.failed`?
-8. A unidade de carga é sempre kg? `Float` é aceitável ou deve ser decimal com precisão fixa?
-9. O e-mail deve ser case-insensitive? Qual a política de senha e de expiração (7 dias sem refresh é o desejado)?
-10. Como é o deploy (há `npm ci --omit=dev`)? Isso define se `dotenv` precisa virar dependência direta e se o fallback do `JWT_SECRET` deve ser removido.
+## Perguntas respondidas
+As 10 perguntas do mapeamento foram respondidas em 2026-10-12 e viraram regras em `docs/domain.md`:
+- Catálogo: [E1, E2](domain.md#exercícios) e [ADR 0003](adr/0003-catalogo-oficial-e-exercicios-do-usuario.md).
+- Exclusão: [E6](domain.md#exercícios), [F9](domain.md#fichas-de-treino), [C2, C3](domain.md#exclusão-ver-adr-0001) e [ADR 0001](adr/0001-exclusao-sem-cascata-de-historico.md).
+- Faixas e ficha vazia: [F3, F4, F11](domain.md#fichas-de-treino) e [S4](domain.md#sessões-e-séries-só-schema-nenhum-código-usa-ainda).
+- Exercício repetido na ficha: [F5](domain.md#fichas-de-treino).
+- `PUT` parcial e ids novos: [F8](domain.md#fichas-de-treino).
+- Sessão aberta: [S2, S3](domain.md#sessões-e-séries-só-schema-nenhum-código-usa-ainda).
+- `type`/`muscleGroup` e série falhada: [E4](domain.md#exercícios), [S6](domain.md#sessões-e-séries-só-schema-nenhum-código-usa-ainda) e [ADR 0002](adr/0002-definicao-de-serie-falhada.md).
+- Carga: [S7](domain.md#sessões-e-séries-só-schema-nenhum-código-usa-ainda).
+- E-mail e senha: [U1, U3](domain.md#usuários-e-acesso).
+- `dotenv` e `JWT_SECRET`: [U8](domain.md#usuários-e-acesso).
+
+O que ficou sem resposta nessas decisões:
+- Expiração do token e refresh: adiado para a fase do front ([U6](domain.md#usuários-e-acesso)).
+- Forma de deploy: `TODO(humano)`.
+- As demais lacunas estão marcadas `TODO(humano)` em `docs/domain.md`.
+
+## Decisões pendentes
+- **(a)** Uso offline na academia e sincronização.
+- **(b)** Como o dataset de exercícios entra no banco. A mídia é só para uso pessoal e a API não deve expô-la publicamente.
+- **(c)** Escopo de alimentação no V1.
