@@ -127,7 +127,7 @@ Todas as FKs usam `ON DELETE CASCADE`. Ids são UUID em `TEXT`. Não há índice
 ### Acoplamento
 - `exercises` e `routines` usam `AuthGuard` sem importar `AuthModule`. Funcionam só porque `JwtModule` é `global: true`.
 - O segredo JWT tem duas fontes: o módulo usa `JWT_SECRET || '<fallback fixo>'` e o guard passa `process.env.JWT_SECRET`. Sem a env, o guard passa `undefined` e o `@nestjs/jwt` cai no fallback, que está público no repositório (`src/auth/auth.module.ts:14`).
-- `dotenv` é importado em runtime mas **não está declarado no `package.json`** (severidade baixa). Ele está na árvore de produção: `npm ls dotenv --omit=dev` mostra `@prisma/client@7.9.1 → prisma@7.9.1 → @prisma/config@7.9.1 → c12@3.3.4 → dotenv@17.4.2`. O risco é ser uma dependência não declarada, que pode sumir ou mudar de versão numa atualização do Prisma. Decidido: virar dependência direta ([domain.md U8](domain.md#usuários-e-acesso)). Forma de deploy: `TODO(humano)`.
+- `dotenv` é importado em runtime mas **não está declarado no `package.json`** (severidade baixa). Ele está na árvore de produção: `npm ls dotenv --omit=dev` mostra `@prisma/client@7.9.1 → prisma@7.9.1 → @prisma/config@7.9.1 → c12@3.3.4 → dotenv@17.4.2`. O risco é ser uma dependência não declarada, que pode sumir ou mudar de versão numa atualização do Prisma. Já resolvido: `dotenv` é dependência direta (`package.json:35`, PR #5). Deploy no V1: VPS própria ([domain.md U8](domain.md#usuários-e-acesso)).
 - `RoutineItem` → `Exercise` com cascade: apagar um exercício do catálogo global apagaria itens de fichas e `SetLog` de **todos** os usuários. Hoje nenhuma rota apaga exercícios.
 - `WorkoutRoutine` → `WorkoutSession` → `SetLog` com cascade: apagar uma ficha apagaria o histórico de sessões. Hoje nenhuma rota apaga fichas.
 
@@ -184,6 +184,7 @@ O que ficou sem resposta nessas decisões:
 - As demais lacunas estão marcadas `TODO(humano)` em `docs/domain.md`.
 
 ## Decisões pendentes
-- **(a)** Uso offline na academia e sincronização.
-- **(b)** Como o dataset de exercícios entra no banco. A mídia é só para uso pessoal e a API não deve expô-la publicamente.
-- **(c)** Escopo de alimentação no V1.
+Todas decididas em 2026-10-12 (ver [`domain.md`](domain.md#decisões-de-produto-antes-pendentes)):
+- **(a)** Uso offline e sincronização: sim, só para registrar treino. [ADR 0004](adr/0004-uso-offline-e-sincronizacao.md).
+- **(b)** Dataset de exercícios: carga repetível, mídia entregue só a usuário autenticado. [ADR 0005](adr/0005-carga-do-dataset-de-exercicios.md).
+- **(c)** Alimentação: fora do V1.
