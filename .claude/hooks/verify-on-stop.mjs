@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// Stop: roda typecheck, testes unitários e lint (só nos .ts alterados na branch).
+// Stop: roda typecheck, testes unitários e lint do projeto inteiro.
 // Se algo falhar, bloqueia o encerramento e devolve a saída para o modelo corrigir.
 // Na segunda tentativa seguida (stop_hook_active) libera, avisando o humano, para evitar loop.
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 
 const input = JSON.parse(readFileSync(0, 'utf8') || '{}');
@@ -18,14 +18,11 @@ const changed = [
 // Nada alterado na branch nem no working tree: nada a verificar.
 if (changed.length === 0) process.exit(0);
 
-const tsFiles = [...new Set(changed)].filter(
-  (f) => /^(src|test)\/.*\.ts$/.test(f) && existsSync(f),
-);
 const checks = [
   ['typecheck', 'npm run typecheck'],
   ['testes unitários', 'npm test -- --silent'],
+  ['lint', 'npm run lint:check'],
 ];
-if (tsFiles.length) checks.push(['lint (arquivos alterados)', `npx eslint ${tsFiles.map((f) => `'${f}'`).join(' ')}`]);
 
 const failures = [];
 for (const [name, cmd] of checks) {

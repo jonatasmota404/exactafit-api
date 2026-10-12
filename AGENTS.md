@@ -47,6 +47,10 @@ API de treino (NestJS 11 + TypeScript + Prisma 7 + PostgreSQL 16). Contexto: `do
 Push na `main`, merge e comandos `prisma migrate`/`db` também pedem confirmação.
 
 ## Guardrails automáticos (`.claude/settings.json`)
-- Hook `PreToolUse` bloqueia: `rm -rf`, push forçado, `git reset --hard`, `git clean -f`, `prisma migrate reset`, SQL destrutivo, `docker compose down -v`, acesso a `.env`/chaves.
-- Hook `Stop` roda typecheck + testes unitários + lint dos `.ts` alterados na branch; bloqueia o encerramento se falharem.
+- Hook `PreToolUse` bloqueia: `rm -rf`, push forçado, `git reset --hard`, `git clean -f`, `prisma migrate reset`, SQL destrutivo, `docker compose down -v`, acesso a `.env`/chaves. Testes: `node --test '.claude/hooks/*.test.mjs'`.
+- **Falso positivo conhecido:** o hook casa texto e não entende shell. Ele bloqueia padrão perigoso que aparece só como texto (corpo de PR, mensagem de commit). Contorno: escreva o texto num arquivo e use `gh pr create --body-file <arq>` ou `git commit -F <arq>`. Não tente burlar o hook.
+- Hook `Stop` roda typecheck + testes unitários + `npm run lint:check` (projeto inteiro); bloqueia o encerramento se falharem.
 - Nunca leia nem imprima `.env` ou segredos.
+
+## Dívida conhecida
+- Branch `wip/sessions`: 42 erros de lint e 2 suítes unitárias falhando. **Precisam estar resolvidos antes de ela voltar para a `main`.** A `main` está limpa e o hook `Stop` passa a bloquear.

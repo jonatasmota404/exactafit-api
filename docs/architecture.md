@@ -51,7 +51,7 @@ Fluxo: `HTTP → AuthGuard (se protegido) → Controller → DTO/ValidationPipe 
 | `.github/workflows/` | Pipeline de CI. |
 
 ## Dívidas e pontos de atenção (não corrigidos)
-- **Lint:** o hook de encerramento só faz lint nos arquivos alterados. Na base `d6dd8c2`, `npm run lint:check` passa limpo. Os 42 erros encontrados na leitura inicial estão no WIP da branch `wip/sessions` (`test/session.e2e-spec.ts` e specs de `sessions`). Corrigir ao integrar essa branch.
+- **Lint:** na `main` (`d6dd8c2`), `npm run lint:check` passa limpo, e o hook de encerramento roda o lint do projeto inteiro. Os 42 erros encontrados na leitura inicial estão no WIP da branch `wip/sessions` (`test/session.e2e-spec.ts` e specs de `sessions`). Precisam ser corrigidos antes de ela voltar para a `main`.
 - **Testes unitários de `sessions`** (na `wip/sessions`): 2 suítes falham por injeção de dependência (`PrismaService` não provido no `TestingModule`).
 - **CI** usa `npx tsc --noEmit` em vez de `npm run typecheck`. Ver TODO abaixo.
 - **Segredo JWT com fallback hardcoded** em `src/auth/auth.module.ts`. Se `JWT_SECRET` faltar no ambiente, tokens são assinados e aceitos com um segredo que está público no repositório (o `@nestjs/jwt` cai no secret do módulo quando o guard passa `undefined`). Avaliar falhar no boot sem a env.
