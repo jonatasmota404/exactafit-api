@@ -56,6 +56,7 @@ Push na `main`, merge e comandos `prisma migrate`/`db` também pedem confirmaç�
 ## Guardrails automáticos (`.claude/settings.json`)
 - Hook `PreToolUse` bloqueia: `rm -rf`, push forçado, `git reset --hard`, `git clean -f`, `prisma migrate reset`, SQL destrutivo, `docker compose down -v`, acesso a `.env`/chaves. Testes: `node --test '.claude/hooks/*.test.mjs'`.
 - **Falso positivo conhecido:** o hook casa texto e não entende shell. Ele bloqueia padrão perigoso que aparece só como texto (corpo de PR, mensagem de commit). Contorno: escreva o texto num arquivo e use `gh pr create --body-file <arq>` ou `git commit -F <arq>`. Não tente burlar o hook.
+- Merge e push na `main` são bloqueados pelo hook `guard-main` (independe de permissões) e pela proteção de branch no GitHub; `gh pr merge` está em deny. Quem mergeia é o humano, pelo PR.
 - Hook `Stop` roda typecheck + testes unitários + `npm run lint:check` (projeto inteiro); bloqueia o encerramento se falharem.
 - Nunca leia nem imprima `.env` ou segredos.
 
