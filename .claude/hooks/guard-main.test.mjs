@@ -91,3 +91,72 @@ for (const [cmd, where] of blocked) {
 for (const [cmd, where] of allowed) {
   test(`libera (${where}): ${cmd}`, () => assert.equal(run(cmd, where).status, 0));
 }
+
+// guard-api: escrita no GitHub pela API e indireção de shell no push.
+const blockedApi = [
+  'gh api -X PUT repos/o/r/pulls/7/merge',
+  'gh api --method PUT repos/o/r/pulls/7/merge',
+  'gh api --method=PUT repos/o/r/pulls/7/merge',
+  'gh api -XPUT repos/o/r/pulls/7/merge',
+  'gh api -X POST repos/o/r/issues',
+  'gh api -X DELETE repos/o/r/git/refs/heads/x',
+  'gh api -X PATCH repos/o/r/branches/main/protection',
+  'gh api -X put repos/o/r/branches/main/protection',
+  'gh api repos/o/r/issues -f title=x',
+  'gh api repos/o/r/issues -F body=@f.md',
+  'gh api repos/o/r/issues --field title=x',
+  'gh api repos/o/r/issues --raw-field title=x',
+  'gh api repos/o/r/branches/main/protection --input body.json',
+  'gh api repos/o/r/issues -ftitle=x',
+  'gh api graphql -f query=mutation{x}',
+  'gh api graphql --raw-field query="mutation { mergePullRequest }"',
+  'npm test && gh api -X PUT repos/o/r/pulls/7/merge',
+  'git status; gh api --method PUT repos/o/r/pulls/7/merge | cat',
+  'sh -c "gh api -X PUT repos/o/r/pulls/7/merge"',
+  "bash -c 'gh api --method=PUT repos/o/r'",
+];
+const blockedExpansion = [
+  'BR=main; git push origin $BR',
+  'git push origin $BR',
+  'git push origin HEAD:$BR',
+  'git push origin $(echo main)',
+  'git push origin `echo main`',
+  'git status && git push origin "${BRANCH}"',
+  'sh -c "git push origin $B"',
+];
+const allowedApi = [
+  'gh api repos/o/r/commits/abc123/check-runs',
+  'gh api repos/o/r/commits/abc123/check-runs --jq ".check_runs[].name"',
+  'gh api repos/o/r/branches/main/protection',
+  'gh api -X GET repos/o/r/pulls/7',
+  'gh api --method GET repos/o/r/pulls/7',
+  'gh api --method=GET repos/o/r/pulls/7',
+  'gh api repos/o/r/pulls --paginate',
+  'gh pr view 12 --json state,mergedAt',
+  'gh pr checks 12',
+  'gh pr checks 12 --watch',
+  'gh pr create --base main --head feat/x --fill',
+  'gh pr list --state all --limit 30',
+  'gh pr diff 12',
+  'git push -u origin pipeline/guard-api',
+  'git push origin feat/x',
+  'git commit -m "docs: ajusta" && git push',
+];
+
+for (const cmd of blockedApi) {
+  test(`bloqueia gh api (work): ${cmd}`, () => {
+    const r = run(cmd, 'work');
+    assert.equal(r.status, 2);
+    assert.match(r.stderr, /Operação de escrita no GitHub e merge são do humano; faça pelo terminal ou pelo navegador/);
+  });
+}
+for (const cmd of blockedExpansion) {
+  test(`bloqueia expansão no push (work): ${cmd}`, () => {
+    const r = run(cmd, 'work');
+    assert.equal(r.status, 2);
+    assert.match(r.stderr, /use o nome literal da branch/);
+  });
+}
+for (const cmd of allowedApi) {
+  test(`libera (work): ${cmd}`, () => assert.equal(run(cmd, 'work').status, 0));
+}

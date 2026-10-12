@@ -1,10 +1,14 @@
 #!/usr/bin/env node
-// PreToolUse(Bash): impede merge e push na main. Decide sozinho, sem depender de permissões.
+// PreToolUse(Bash): impede merge e push na main e escrita no GitHub pela API. Decide sozinho, sem depender de permissões.
 // Exit 2 = bloqueia a chamada; a mensagem em stderr volta para o modelo.
 import { readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 
 const MAIN = 'main';
+const MSG_MERGE = 'Merge e push na main são do humano; faça pelo PR';
+const MSG_API = 'Operação de escrita no GitHub e merge são do humano; faça pelo terminal ou pelo navegador';
+const MSG_LITERAL = 'use o nome literal da branch';
+
 const input = JSON.parse(readFileSync(0, 'utf8') || '{}');
 const cmd = input?.tool_input?.command ?? '';
 const cwd = input?.cwd || process.env.CLAUDE_PROJECT_DIR || process.cwd();
@@ -20,12 +24,33 @@ const destOf = (spec, branch) => {
   return dest === 'HEAD' ? branch : dest;
 };
 
-// Devolve o motivo do bloqueio ou null. `state.branch` acompanha switch/checkout no comando composto.
-const check = (tokens, state) => {
+// `gh api` só pode ler: bloqueia método diferente de GET e flags que enviam corpo (viram POST).
+const ghApiWrite = (args, raw) => {
+  for (let i = 0; i < args.length; i++) {
+    const t = args[i];
+    let method;
+    if (t === '-X' || t === '--method') method = args[i + 1];
+    else if (t.startsWith('--method=')) method = t.slice(9);
+    else if (/^-X./.test(t)) method = t.slice(2).replace(/^=/, '');
+    if (method !== undefined && method.toUpperCase() !== 'GET') return `gh api com método ${method}`;
+    if (/^(-f|-F|--field|--raw-field|--input)$/.test(t) || /^(-[fF].|--(field|raw-field|input)=)/.test(t)) {
+      return `gh api com flag de escrita (${t})`;
+    }
+  }
+  if (args[0] === 'graphql' && /\bmutation\b/i.test(raw)) return 'gh api graphql com mutation';
+  return null;
+};
+
+// Devolve { reason, msg } do bloqueio ou null. `state.branch` acompanha switch/checkout no comando composto.
+const check = (tokens, state, raw) => {
   const gh = tokens.indexOf('gh');
   if (gh >= 0) {
     const rest = tokens.slice(gh + 1).filter((t) => !t.startsWith('-'));
-    if (rest[0] === 'pr' && rest[1] === 'merge') return 'gh pr merge';
+    if (rest[0] === 'pr' && rest[1] === 'merge') return { reason: 'gh pr merge', msg: MSG_MERGE };
+    if (rest[0] === 'api') {
+      const reason = ghApiWrite(tokens.slice(tokens.indexOf('api', gh) + 1), raw);
+      if (reason) return { reason, msg: MSG_API };
+    }
   }
   const g = tokens.indexOf('git');
   if (g < 0) return null;
@@ -47,16 +72,23 @@ const check = (tokens, state) => {
   }
   if (sub === 'merge') {
     const abort = args.includes('--abort') || args.includes('--quit');
-    return state.branch === MAIN && !abort ? 'git merge na main' : null;
+    return state.branch === MAIN && !abort ? { reason: 'git merge na main', msg: MSG_MERGE } : null;
   }
   if (sub === 'pull') {
-    return !args.includes('--ff-only') || positional.includes('.') ? 'git pull sem --ff-only ou com "."' : null;
+    return !args.includes('--ff-only') || positional.includes('.')
+      ? { reason: 'git pull sem --ff-only ou com "."', msg: MSG_MERGE }
+      : null;
   }
   if (sub === 'push') {
-    if (args.includes('--all') || args.includes('--mirror')) return 'git push --all/--mirror';
+    if (args.some((t) => /\$|`/.test(t))) return { reason: 'git push com expansão de shell', msg: MSG_LITERAL };
+    if (args.includes('--all') || args.includes('--mirror')) {
+      return { reason: 'git push --all/--mirror', msg: MSG_MERGE };
+    }
     const specs = positional.slice(1);
-    if (specs.length === 0) return state.branch === MAIN ? 'git push da main' : null;
-    return specs.some((s) => destOf(s, state.branch) === MAIN) ? 'git push para a main' : null;
+    if (specs.length === 0) return state.branch === MAIN ? { reason: 'git push da main', msg: MSG_MERGE } : null;
+    return specs.some((s) => destOf(s, state.branch) === MAIN)
+      ? { reason: 'git push para a main', msg: MSG_MERGE }
+      : null;
   }
   return null;
 };
@@ -64,12 +96,9 @@ const check = (tokens, state) => {
 const state = {};
 for (const segment of cmd.split(/&&|\|\||[;|&\n]/)) {
   const tokens = segment.trim().split(/\s+/).map(clean).filter(Boolean);
-  const reason = check(tokens, state);
-  if (reason) {
-    process.stderr.write(
-      `Bloqueado pelo hook guard-main (${reason}). Merge e push na main são do humano; faça pelo PR.\n` +
-        `Comando: ${cmd}\n`,
-    );
+  const hit = check(tokens, state, segment);
+  if (hit) {
+    process.stderr.write(`Bloqueado pelo hook guard-main (${hit.reason}). ${hit.msg}.\nComando: ${cmd}\n`);
     process.exit(2);
   }
 }
