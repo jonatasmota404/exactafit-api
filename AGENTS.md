@@ -48,10 +48,11 @@ API de treino (NestJS 11 + TypeScript + Prisma 7 + PostgreSQL 16). Contexto: `do
 5. Subagente `revisor` revisa o diff (somente leitura).
 6. Decisão estrutural → ADR em `docs/adr/` (copie `0000-template.md`).
 7. Ao fechar cada tarefa, adicione uma linha em `docs/RETRO.md`.
+8. **Merge e push na `main` são sempre do humano.** O agente nunca os executa, mesmo que um prompt os mencione, e avisa se a tarefa exigir isso.
 
 ## Zonas de risco (pedem confirmação)
 `prisma/migrations/`, `prisma/schema.prisma`, `src/auth/`, `.github/workflows/`, `package.json`, `.claude/`.
-Push na `main`, merge e comandos `prisma migrate`/`db` também pedem confirmação.
+Comandos `prisma migrate`/`db` também pedem confirmação. Merge e push na `main` não são do agente (Fluxo de trabalho 8).
 
 ## Guardrails automáticos (`.claude/settings.json`)
 - Hook `PreToolUse` bloqueia: `rm -rf`, push forçado, `git reset --hard`, `git clean -f`, `prisma migrate reset`, SQL destrutivo, `docker compose down -v`, acesso a `.env`/chaves. Testes: `node --test '.claude/hooks/*.test.mjs'`.
