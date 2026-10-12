@@ -354,6 +354,43 @@ describe('Routines e2e (caracterização)', () => {
       expect((await put({ name: '' })).status).toBe(400);
       expect((await put({ foo: 'bar' })).status).toBe(400);
     });
+
+    // Caso de borda 1: name null deve dar 400 e a ficha não muda.
+    it('caso 1: 400 com name null e o name da ficha não muda', async () => {
+      const created = await createRoutine(tokenA, { name: 'Com nome' });
+      const res = await request(http())
+        .put(`/routine/${created.body.id}`)
+        .set(auth(tokenA))
+        .send({ name: null });
+      expect(res.status).toBe(400);
+      expect((await getRoutine(tokenA, created.body.id)).body.name).toBe(
+        'Com nome',
+      );
+    });
+
+    it('200 só com description (sem name) e o name é mantido', async () => {
+      const created = await createRoutine(tokenA, { name: 'Com nome' });
+      const res = await request(http())
+        .put(`/routine/${created.body.id}`)
+        .set(auth(tokenA))
+        .send({ description: 'nova' });
+      expect(res.status).toBe(200);
+      const after = await getRoutine(tokenA, created.body.id);
+      expect(after.body.name).toBe('Com nome');
+      expect(after.body.description).toBe('nova');
+    });
+
+    it('400 com name de 101 caracteres', async () => {
+      const created = await createRoutine(tokenA, { name: 'Com nome' });
+      const res = await request(http())
+        .put(`/routine/${created.body.id}`)
+        .set(auth(tokenA))
+        .send({ name: 'a'.repeat(101) });
+      expect(res.status).toBe(400);
+      expect((await getRoutine(tokenA, created.body.id)).body.name).toBe(
+        'Com nome',
+      );
+    });
   });
 
   describe('rotas inexistentes', () => {
@@ -442,19 +479,6 @@ describe('Routines e2e (caracterização)', () => {
     it('F6/E1: aceita item com exercício criado por outro usuário (sem dono)', async () => {
       const { status } = await createRoutine(tokenB, { items: [item(1)] });
       expect(status).toBe(201);
-    });
-
-    // Caso de borda 1: name null deve dar 400. Hoje passa na validação (IsOptional aceita null).
-    it('caso 1: PUT com name null passa na validação e falha no banco com 500', async () => {
-      const created = await createRoutine(tokenA, { name: 'Com nome' });
-      const res = await request(http())
-        .put(`/routine/${created.body.id}`)
-        .set(auth(tokenA))
-        .send({ name: null });
-      expect(res.status).toBe(500);
-      expect((await getRoutine(tokenA, created.body.id)).body.name).toBe(
-        'Com nome',
-      );
     });
   });
 
