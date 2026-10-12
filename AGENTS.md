@@ -66,4 +66,4 @@ Comandos `prisma migrate`/`db` também pedem confirmação. Merge e push na `mai
 - O `Stop` também chama `.claude/hooks/doc-warning.mjs`, que só **avisa** (nunca bloqueia): mudança em controller, service, dto ou schema/migrations sem doc nem "Sem impacto em doc", link relativo quebrado em `docs/` e número de ADR duplicado.
 
 ## Dívida conhecida
-- Branch `wip/sessions`: 42 erros de lint e 2 suítes unitárias falhando. **Precisam estar resolvidos antes de ela voltar para a `main`.** A `main` está limpa e o hook `Stop` passa a bloquear.
+- Módulo sessions entrou na main via PR #18 sem plano nem revisão contra domain.md (S1–S9) e sem testes de caracterização; auditoria pendente antes de qualquer deploy.

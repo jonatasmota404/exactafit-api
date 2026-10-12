@@ -100,6 +100,8 @@ Ver também "Decisões de produto" em [`architecture.md`](architecture.md#decis�
 |---|---|---|---|
 | F1 | Uma ficha pertence ao usuário do token. Um usuário só lista, lê e altera as próprias fichas. A ficha de outro usuário responde 404. **Trade-offs aceitos:** (1) 404 em vez de 403 esconde que a ficha existe, mas o app não distingue "não existe" de "não é sua". (2) Sem compartilhamento no V1: amigo não vê nem copia a ficha, e o professor montar a ficha do aluno (visão futura) exigirá exceção a F1. (3) Hoje o `PUT` checa a posse fora da transação e escreve filtrando só por `id`, o que foge da convenção "toda query filtra por `userId`" (risco de corrida baixo, não verificado em execução). (4) Com o offline, o aparelho pode enviar sessão de ficha já arquivada; ela é aceita (S1). | `routine.service.ts` | `CONFIRMADO` |
 | F2 | Nome obrigatório, até 100 caracteres. Descrição opcional, até 255. | `create-routine.dto.ts` | `CONFIRMADO` |
+| F2a | `name` só com espaços (`"   "`) é aceito hoje no `POST` e no `PUT`. `TODO(humano)`: decidir se haverá trim e recusa. | `create-routine.dto.ts`, `update-routine.dto.ts` | `ADIADO` |
+| F2b | `description: null` no `PUT` limpa a descrição (comportamento atual pela leitura do código; a validação aceita o `null`, a gravação não foi verificada em execução). | `update-routine.dto.ts`, `routine.service.ts` | `CONFIRMAR(humano)` |
 | F3 | Ficha sem itens é permitida, como rascunho. "Rascunho" **não** é um estado explícito: é só uma ficha sem itens (decidido: opção A). | `create-routine.dto.ts` | `CONFIRMADO` |
 | F4 | `targetSets` de 1 a 20, `targetReps` de 1 a 100 **quando informado**, `order` ≥ 0 (hoje qualquer inteiro passa). Para cardio, o item ganha a duração-alvo em segundos (campo novo, opcional) e `targetReps` passa a ser opcional (decidido: opção A). Pelo menos um dos dois é obrigatório (`DECIDIDO (por delegação)`). `TODO(humano)`: faixa da duração-alvo. | `create-routine.dto.ts` | `DECIDIDO (muda o código)` |
 | F5 | O mesmo exercício pode aparecer mais de uma vez na ficha, desde que o `order` seja único. | ausência de constraint | `CONFIRMADO` |
@@ -152,7 +154,7 @@ Cada caso virou correção, validação ou comportamento aceito. Os casos foram 
 
 | # | Caso | Decisão |
 |---|---|---|
-| 1 | `PUT /routine/:id` com `"name": null` passa na validação e falha no banco (provável 500). | **Correção por validação:** `null` em `name` dá 400, só isso. Filtrar por `userId` na escrita (F1, trade-off 3) é tarefa separada. |
+| 1 | `PUT /routine/:id` com `"name": null` passava na validação e falhava no Prisma (500). | **Resolvido:** `null` e `''` em `name` no `PUT` dão 400. Filtrar por `userId` na escrita (F1, trade-off 3) é tarefa separada. |
 | 2 | `exerciseId` inexistente em `POST` ou `PUT /routine` gera erro de FK não tratado (provável 500). | **Resolvido por F6:** 400, a mesma resposta para exercício inexistente e de outro usuário. |
 | 3 | Dois cadastros simultâneos com o mesmo e-mail: um deles provavelmente recebe 500 em vez de 409. | **Correção:** a violação de unicidade do banco responde 409. |
 | 4 | `Joao@x.com` e `joao@x.com` são contas diferentes. | **Resolvido por U1:** e-mail normalizado. |
@@ -176,7 +178,6 @@ Nada disso está implementado. Cada item precisa de plano (`docs/PLAN_TEMPLATE.m
 | E2 | Rotas `PUT` e `DELETE` de exercício do próprio usuário; 404 para oficial ou de outro usuário; 409 ao remover com séries ou em ficha. | **Médio**: rotas novas dependem de E1 e das FKs de C3. |
 | E4 | `muscleGroup` limitado aos 10 valores de `body_part` (enum no schema ou `@IsIn`, a decidir no plano). **Remover** a coluna `type` e o campo do DTO. Cardio = `muscleGroup = cardio`. | **Alto**: a migration apaga uma coluna e quebra quem envia `type` (400); dados fora da lista quebram a migration. |
 | E6, C2, C3 | Seis FKs de cascade para restrição: `SetLog.exerciseId`, `RoutineItem.exerciseId`, `WorkoutSession.routineId`, `SetLog.sessionId`, `WorkoutSession.userId`, `WorkoutRoutine.userId`. `RoutineItem.routineId` continua cascade. | **Médio**: migration em FK; muda o comportamento de exclusão. |
-| Caso 1 | `PUT /routine/:id`: rejeitar `null` em `name` com 400. Só isso. | **Baixo**: só validação. |
 | F1 (trade-off 3) | `PUT /routine/:id`: filtrar por `userId` na própria escrita, dentro da transação. **Tarefa separada** do caso 1. | **Baixo**: muda a escrita do `update`; cobrir com teste de ficha de outro usuário. |
 | F4 | `targetSets` 1–20, `order` ≥ 0, `targetReps` 1–100 quando informado. Em `RoutineItem`, `targetReps` passa a opcional e entra a duração-alvo em segundos (opcional) + migration. Pelo menos um dos dois obrigatório (decidido por delegação). Faixa da duração: `TODO(humano)`. | **Médio**: schema; requisições que hoje passam recebem 400. |
 | F6 | Ao salvar item, conferir que o exercício existe e é oficial ou do usuário; senão 400. | **Baixo**: uma consulta a mais. |
