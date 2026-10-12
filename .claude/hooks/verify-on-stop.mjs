@@ -4,6 +4,7 @@
 // Na segunda tentativa seguida (stop_hook_active) libera, avisando o humano, para evitar loop.
 import { readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
 const input = JSON.parse(readFileSync(0, 'utf8') || '{}');
 const sh = (c) => spawnSync(c, { shell: true, encoding: 'utf8', maxBuffer: 1 << 26 });
@@ -17,6 +18,10 @@ const changed = [
 
 // Nada alterado na branch nem no working tree: nada a verificar.
 if (changed.length === 0) process.exit(0);
+
+// Aviso de documentação: só informa, nunca bloqueia (falha do script é ignorada).
+const docScript = fileURLToPath(new URL('./doc-warning.mjs', import.meta.url));
+const warnings = (spawnSync('node', [docScript], { encoding: 'utf8' }).stdout ?? '').trim();
 
 const checks = [
   ['typecheck', 'npm run typecheck'],
@@ -33,16 +38,22 @@ for (const [name, cmd] of checks) {
   }
 }
 
-if (failures.length === 0) process.exit(0);
+if (failures.length === 0) {
+  if (warnings) console.log(JSON.stringify({ systemMessage: warnings }));
+  process.exit(0);
+}
 
 if (input.stop_hook_active) {
   console.log(JSON.stringify({
-    systemMessage: `⚠ Encerrado com verificações falhando: ${failures.map((f) => f.split('\n')[0].slice(4)).join('; ')}. Não está pronto.`,
+    systemMessage:
+      `⚠ Encerrado com verificações falhando: ${failures.map((f) => f.split('\n')[0].slice(4)).join('; ')}. Não está pronto.` +
+      (warnings ? `\n${warnings}` : ''),
   }));
   process.exit(0);
 }
 
 console.log(JSON.stringify({
+  ...(warnings && { systemMessage: warnings }),
   decision: 'block',
   reason:
     'Verificações falharam; a tarefa NÃO está pronta. Corrija e rode de novo. ' +

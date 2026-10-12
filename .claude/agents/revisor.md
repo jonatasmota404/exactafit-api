@@ -40,7 +40,10 @@ Diff padrão: `git diff $(git merge-base HEAD main)...HEAD` + `git status`.
 - [ ] SQL cru (`$queryRaw`/`$executeRaw`) com interpolação insegura?
 - [ ] Mudança em zona de risco (`prisma/migrations/`, `schema.prisma`, `src/auth/`, `.github/workflows/`)? Migration existente editada?
 
-### 4. Verificações
+### 4. Documentação (severidade **IMPORTANTE**)
+- [ ] O diff tocou código de um módulo (`src/**`, `prisma/schema.prisma`, `prisma/migrations/`) e a doc dele (`docs/architecture.md`, `docs/domain.md` ou ADR) não mudou, sem a declaração `Sem impacto em doc: <motivo>` no plano ou no commit?
+
+### 5. Verificações
 Rode `npm run typecheck`, `npm test` e `npm run lint:check` e reporte o resultado.
 
 ## Saída
