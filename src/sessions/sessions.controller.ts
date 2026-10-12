@@ -13,11 +13,10 @@ export interface AuthenticatedRequest extends Request {
 @Controller('sessions')
 @UseGuards(AuthGuard)
 export class SessionsController {
-    constructor(private readonly sessionService: SessionsService){}
-    @Post()
-
-    create(@Req() req: AuthenticatedRequest, @Body() dto: CreateSessionDto){
-        const userId = req['user'].sub;
-        return this.sessionService.create(userId, dto);
-    }
+  constructor(private readonly sessionService: SessionsService) {}
+  @Post()
+  create(@Req() req: AuthenticatedRequest, @Body() dto: CreateSessionDto) {
+    const userId = req['user'].sub;
+    return this.sessionService.create(userId, dto);
+  }
 }

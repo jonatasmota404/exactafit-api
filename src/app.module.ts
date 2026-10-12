@@ -8,7 +8,13 @@ import { RoutineModule } from './routines/routine.module';
 import { SessionsModule } from './sessions/sessions.module';
 
 @Module({
-  imports: [PrismaModule, ExercisesModule, AuthModule, RoutineModule, SessionsModule],
+  imports: [
+    PrismaModule,
+    ExercisesModule,
+    AuthModule,
+    RoutineModule,
+    SessionsModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })
