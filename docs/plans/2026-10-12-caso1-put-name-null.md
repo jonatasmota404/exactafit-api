@@ -146,8 +146,8 @@ Ajustes decorrentes, além do que já está acima:
 - **Tarefa 3, `STATUS.md`:** a fila ganha o ajuste do falso positivo do `guard-main`.
 
 ## Resultado (preencher ao concluir)
-- **O que foi feito:**
-- **Desvios do plano:**
-- **Pendências:**
-- **PR/commit:**
-- **Docs atualizadas:**
+- **O que foi feito:** `PUT /routine/:id` com `name: null` → 400 (antes 500). Teste do caso 1 movido para `describe('PUT /routine/:id')`, mais os casos de preservação (sem `name` → 200; 101 caracteres → 400). Commit 1 (`a04f8a8`): o e2e falhou só no caso `null` (`Expected: 400` / `Received: 500`). Commit 2 (`fcc6194`): typecheck limpo; unitários 3/3; `lint:check` limpo; e2e de routines 39 passed, 2 todo; e2e completo 74 passed, 3 todo. Revisor: aprovado, com 3 sugestões de doc; 2 aplicadas no fechamento (F2a com status `ADIADO`, como na legenda; F2b marcada "não verificado em execução"). A terceira (rótulo "Resolvido (implementado, e2e)" no caso 1) não foi aplicada: é opcional.
+- **Desvios do plano:** F2a e F2b numeradas pelo implementador (o plano não dava número). A RETRO ganhou 3 linhas em vez de 2: a terceira registra o falso positivo do `guard-main`, a pedido do humano.
+- **Pendências:** F2a (trim) e F2b (`CONFIRMAR(humano)`); auditoria de sessions; CI; ajuste do `guard-main` (fila do STATUS). O prompt de implementação não chegou colado; a tarefa seguiu este plano e o `AGENTS.md`, por decisão do humano.
+- **PR/commit:** `a04f8a8`, `fcc6194` e o commit de fechamento; PR aberto a partir de `plan/caso1-put-name-null`, sem merge.
+- **Docs atualizadas:** `docs/domain.md`, `docs/architecture.md`, `docs/STATUS.md`, `docs/RETRO.md`, `AGENTS.md` (Dívida conhecida).
