@@ -21,10 +21,16 @@ Fecha as lacunas de `docs/domain.md` perguntando ao humano. O humano decide tudo
 - **"Ainda não sei" é resposta válida:** vira `TODO(humano)` ou decisão `ADIADO`, com o motivo.
 - Ao **fim de cada bloco**, mostre o trecho gravado para o humano corrigir antes de seguir.
 
+## Delegação
+- O agente só decide um ponto se o humano **delegar explicitamente aquele ponto**. Nunca infira delegação de elogio, de pressa ou de uma delegação anterior.
+- Nesse caso, marque `DECIDIDO (por delegação)`, explique o motivo em **uma linha** e liste **todas** as decisões por delegação no final, para o humano revisar.
+- **Números de limite** (tentativas, faixas, prazos) nunca são sugeridos sem base: marque `TODO(humano)`.
+
 ## No final
 1. Atualize "Mudanças de código decorrentes" em `docs/domain.md`, com o risco (baixo/médio/alto) de cada item novo.
 2. Crie ADR (`docs/adr/`, a partir de `0000-template.md`) para cada decisão estrutural.
 3. Liste o que segue pendente e por quê.
+4. Liste as decisões `DECIDIDO (por delegação)`, com o motivo de cada uma, para revisão.
 
 ## Nunca
 - Implementar as mudanças decorrentes (isso vira plano).
