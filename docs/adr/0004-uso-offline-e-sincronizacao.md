@@ -20,6 +20,7 @@ Na academia o sinal pode faltar. Hoje a API gera os ids, o início da sessão é
 - **Também editar fichas e exercícios offline:** exige sincronismo nos dois sentidos e regra de conflito de edição (F8 troca os itens por ids novos).
 - **Critério "última a chegar" para a sessão aberta:** uma sessão esquecida aberta, enviada tarde, encerraria a sessão de hoje. Foi a primeira escolha e foi revisada no mesmo dia.
 - **Recusar a segunda sessão aberta (409):** perde um treino que já aconteceu.
+- **Permitir apagar sessão sincronizada:** exigiria marcador de exclusão, e um aparelho antigo poderia ressuscitá-la. Sessão registrada nunca é apagada, só corrigida (S9; [ADR 0001](0001-exclusao-sem-cascata-de-historico.md)).
 
 ## Consequências
 - **Positivas:** o treino na academia não depende de sinal.

@@ -17,6 +17,6 @@ Série falhada (`failed = true`) é a série em que não completei as repetiçõ
 - **Positivas:** o campo passa a ter um significado único para relatórios e progressão.
 - **Negativas / custos:** "repetições planejadas" ficam no item da ficha, que `SetLog` não referencia, e os itens podem ser substituídos depois da sessão. Se `failed` for calculado, o valor planejado precisa estar disponível no momento do registro.
 - **O que passa a ser obrigatório:** nenhum código pode usar `failed` com outro significado (por exemplo, falha muscular).
-- **Decidido depois:** `failed` é **informado pelo usuário**; a API não o confere com `repsCompleted` (risco aceito: pode contradizer). Calcular exigiria guardar o planejado na série.
+- **Decidido depois:** `failed` é **informado pelo usuário**; a API não o confere com `repsCompleted` (risco aceito: pode contradizer). Calcular exigiria guardar o planejado na série. Melhoria futura possível, não decidida: gravar em `SetLog` um snapshot de `targetReps`.
 - **Em aberto (`TODO(humano)`):** nenhum.
 - Regra: `docs/domain.md` S6.
