@@ -1,5 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { AuthGuard } from '../auth/auth.guard';
 import { SessionsController } from './sessions.controller';
+import { SessionsService } from './sessions.service';
 
 describe('SessionsController', () => {
   let controller: SessionsController;
@@ -7,7 +9,11 @@ describe('SessionsController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [SessionsController],
-    }).compile();
+      providers: [{ provide: SessionsService, useValue: {} }],
+    })
+      .overrideGuard(AuthGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<SessionsController>(SessionsController);
   });
