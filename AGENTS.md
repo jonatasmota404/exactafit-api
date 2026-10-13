@@ -1,6 +1,6 @@
 # AGENTS.md — exactafit-api
 
-API de treino (NestJS 11 + TypeScript + Prisma 7 + PostgreSQL 16). Contexto: `docs/architecture.md`, `docs/domain.md`, `docs/adr/`.
+API de treino (NestJS 11 + TypeScript + Prisma 7 + PostgreSQL 16). Contexto: `docs/domain.md`, `docs/adr/`.
 
 ## Comandos (todos verificados)
 | Ação | Comando |
@@ -15,9 +15,8 @@ API de treino (NestJS 11 + TypeScript + Prisma 7 + PostgreSQL 16). Contexto: `do
 **Postgres para e2e:** `docker compose up -d` → porta **5433** local (docker-compose). No CI é **5432**. Ajuste `DATABASE_URL` e `JWT_SECRET` no `.env` e rode `npx prisma migrate deploy` antes do e2e.
 
 ## Estrutura
-- `src/<modulo>/` → `*.module.ts`, `*.controller.ts`, `*.service.ts`, `dto/`. Módulos: `auth`, `exercises`, `routines`, `prisma`.
-- `test/` → e2e com supertest. `prisma/` → `schema.prisma` + `migrations/`.
-- Skills de Prisma já instaladas: `.claude/skills/` e `.agents/skills/` (use-as; não duplique).
+- Testes de integração: `test/*.e2e-spec.ts` (supertest, exigem Postgres); os `*-caracterizacao.e2e-spec.ts` travam o comportamento atual, inclusive divergências de `docs/domain.md`.
+- Skills de Prisma já instaladas: `.claude/skills/prisma-*` são links para `.agents/skills/` (use-as; não duplique).
 
 ## Convenções
 - Lógica no service; controller só recebe, valida (DTO + class-validator) e delega.
@@ -45,12 +44,12 @@ API de treino (NestJS 11 + TypeScript + Prisma 7 + PostgreSQL 16). Contexto: `do
 2. Toda branch nasce da `main`. Se depende de outra branch, mergeie a outra primeiro (merge commit, não squash).
 3. Tarefa não trivial → plano em `docs/PLAN_TEMPLATE.md`, aprovado pelo humano. O plano preenchido fica em `docs/plans/` e, com a seção "Resultado" preenchida ao concluir, é o registro da tarefa.
 4. Subagente `implementador` executa o plano aprovado (um commit por tarefa).
-5. Subagente `revisor` revisa o diff (somente leitura).
+5. Subagente `revisor` revisa o diff (somente leitura), com o checklist de `docs/REVIEW.md`.
 6. Decisão estrutural → ADR em `docs/adr/` (copie `0000-template.md`).
 7. Ao fechar cada tarefa, adicione uma linha em `docs/RETRO.md`.
 8. **Merge e push na `main` são sempre do humano.** O agente nunca os executa, mesmo que um prompt os mencione, e avisa se a tarefa exigir isso.
-9. **Definição de pronto:** tarefa que mude rota, schema, regra de negócio ou módulo atualiza `docs/architecture.md`, `docs/domain.md` ou um ADR **no mesmo commit**, ou declara no plano `Sem impacto em doc: <motivo>`. Um hook avisa quando isso falta (aviso, não bloqueio).
-10. Ao fim de cada tarefa, o agente atualiza `docs/STATUS.md` (máx. 30 linhas).
+9. **Definição de pronto:** tarefa que mude rota, schema, regra de negócio ou módulo atualiza `docs/domain.md` ou um ADR **no mesmo commit**, ou declara no plano `Sem impacto em doc: <motivo>`. Um hook avisa quando isso falta (aviso, não bloqueio).
+10. Ao concluir, preencha o "Resultado" do plano, incluindo o bloco "Para o manual". O manual do humano é mantido pelo curador, fora do repositório; o agente de desenvolvimento **não** lê nem escreve o manual.
 11. Uma branch de docs/pipeline por vez; a próxima só nasce da `main` depois do merge da anterior.
 
 ## Zonas de risco (pedem confirmação)
@@ -58,12 +57,12 @@ API de treino (NestJS 11 + TypeScript + Prisma 7 + PostgreSQL 16). Contexto: `do
 Comandos `prisma migrate`/`db` também pedem confirmação. Merge e push na `main` não são do agente (Fluxo de trabalho 8).
 
 ## Guardrails automáticos (`.claude/settings.json`)
-- Hook `PreToolUse` bloqueia: `rm -rf`, push forçado, `git reset --hard`, `git clean -f`, `prisma migrate reset`, SQL destrutivo, `docker compose down -v`, acesso a `.env`/chaves. Testes: `node --test '.claude/hooks/*.test.mjs'`.
+- Hook `PreToolUse` bloqueia: `rm -rf`, push forçado, `git reset --hard`, `git clean -f`, `git branch -D` e `-d --force`, `prisma migrate reset`, `prisma db push` destrutivo, SQL destrutivo, `docker compose down -v`, acesso a `.env`/chaves. Testes: `node --test '.claude/hooks/*.test.mjs'`.
 - **Falso positivo conhecido:** o hook casa texto e não entende shell. Ele bloqueia padrão perigoso que aparece só como texto (corpo de PR, mensagem de commit). Contorno: escreva o texto num arquivo e use `gh pr create --body-file <arq>` ou `git commit -F <arq>`. Se qualquer comando for negado (hook, permissão ou classificador), pare e relate; nunca contorne trocando de branch, diretório ou comando, e nunca atribua ao humano uma autorização que ele não deu.
 - Merge e push na `main` são bloqueados pelo hook `guard-main` (independe de permissões) e pela proteção de branch no GitHub; `gh pr merge` está em deny. Quem mergeia é o humano, pelo PR.
-- Hook `Stop` roda typecheck + testes unitários + `npm run lint:check` (projeto inteiro); bloqueia o encerramento se falharem.
+- Hook `Stop` roda typecheck + testes unitários + `npm run lint:check` (projeto inteiro; comandos em `.claude/verify.json`); bloqueia o encerramento se falharem.
 - Nunca leia nem imprima `.env` ou segredos.
 - O `Stop` também chama `.claude/hooks/doc-warning.mjs`, que só **avisa** (nunca bloqueia): mudança em controller, service, dto ou schema/migrations sem doc nem "Sem impacto em doc", link relativo quebrado em `docs/` e número de ADR duplicado.
 
-## Dívida conhecida
+## Cuidados conhecidos
 - Módulo sessions entrou na main via PR #18 sem plano nem revisão contra domain.md (S1–S9) e sem testes de caracterização; auditoria pendente antes de qualquer deploy.
