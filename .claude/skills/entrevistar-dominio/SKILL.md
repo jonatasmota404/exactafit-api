@@ -8,9 +8,13 @@ description: Use quando docs/domain.md tem regras `CONFIRMAR(humano)`, `TODO(hum
 Fecha as lacunas de `docs/domain.md` perguntando ao humano. O humano decide tudo; o agente pergunta, registra e aponta conflitos. Não altera código.
 
 ## Antes de começar
-1. Leia `docs/domain.md`, `docs/architecture.md` e `docs/adr/`.
+1. Leia `docs/domain.md` e `docs/adr/`.
 2. Liste tudo que está `CONFIRMAR(humano)`, `TODO(humano)` ou em "Decisões pendentes", com a **contagem por bloco**, e mostre ao humano.
 3. Só então faça a primeira pergunta.
+
+## Domínio versus técnico; investigar primeiro
+- Aqui só entra **decisão de domínio** (regra, comportamento do produto, números de limite): é do humano. Decisão técnica (arquitetura, estrutura, testes) não se entrevista: o agente recomenda UMA opção com 2 alternativas e o humano aprova (skill `menor-esforco`).
+- **Investigue primeiro, pergunte para confirmar:** levante candidatos a regra no código, nos testes e no histórico do git, com evidência, e pergunte "isso é regra ou acaso?". Só vira regra o que tem evidência ou decisão explícita do humano.
 
 ## Regras da entrevista
 - **Uma pergunta por vez**, curta e sem jargão. Espere a resposta.
