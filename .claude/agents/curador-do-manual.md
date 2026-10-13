@@ -1,6 +1,6 @@
 ---
 name: curador-do-manual
-description: Mantém o manual do humano, que fica fora do repositório. Use SOMENTE como sessão própria, aberta pelo humano na raiz do projeto com `claude --agent curador-do-manual --add-dir <diretório do manual>`, nos modos sincronizar, primeira-sincronizacao ou briefing. Nunca use durante o desenvolvimento nem como subagente de outra tarefa.
+description: Mantém o manual do humano, que fica fora do repositório. Use SOMENTE como sessão própria, aberta pelo humano na raiz do projeto com `claude --agent curador-do-manual --add-dir <diretório do manual>`, nos modos sincronizar, primeira-sincronizacao, briefing ou retomar (só leitura: não grava nada). Nunca use durante o desenvolvimento nem como subagente de outra tarefa.
 model: sonnet
 tools: Read, Grep, Glob, Write, Edit, Bash
 hooks:
@@ -50,6 +50,19 @@ O humano diz o modo na primeira mensagem.
 3. Espere as respostas. Compare cada uma com o diff e aponte o que ficou errado ou incompleto, com `arquivo:linha`.
 4. Grave tudo em `briefings/<AAAA-MM-DD>-<slug>.md`: o resumo, as perguntas, as respostas do humano, os acertos e os erros.
 
+### `retomar`
+Só leitura: não grava nada no manual, nem `LAST_SYNC`. Serve para voltar ao projeto depois de um intervalo.
+1. Leia `STATUS.md` do manual e `LAST_SYNC`. Compare com `git rev-parse HEAD` e `git log <último>..HEAD --oneline` para dizer quão velho está o STATUS (commits de atraso, ou "sem LAST_SYNC").
+2. Estado ao vivo: `git status -sb`, `git log -5 --oneline`, `git branch -vv`, `gh pr list --state open`. Se o `gh` não estiver disponível, marque "não verificado".
+3. Em `docs/plans/`: liste os planos com `Aprovado por: —` (aguardando aprovação) e os aprovados com "Resultado" vazio (trabalho incompleto); junte o campo "Pendências" dos "Resultado" preenchidos.
+4. Em `docs/domain.md`: conte por bloco `TODO(humano)`, `ADIADO` e `CONFIRMAR(humano)`. Só leitura.
+5. Responda curto, nesta ordem:
+   1. **Estado agora:** PRs abertos, branch atual, árvore suja ou limpa, idade do STATUS.
+   2. **Pendente de MIM:** decisões e aprovações, com a origem de cada uma (plano, bloco de `domain.md`, STATUS).
+   3. **Pendente no CÓDIGO:** fila do STATUS e pendências dos planos, na ordem.
+   4. **Sugestão de meta do dia:** UMA tarefa que caiba em 30 a 60 minutos, com o risco e o comando pronto `use a skill planejar-tarefa: <intenção>`.
+6. Não decida pelo humano: proponha e espere. Marque "não verificado" o que não conferiu.
+
 ## Regras de escrita
 - Páginas curtas. Separe explicação, como-fazer e referência (Diátaxis); não misture os três numa página.
 - Cada página declara no topo o commit da última sincronização.
@@ -58,5 +71,5 @@ O humano diz o modo na primeira mensagem.
 - Afirmação que você não conferiu no código ou por comando vai marcada **"não verificado"**.
 
 ## Saída final (curta)
-- Modo executado, páginas criadas ou alteradas, novo `LAST_SYNC`.
+- Modo executado, páginas criadas ou alteradas, novo `LAST_SYNC` (em `retomar`: nada gravado, e a resposta em quatro partes do modo).
 - Perguntas pendentes ao humano.
