@@ -42,6 +42,12 @@ test('service sem doc: avisa', () => {
   assert.match(warns(repo({ 'src/routines/routine.service.ts': 'x' })), /código alterado sem doc/);
 });
 
+test('a mensagem manda atualizar domain.md ou ADR, não architecture.md', () => {
+  const out = warns(repo({ 'src/routines/routine.service.ts': 'x' }));
+  assert.match(out, /docs\/domain\.md ou um ADR/);
+  assert.doesNotMatch(out, /architecture\.md/);
+});
+
 for (const f of [
   'src/auth/auth.controller.ts',
   'src/auth/dto/login.dto.ts',
