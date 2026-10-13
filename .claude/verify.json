@@ -1,0 +1,7 @@
+{
+  "checks": [
+    { "name": "typecheck", "cmd": "npm run typecheck" },
+    { "name": "testes unitários", "cmd": "npm test -- --silent" },
+    { "name": "lint", "cmd": "npm run lint:check" }
+  ]
+}

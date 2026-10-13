@@ -9,6 +9,7 @@ import { dirname, join, normalize } from 'node:path';
 const git = (args) => spawnSync('git', args, { encoding: 'utf8' }).stdout?.trim() ?? '';
 const lines = (s) => s.split('\n').filter(Boolean);
 
+// AJUSTAR (projeto): quais caminhos contam como código de módulo. Ver PROJECT-ADJUST.md.
 const CODE = /^(src\/.+\.(controller|service)\.ts|src\/.+\/dto\/.+\.ts|prisma\/schema\.prisma|prisma\/migrations\/.+)$/;
 // Registros de processo não contam como documentação do produto.
 const NOT_PRODUCT_DOC = /^docs\/(STATUS\.md|RETRO\.md|plans\/)/;
@@ -39,7 +40,7 @@ const codeWithoutDocs = () => {
   if (declared) return;
 
   warnings.push(
-    `código alterado sem doc (${code.join(', ')}). Atualize docs/architecture.md, docs/domain.md ou um ADR no mesmo commit, ` +
+    `código alterado sem doc (${code.join(', ')}). Atualize docs/domain.md ou um ADR no mesmo commit, ` +
       'ou declare "Sem impacto em doc: <motivo>" no plano ou no commit.',
   );
 };

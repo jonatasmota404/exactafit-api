@@ -1,11 +1,11 @@
 ---
 name: mapear-projeto
-description: Use ao chegar num repositório sem documentação confiável, ou quando pedirem para mapear, documentar a arquitetura ou extrair regras de negócio do código. Só lê código; produz docs/architecture.md e regras para docs/domain.md marcadas CONFIRMAR(humano). Não use para implementar nem para registrar decisões já tomadas (use registrar-decisoes).
+description: Use ao chegar num repositório sem documentação confiável, ou quando pedirem para mapear, documentar a arquitetura ou extrair regras de negócio do código. Só lê código; produz regras candidatas para docs/domain.md marcadas CONFIRMAR(humano) e perguntas ao humano. A visão geral para o humano é do curador do manual. Não use para implementar nem para registrar decisões já tomadas (use registrar-decisoes).
 ---
 
 # Mapear projeto
 
-Leitura do código, sem alterá-lo. Os únicos arquivos escritos são `docs/architecture.md` e `docs/domain.md`.
+Leitura do código, sem alterá-lo. O único arquivo escrito é `docs/domain.md`; as perguntas vão na resposta ao humano. A visão geral (módulos, fluxos) é escrita pelo curador do manual, fora do repositório, seguindo os passos 2 e 3.
 
 ## Regra central
 Afirmação sobre ambiente (dependências, build, versões, CI, deploy, banco) exige **comando executado e saída citada**. Sem execução, escreva **"não verificado"**. Ler o `package.json` não prova o que está instalado nem como é feito o deploy.
@@ -13,7 +13,7 @@ Afirmação sobre ambiente (dependências, build, versões, CI, deploy, banco) e
 ## Passos
 1. Leia `AGENTS.md`/`README` e os comandos que eles declaram. Não invente comandos.
 2. Ache os pontos de entrada, módulos, rotas e o schema de dados.
-3. Escreva `docs/architecture.md`:
+3. Levante, sem gravar no repositório (é a base para as regras e as perguntas):
    - **Módulos:** um parágrafo por módulo: o que faz, o que **não** faz e de quem depende.
    - **Rotas:** método, caminho, autenticação, handler.
    - **Fluxos ponta a ponta:** 2–4 fluxos principais, passo a passo, com `arquivo` e `função` em cada passo.
