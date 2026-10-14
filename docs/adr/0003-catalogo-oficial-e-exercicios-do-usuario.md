@@ -1,6 +1,6 @@
 # ADR 0003 — Catálogo oficial global e exercícios do usuário
 
-- **Status:** aceito (implementação no V1; antes adiada, ver revisão abaixo)
+- **Status:** substituído por [ADR 0009](0009-catalogo-de-exercicios-fechado.md) em 2026-10-14 (catálogo fechado; exercícios do usuário revogados). Antes: aceito (implementação no V1; antes adiada, ver revisão abaixo). O texto abaixo é mantido como registro.
 - **Data:** 2026-10-12
 - **Autor:** Jônatas Júnior
 
