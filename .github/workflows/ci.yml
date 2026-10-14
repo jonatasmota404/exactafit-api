@@ -67,3 +67,14 @@ jobs:
           DATABASE_URL: "postgresql://postgres:postgrespassword@localhost:5432/exactafit_test?schema=public"
           JWT_SECRET: "ci-only-fake-jwt-secret-not-a-real-secret"
         run: npm run test:e2e
+
+  dependency-review:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/dependency-review-action@v5
+        with:
+          fail-on-severity: high
