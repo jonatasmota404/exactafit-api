@@ -5,7 +5,10 @@ on:
     branches: [main, master]
   pull_request:
     branches: [main, master]
-  
+
+permissions:
+  contents: read
+
 jobs:
   build-and-check:
     runs-on: ubuntu-latest
@@ -45,16 +48,33 @@ jobs:
         run: npm run typecheck
       
       - name: Linter
-        run: npm run lint
-      
+        run: npm run lint:check
+
+      - name: Testes unitários
+        run: npm test
+
+      - name: Testes dos hooks
+        run: node --test '.claude/hooks/*.test.mjs'
+
       - name: Executar Migrations no CI
         env:
           DATABASE_URL: "postgresql://postgres:postgrespassword@localhost:5432/exactafit_test?schema=public"
-          JWT_SECRET: "svfqWsJ+8TlLeWzTI5C0bRIFkDepy6gcXsxduW5tVrA="
+          JWT_SECRET: "ci-only-fake-jwt-secret-not-a-real-secret"
         run: npx prisma migrate deploy
 
       - name: Rodar Testes E2E
         env:
           DATABASE_URL: "postgresql://postgres:postgrespassword@localhost:5432/exactafit_test?schema=public"
-          JWT_SECRET: "svfqWsJ+8TlLeWzTI5C0bRIFkDepy6gcXsxduW5tVrA="
+          JWT_SECRET: "ci-only-fake-jwt-secret-not-a-real-secret"
         run: npm run test:e2e
+
+  dependency-review:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/dependency-review-action@v5
+        with:
+          fail-on-severity: high
