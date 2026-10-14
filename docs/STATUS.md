@@ -6,10 +6,10 @@
 - **Sessions:** módulo sessions entrou na main via PR #18 sem plano nem revisão contra domain.md (S1–S9) e sem testes de caracterização; auditoria pendente antes de qualquer deploy.
 - **Branch desta tarefa:** `docs/caso1-ajustes` (ajustes de doc do caso 1). `plan/caso1-put-name-null` foi mergeada no #19 e apagada (local e remota).
 - **Testes (nesta branch):** typecheck sem erros; unitários 3/3; `lint:check` limpo; e2e completo 74 passed, 3 todo (Postgres local 5433).
-- **Docs:** `domain.md`, `architecture.md`, ADRs 0001 a 0008, `PIPELINE.md`, `docs/plans/2026-10-12-caso1-put-name-null.md`.
+- **Docs:** `domain.md`, `architecture.md`, ADRs 0001 a 0009 (0003 substituído pelo 0009), `PIPELINE.md`, `docs/plans/2026-10-12-caso1-put-name-null.md`.
 ## Divergências de `domain.md` (travadas por teste, sem correção)
 - Routines: F4 faixas e `order` negativo, F11 `order` repetido, F10 sem limites, F6 `exerciseId` inexistente dá 500.
-- Exercises: E1/E2 exercício sem dono, E4 `muscleGroup` livre e `type` aceito. AuthGuard: C1 não consulta o usuário.
+- Exercises: E1/E2 usuário cria exercício por `POST /exercises` (catálogo fechado desde 2026-10-14, ADR 0009; destino da rota é P1), E4 `muscleGroup` livre e `type` aceito. AuthGuard: C1 não consulta o usuário.
 ## Fila de código (cada uma com plano aprovado, nesta ordem)
 1. Auditar e travar o módulo sessions (S1–S9, testes de caracterização).
 2. Endurecer o CI (manter o nome do job `build-and-check`, rodar unitários e `lint:check`).
@@ -23,3 +23,4 @@
 - Revisar e mergear o PR de `docs/caso1-ajustes`.
 - `TODO(humano)`: duração-alvo (F4), LGPD, licença da mídia, tradução, teto de fichas arquivadas, `npm ci --omit=dev` em produção.
 - Aprovar a dependência nova da ficha por IA (ADR 0007).
+- Responder P1 (`POST /exercises`: remover ou restringir) e P2 (atualização do dataset depois do V1), em `domain.md` → Decisões pendentes. Revisar e mergear o PR de `docs/catalogo-fechado`.

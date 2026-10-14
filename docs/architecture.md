@@ -169,7 +169,7 @@ Proposta (não implementada; exige aprovação de dependência nova):
 
 ## Perguntas respondidas
 As 10 perguntas do mapeamento foram respondidas em 2026-10-12 e viraram regras em `docs/domain.md`:
-- Catálogo: [E1, E2](domain.md#exercícios) e [ADR 0003](adr/0003-catalogo-oficial-e-exercicios-do-usuario.md).
+- Catálogo: [E1, E2](domain.md#exercícios) e [ADR 0009](adr/0009-catalogo-de-exercicios-fechado.md) (catálogo fechado; substitui o [ADR 0003](adr/0003-catalogo-oficial-e-exercicios-do-usuario.md)).
 - Exclusão: [E6](domain.md#exercícios), [F9](domain.md#fichas-de-treino), [C2, C3](domain.md#exclusão-ver-adr-0001) e [ADR 0001](adr/0001-exclusao-sem-cascata-de-historico.md).
 - Faixas e ficha vazia: [F3, F4, F11](domain.md#fichas-de-treino) e [S4](domain.md#sessões-e-séries-só-schema-nenhum-código-usa-ainda).
 - Exercício repetido na ficha: [F5](domain.md#fichas-de-treino).
