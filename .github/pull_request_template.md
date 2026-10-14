@@ -8,7 +8,7 @@
 <!-- O que ficou de fora ou depende do humano. "Nenhuma", se for o caso. -->
 
 ## Docs atualizadas
-<!-- docs/architecture.md, docs/domain.md, ADR, docs/STATUS.md; ou "Sem impacto em doc: <motivo>". -->
+<!-- docs/domain.md, ADR, "Resultado" do plano (com "Para o manual"); ou "Sem impacto em doc: <motivo>". -->
 
 ## Riscos
-<!-- Zona de risco tocada (migrations, schema, src/auth/, workflows), o que pode quebrar, como reverter. -->
+<!-- Zona de risco tocada (migrations, schema, autenticação, workflows), o que pode quebrar, como reverter. -->
