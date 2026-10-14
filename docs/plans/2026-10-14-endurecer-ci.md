@@ -153,11 +153,18 @@ Respostas (humano, 2026-10-14):
 Ações A e B feitas pelo humano e conferidas: `vulnerability-alerts -i` → `HTTP/2.0 204 No Content`; `code-scanning/default-setup --jq .state` → `configured`.
 
 ## Resultado (preencher ao concluir)
-- **O que foi feito:**
-- **Desvios do plano:**
-- **Pendências:**
-- **PR/commit:**
-- **Docs atualizadas:**
+- **O que foi feito:** tarefas 1 e 2 no `.github/workflows/ci.yml`: `permissions: contents: read` no topo; `lint:check` no lugar de `lint`; passos "Testes unitários" e "Testes dos hooks"; `JWT_SECRET` falso; job `dependency-review` (só em PR, `contents: read`, `fail-on-severity: high`). No PR #25: `build-and-check` pass (1m12s; log: unit `3 passed`, hooks `pass 177, fail 0`, e2e `74 passed, 3 todo`), `dependency-review` pass (6s), CodeQL pass.
+- **Desvios do plano:** na retomada, a `main` estava em `0cbb3ee` e `docs/architecture.md`/`docs/STATUS.md` já não existiam (`e88cf39`); com aprovação do humano, as tarefas passaram a "Sem impacto em doc" e a pendência de dependências foi só para "Para o manual". Linhas só com espaços adjacentes às alterações viraram linhas vazias.
+- **Pendências:** ação C (humano: tornar `dependency-review` obrigatório, comando acima); tarefa "atualizar dependências vulneráveis de produção" (antes do primeiro deploy); revisor, MENOR: `permissions` repetido no job `dependency-review` (mantido, pedido pelo plano).
+- **PR/commit:** PR #25; `0537625` (plano), `3bf2c53` (tarefa 1), `0f2bb03` (tarefa 2), mais o commit deste registro.
+- **Docs atualizadas:** sem impacto em doc (ver "Documentação"); este "Resultado" e `docs/RETRO.md`.
+
+| Etapa | Modelo | Retrabalho | Erro pego por | Tempo |
+|---|---|---|---|---|
+| Plano | Opus 5.5 | ajuste de docs na retomada (arquivos removidos depois do plano) | agente, na retomada | não medido |
+| Testes | Opus 5.5 | nenhum | — | não medido |
+| Implementação | sonnet (`implementador`) | nenhum | — | 135 s |
+| Revisão | opus (`revisor`) | nenhum (2 MENORES, sem correção de código) | — | 133 s |
 
 ### Para o manual
 - **O que mudou no comportamento:** o CI falha (em vez de corrigir) com lint sujo, e falha com teste unitário ou de hook quebrado; PR que introduz dependência vulnerável `high`+ é barrado pelo `dependency-review`.
