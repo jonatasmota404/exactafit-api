@@ -12,7 +12,7 @@
 > - `CONFIRMAR(humano)`: regra ainda não validada.
 
 ## Visão do produto
-Ver também "Decisões de produto" em [`architecture.md`](architecture.md#decisões-de-produto).
+Ver também [Decisões de produto (antes pendentes)](#decisões-de-produto-antes-pendentes) e os ADRs em [`adr/`](adr/).
 
 **Quem usa** (palavras do humano): "eu e amigos e talvez outros alunos da academia se der certo pra eu vender o app para as academias." Multiusuário desde o V1 (palavras do humano: "desde o V1 tem que ter multiusuários").
 
