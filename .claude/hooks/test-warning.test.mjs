@@ -70,6 +70,15 @@ test('teste apagado e recriado em outro caminho (renomeado): sem aviso', () => {
   assert.equal(warns(dir), '');
 });
 
+test('teste apagado e outro teste novo, sem relação (conteúdo diferente): avisa', () => {
+  const outro = "describe('outra rota', () => {\n  it('x', () => {\n    expect(g('z')).toBe('z');\n  });\n});\n";
+  const dir = repo({
+    base: { 'src/a.spec.ts': SPEC },
+    change: (w, rm) => (rm('src/a.spec.ts'), w('src/z.spec.ts', outro)),
+  });
+  assert.match(warns(dir), /Aviso de testes: .*apagado.*src\/a\.spec\.ts/);
+});
+
 for (const [label, line] of [
   ['it.skip', "  it.skip('c', () => {});"],
   ['test.todo', "  test.todo('c');"],
