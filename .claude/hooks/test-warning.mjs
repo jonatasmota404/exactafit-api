@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Aviso de teste alterado (chamado pelo hook Stop). Só imprime avisos; nunca falha nem bloqueia.
-// Compara a branch com a main e avisa quando, em arquivo de teste: (a) o arquivo foi apagado sem outro
-// arquivo de teste novo no lugar; (b) entrou skip, todo, only, xit ou xdescribe; (c) saíram mais
+// Compara a branch com a main e avisa quando, em arquivo de teste: (a) o arquivo foi apagado (renomeação que o
+// git reconhece não conta, mas teste novo sem relação não compensa o apagado); (b) entrou skip, todo, only, xit ou xdescribe; (c) saíram mais
 // verificações (expect/assert) do que entraram. Declarar "Teste alterado: <motivo>" no commit ou no plano
 // silencia o aviso. Limite conhecido: não vê troca de valor esperado (toBe(1) virar toBe(2)).
 import { spawnSync } from 'node:child_process';
@@ -23,11 +23,8 @@ const warnings = [];
 
 const deletedTests = () => {
   const gone = lines(git(['diff', '--name-only', '--diff-filter=D', base])).filter((f) => TEST.test(f));
-  const added = lines(git(['diff', '--name-only', '--diff-filter=A', base]))
-    .concat(lines(git(['ls-files', '--others', '--exclude-standard'])))
-    .filter((f) => TEST.test(f));
-  // Arquivo movido ou renomeado conta como substituído: há teste novo na mesma branch.
-  if (gone.length && added.length === 0) {
+  // Renomeação detectada pelo git vira R, não D; teste novo sem relação não silencia o apagado.
+  if (gone.length) {
     warnings.push(`arquivo de teste apagado (${gone.join(', ')}). Teste não se apaga para passar; se foi intencional, declare "Teste alterado: <motivo>".`);
   }
 };
