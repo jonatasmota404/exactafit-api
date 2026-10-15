@@ -18,10 +18,14 @@ Leva um plano aprovado até um PR pronto para o humano mergear. Nunca mergeia.
    - Branch da tarefa: a que o plano indica. Uma tarefa, uma branch, um PR, com plano, código e docs juntos.
    - Linha de base: rode as verificações de `.claude/verify.json` e os testes de integração do módulo conforme a tabela "Comandos" do `AGENTS.md`.
    - Se algo falhar, confirme na `main` limpa antes de classificar como pré-existente e **pare**.
-2. **Testes primeiro.** Escreva os testes dos critérios de aceite e mostre (saída colada) que falham pelo motivo certo.
-3. **Implementação** pelo subagente `implementador`, só nos arquivos da lista "Arquivos a tocar" do plano. Arquivo fora da lista: pare e pergunte.
+2. **Testes primeiro** (toda tarefa que muda comportamento; o plano declara `Sem teste novo: <motivo>` quando não muda).
+   - Escreva os testes da seção "Testes" do plano, só eles.
+   - Rode e mostre (saída colada) que falham pelo motivo certo, não por erro de sintaxe, import ou ambiente.
+   - Commit só dos testes (`test(escopo): ...`), antes de qualquer código de produção.
+   - Teste que já passa antes da implementação não prova nada: pare e relate.
+3. **Implementação** pelo subagente `implementador`, só nos arquivos da lista "Arquivos a tocar" do plano. Arquivo fora da lista: pare e pergunte. Os testes do passo 2 são fixos: o implementador não os altera, enfraquece, desativa nem apaga. Se um teste estiver errado, ele para e relata; quem decide é o humano.
 4. **Verificação completa**: `.claude/verify.json` e integração do módulo, com as saídas coladas.
-5. **Revisão** pelo subagente `revisor`, em contexto limpo, com o diff e o plano. Corrija só o BLOQUEANTE ou IMPORTANTE dentro do escopo; o resto vira pendência no "Resultado".
+5. **Revisão** pelo subagente `revisor`, em contexto limpo, com o diff e o plano. Ele confere também cobertura dos critérios, ordem dos testes e testes enfraquecidos. Corrija só o BLOQUEANTE ou IMPORTANTE dentro do escopo; o resto vira pendência no "Resultado".
 6. **Documentação** conforme o plano e a definição de pronto do `AGENTS.md`. "Sem impacto em doc: <motivo>" só se o plano declarar.
 7. **Registro.**
    - Preencha a seção "Resultado" do plano, incluindo o bloco "Para o manual": é o repasse ao curador do manual.
@@ -41,6 +45,7 @@ Leva um plano aprovado até um PR pronto para o humano mergear. Nunca mergeia.
 
 ## Regras
 - Nunca mergeie nem faça push na `main`.
+- Nunca altere, enfraqueça, desative ou apague teste para fazê-lo passar.
 - Se qualquer comando for negado, pare e relate; nunca contorne trocando de branch, diretório ou comando.
 - Se um comando composto for bloqueado por falso positivo do hook, rode os comandos separados; se ainda assim for bloqueado, pare.
 - Regra de domínio que não está em `docs/domain.md`: pergunte, não presuma.

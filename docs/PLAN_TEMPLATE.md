@@ -12,6 +12,14 @@ Modelo recomendado: <modelo> — <motivo>
 - [ ] <!-- comportamento observável e testável, ex.: "PUT /routine/:id de outro usuário retorna 404" -->
 - [ ] Typecheck, testes unitários e lint passam.
 
+## Testes (escritos antes do código)
+<!-- Um teste por critério de aceite que muda comportamento, incluindo o caminho de erro. Só o que o critério pede: sem caso impossível nem detalhe interno.
+Risco médio ou alto: o humano aprova esta lista junto com o plano.
+Tarefa sem comportamento novo (documentação, configuração, refatoração já coberta por testes): escreva "Sem teste novo: <motivo>". -->
+| Critério | Caso (entrada → esperado) | Arquivo de teste |
+|---|---|---|
+| | | |
+
 ## Risco
 - **Nível:** baixo | médio | alto
 - **Toca zona de risco?** (migrations, schema, autenticação, workflows; lista no `AGENTS.md`): sim/não. Qual?
@@ -40,7 +48,12 @@ Modelo recomendado: <modelo> — <motivo>
 - Nenhuma.
 
 ## Dependências novas
-- Nenhuma. <!-- Se houver: pacote, motivo, aprovação do humano. -->
+<!-- Padrão: `Nenhuma`. Se houver, confira cada pacote no registro oficial ANTES de pedir aprovação (comando e saída colados; ex. npm: `npm view <pacote> name time.created time.modified maintainers license`). Pacote que não existe, com menos de ~30 dias ou com nome parecido com outro muito usado: pare e relate. -->
+Nenhuma.
+
+| Pacote | Existe no registro | Primeira/última publicação | Mantenedor | Por que não dá para evitar |
+|---|---|---|---|---|
+| | | | | |
 
 ## Como verificar
 ```bash

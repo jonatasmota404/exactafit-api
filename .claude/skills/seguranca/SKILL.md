@@ -25,6 +25,12 @@ Guia de perguntas para o plano e para a revisão. Detalhe por tipo de trabalho e
 - Revisão de segurança por IA tem pontos cegos e **não substitui o aceite humano** em autenticação, dados e segredos.
 - A camada robusta são as **verificações objetivas no CI do projeto** (varredura de segredos, auditoria de dependências, análise estática). Esta skill só as recomenda; não crie workflow de CI do projeto dentro de uma tarefa de feature.
 
+## Dependência nova
+Modelos inventam nomes de pacote com frequência, e nome inventado pode ser registrado por atacante (slopsquatting). Antes de pedir aprovação:
+- Confira no registro oficial (comando e saída colados; ex. npm: `npm view <pacote> name time.created time.modified maintainers license`): existe, nome exato (sem letra trocada), primeira e última publicação, mantenedor, licença.
+- Pacote que não existe, tem menos de ~30 dias ou tem nome parecido com outro muito usado: pare e relate; nunca instale.
+- O lockfile vai no mesmo commit do manifesto.
+
 ## Nunca
 - Declarar "seguro" sem evidência; sem execução ou leitura, "não verificado".
 - Imprimir ou ler `.env` e segredos.

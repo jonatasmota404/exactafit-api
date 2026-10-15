@@ -13,13 +13,14 @@ Produz só o plano. Não altere código, schema nem configuração.
 3. Copie `docs/PLAN_TEMPLATE.md` para `docs/plans/AAAA-MM-DD-<slug>.md` e preencha:
    - **Intenção:** 1–3 frases.
    - **Critérios de aceite:** comportamento observável e testável (rota, status, dado gravado), não "funciona bem".
+   - **Testes:** uma linha por critério que muda comportamento: critério, caso (entrada → esperado) e arquivo de teste. Inclua o caminho de erro. Só o que o critério pede; sem teste de caso impossível nem de detalhe interno. Se a tarefa não muda comportamento (documentação, configuração, refatoração já coberta por testes), escreva `Sem teste novo: <motivo>`. Em risco médio ou alto, peça ao humano que aprove esta lista junto com o plano.
    - **Risco:** nível, zona de risco tocada, o que pode quebrar.
    - **Menor esforço:** a linha da skill `menor-esforco`.
    - **Segurança:** só em risco médio ou alto que toque autenticação, dados pessoais, entrada externa, segredos ou dependências (skill `seguranca`).
    - **Tarefas:** pequenas, um commit cada.
-   - **Arquivos a tocar:** lista fechada. Qualquer arquivo fora dela durante a implementação é suspeito.
+   - **Arquivos a tocar:** lista fechada, incluindo os arquivos de teste. Qualquer arquivo fora dela durante a implementação é suspeito.
    - **Abstrações novas:** padrão **nenhuma**. Só com dois usos reais já existentes, citados.
-   - **Dependências novas:** padrão nenhuma. Se precisar, peça aprovação explícita.
+   - **Dependências novas:** padrão `Nenhuma`. Se precisar, preencha a tabela da seção (existe no registro, primeira/última publicação, mantenedor, por que não dá para evitar), com o comando e a saída da consulta, e só então peça aprovação explícita.
    - **Como verificar:** comandos do projeto e passos manuais que provam cada critério.
    - **Fora de escopo:** o que parece relacionado e não será feito.
 4. Liste **perguntas para o humano** no fim do plano. Regra de negócio que não está em `docs/domain.md` vira pergunta, não suposição.
