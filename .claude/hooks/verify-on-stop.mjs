@@ -12,17 +12,17 @@ const out = (c) => sh(c).stdout?.trim() ?? '';
 
 const base = out('git merge-base HEAD main 2>/dev/null') || 'HEAD';
 const changed = [
-  ...out(`git diff --name-only --diff-filter=ACMR ${base}`).split('\n'),
+  ...out(`git diff --name-only --diff-filter=ACDMR ${base}`).split('\n'),
   ...out('git ls-files --others --exclude-standard').split('\n'),
 ].filter(Boolean);
 
 // Nada alterado na branch nem no working tree: nada a verificar.
 if (changed.length === 0) process.exit(0);
 
-// Aviso de documentação: só informa, nunca bloqueia (falha do script é ignorada).
-const docScript = fileURLToPath(new URL('./doc-warning.mjs', import.meta.url));
-const docWarnings = (spawnSync('node', [docScript], { encoding: 'utf8' }).stdout ?? '').trim();
-const warnings = docWarnings ? [docWarnings] : [];
+// Avisos (documentação e testes alterados): só informam, nunca bloqueiam (falha do script é ignorada).
+const warnings = ['doc-warning.mjs', 'test-warning.mjs']
+  .map((f) => (spawnSync('node', [fileURLToPath(new URL(`./${f}`, import.meta.url))], { encoding: 'utf8' }).stdout ?? '').trim())
+  .filter(Boolean);
 
 // Comandos do projeto: .claude/verify.json, relativo ao diretório do projeto (o hook roda com cwd nele).
 // Formato: { "checks": [ { "name": "typecheck", "cmd": "<comando>" } ] }. Ver PROJECT-ADJUST.md.

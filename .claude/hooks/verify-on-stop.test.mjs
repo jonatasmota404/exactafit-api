@@ -94,3 +94,20 @@ for (const [label, config] of [
     assert.match(out.reason, /configuração inválida/);
   });
 }
+
+test('teste apagado na branch: avisa, sem bloquear', () => {
+  const dir = project({ config: { checks: [ok] }, dirty: false });
+  const git = (...a) => spawnSync('git', ['-C', dir, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a], { encoding: 'utf8' });
+  git('switch', '-q', 'main');
+  mkdirSync(join(dir, 'src'), { recursive: true });
+  writeFileSync(join(dir, 'src/a.spec.ts'), "it('a', () => { expect(1).toBe(1); });\n");
+  git('add', '-A');
+  git('commit', '-q', '-m', 'teste');
+  git('switch', '-q', 'feat/x');
+  git('merge', '-q', 'main');
+  git('rm', '-q', 'src/a.spec.ts');
+  git('commit', '-q', '-m', 'remove');
+  const { out } = run(dir);
+  assert.equal(out.decision, undefined);
+  assert.match(out.systemMessage, /Aviso de testes: .*apagado.*src\/a\.spec\.ts/);
+});
