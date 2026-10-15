@@ -11,7 +11,7 @@ Duas regras de pensamento valem em todo o ciclo. (1) Decisão de domínio (regra
 1. Intenção e critério de aceite.
 2. Classificação de risco.
 3. Decisões de domínio que a IA não tem como saber. A IA pergunta e não presume.
-4. Aprovação do plano, cortando o excesso (cortar aqui é barato).
+4. Aprovação do plano, cortando o excesso (cortar aqui é barato). Em risco médio ou alto, inclui a lista de testes do plano.
 5. Aceite: ler o diff dos pontos de risco e da documentação e rodar o fluxo real.
 6. Merge, que é sempre do humano, e a retro.
 Todo o resto roda sozinho dentro das barreiras da seção 5.
@@ -21,10 +21,10 @@ Risco baixo (local, reversível, com teste) vai direto. Risco médio (regra de n
 1. Escolha UMA tarefa que caiba em 30 a 60 minutos; senão, quebre.
 2. A branch nasce da main atualizada (`git pull --ff-only`). Uma sessão por diretório de trabalho; sessões paralelas usam `git worktree`.
 3. Explorar em modo leitura.
-4. Plano (skill planejar-tarefa) em docs/plans/, depois da entrevista por tarefa escalada pelo risco (baixo 0 a 3 perguntas, médio até 8, alto com reversibilidade, alternativas e pré-mortem): critérios testáveis, risco, menor esforço (skill menor-esforco), segurança em risco médio ou alto que toque autenticação, dados pessoais, entrada externa, segredos ou dependências (skill seguranca), arquivos a tocar (qualquer outro no diff é suspeito), abstrações novas (padrão: nenhuma), dependências novas (só com aprovação), como verificar, doc que muda ("Sem impacto em doc: motivo" se nenhuma), fora de escopo, perguntas ao humano. O humano aprova.
-5. Testes primeiro nos riscos médio e alto: os critérios viram testes que falham.
-6. Implementar em tarefas pequenas, um commit cada, até typecheck, testes e lint passarem.
-7. Revisor em sessão limpa: complexidade desnecessária, regras de negócio, segurança, documentação atualizada.
+4. Plano (skill planejar-tarefa) em docs/plans/, depois da entrevista por tarefa escalada pelo risco (baixo 0 a 3 perguntas, médio até 8, alto com reversibilidade, alternativas e pré-mortem): critérios testáveis, testes (um por critério), risco, menor esforço (skill menor-esforco), segurança em risco médio ou alto que toque autenticação, dados pessoais, entrada externa, segredos ou dependências (skill seguranca), arquivos a tocar (qualquer outro no diff é suspeito), abstrações novas (padrão: nenhuma), dependências novas (só com aprovação), como verificar, doc que muda ("Sem impacto em doc: motivo" se nenhuma), fora de escopo, perguntas ao humano. O humano aprova.
+5. Testes primeiro em toda tarefa que muda comportamento: cada critério de aceite vira um teste que roda e falha pelo motivo certo (saída colada) antes da implementação. Nos riscos médio e alto, o humano já aprovou a lista de casos no plano. Ficam de fora documentação, configuração e refatoração já coberta por testes; o plano declara "Sem teste novo: motivo".
+6. Implementar em tarefas pequenas, um commit cada, até typecheck, testes e lint passarem. Teste aprovado não é alterado, enfraquecido nem apagado para passar; se estiver errado, para e relata.
+7. Revisor em sessão limpa: complexidade desnecessária, regras de negócio, cobertura dos critérios por testes (e se vieram antes, e se algum foi enfraquecido), segurança, documentação atualizada.
 8. Documentação no mesmo PR (domain ou ADR) e seção "Resultado" do plano preenchida, com o bloco "Para o manual". O curador leva isso ao manual do humano depois, em sessão própria.
 9. PR com o template, CI verde, humano lê e mergeia.
 10. Retro: uma linha em docs/RETRO.md por erro repetido ou surpresa.
@@ -44,7 +44,7 @@ Perguntas do planejamento (o humano responde por escrito): qual o problema real 
 Robustas (valem em qualquer checkout, fora do alcance do agente):
 - Proteção da main no GitHub: PR obrigatório, check de CI obrigatório, vale para administradores, sem force push, sem exclusão.
 - Deny no settings do usuário (`~/.claude/settings.json`) para `gh pr merge` e escrita via `gh api`.
-- Hooks versionados no repositório: guard-main (bloqueia push e merge na main, `gh pr merge`, `gh api` de escrita, push com expansão de shell, pull sem `--ff-only`), block-destructive (rm -rf, push forçado, reset --hard, `git branch -D` e `-d --force`, SQL destrutivo, leitura de segredos), verify-on-stop (typecheck, testes e lint que só verifica; bloqueia na primeira falha e só avisa na segunda), doc-warning (apenas avisa: código sem doc, link quebrado, ADR duplicado).
+- Hooks versionados no repositório: guard-main (bloqueia push e merge na main, `gh pr merge`, `gh api` de escrita, push com expansão de shell, pull sem `--ff-only`), block-destructive (rm -rf, push forçado, reset --hard, `git branch -D` e `-d --force`, SQL destrutivo, leitura de segredos), verify-on-stop (typecheck, testes e lint que só verifica; bloqueia na primeira falha e só avisa na segunda), doc-warning (apenas avisa: código sem doc, link quebrado, ADR duplicado), test-warning (apenas avisa: teste apagado, desativado ou com menos verificações).
 - Allow, ask e deny do settings.json do projeto; ask nas zonas de risco (migrations, schema, autenticação, workflows, manifesto de dependências, .claude).
 Frágeis (saiba onde estão):
 - Os hooks casam texto: não analisam eval, `bash -c` nem scripts. Dão falso positivo quando o padrão perigoso aparece só como texto (contorno: gravar o texto num arquivo fora do repositório).
@@ -52,7 +52,7 @@ Frágeis (saiba onde estão):
 - settings.local.json e ~/.claude não são versionados.
 - O revisor não tem Edit nem Write, mas tem Bash livre; só a prosa o impede de escrever por shell. Isolamento real exige container.
 - A skill seguranca e o item de segurança do revisor são IA: têm pontos cegos e não substituem o aceite humano em autenticação, dados e segredos. A camada robusta são os gates objetivos no CI do projeto (varredura de segredos, auditoria de dependências, análise estática); a skill apenas os recomenda.
-- Só em prosa, sem imposição: dependência nova só com aprovação, teto de diff de produção (~300 linhas), "Resultado" do plano preenchido, RETRO por tarefa, aviso do modelo.
+- Só em prosa, sem imposição: dependência nova só com aprovação, teto de diff de produção (~300 linhas), "Resultado" do plano preenchido, RETRO por tarefa, aviso do modelo, testes antes do código (o revisor confere a ordem). Teste aprovado intocado tem aviso do hook test-warning (apagado, desativado, menos verificações), mas nada impede a escrita nem vê troca de valor esperado; o revisor confere no diff. Bloquear escrita em arquivos de teste só entra se o agente alterar teste sem avisar mesmo com o aviso.
 Regra de ouro: se qualquer comando for negado, pare e relate. Nunca contorne trocando de branch, diretório ou comando, e nunca atribua ao humano uma autorização que ele não deu.
 Autonomia total (sem pedir permissão) só dentro de container ou VM isolada, com repositório limpo, branch própria e token sem permissão de merge.
 
@@ -71,7 +71,7 @@ No manual do humano (`~/manuais/<projeto>/`, criado a partir de `manual-template
 - index.md: o que o sistema é, modelo mental, mapa de leitura; regras e ADRs só por link ao ID, nunca copiados.
 - STATUS.md: fila, decisões pendentes do humano e riscos (só o não derivável do git).
 - briefings/: briefing de cada plano ou PR de risco médio ou alto, com as respostas do humano.
-- Mantido só pelo agente `curador-do-manual`, em sessão própria: `claude --agent curador-do-manual --add-dir ~/manuais/<projeto>` (modos `sincronizar`, `primeira-sincronizacao`, `briefing`).
+- Mantido só pelo agente `curador-do-manual`, em sessão própria: `claude --agent curador-do-manual --add-dir ~/manuais/<projeto>` (modos `sincronizar`, `primeira-sincronizacao`, `briefing` e `retomar`, este só de leitura).
 - Para entender uma área sob demanda: skill `explicar`.
 
 Definição de pronto: toda tarefa que muda rota, schema, regra ou módulo atualiza domain.md ou um ADR no mesmo commit ou declara "Sem impacto em doc: motivo". Depois de uma semana parado: no manual, STATUS e index; depois RETRO (últimas linhas), DAILY e ADRs recentes. Confira com o TESTE-DE-RETOMADA do manual.
@@ -91,6 +91,7 @@ Diário e semanal: docs/DAILY.md. No fim do dia: conferir o "Resultado" do plano
 - Teste de caracterização trava o comportamento atual antes de mudar o código e revela divergências do domain.md.
 - A entrevista de domínio expõe problemas de design (limites, valores calculados, cascatas) que nenhum teste pegaria.
 - Contexto do agente e do humano misturados no repositório: o agente gasta contexto com explicação que não usa e o humano perde o fio. A explicação vai para o manual, fora do repositório; o repositório guarda só o que o agente precisa e a fonte compartilhada (domain e ADRs).
+- Teste escrito depois do código tende a confirmar o que o código faz, não o que o plano pediu; por isso o teste vem antes e, uma vez aprovado, não se altera para passar. O revisor confere cobertura, ordem e enfraquecimento.
 
 ## 9. IA em conteúdo, design, áudio e vídeo (a testar)
 Princípios, ainda sem pipeline validado: a IA gera variações e rascunhos rápidos, o humano dá a direção (briefing, referências, restrições, ponto de vista) e o gosto. É preciso dominar os fundamentos (hierarquia visual, ritmo, estrutura narrativa) para julgar o resultado. Anti-slop: edição pesada, fatos checados, e algo que só o autor diria. Quando houver o primeiro projeto de conteúdo, aplique o mesmo ciclo (intenção, plano, verificação, aceite, retro) e registre o que funcionou.
