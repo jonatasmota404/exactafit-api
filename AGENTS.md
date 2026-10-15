@@ -29,7 +29,8 @@ API de treino (NestJS 11 + TypeScript + Prisma 7 + PostgreSQL 16). Contexto: `do
 ## Regras anti-overengineering
 1. Faça a **menor mudança que resolve** o problema pedido. Nada além do escopo.
 2. **Sem abstração antes do segundo uso real** (nada de helpers, bases genéricas ou interfaces "para o futuro").
-3. **Sem dependência nova** sem aprovação explícita do humano.
+3. **Sem dependência nova** sem aprovação explícita do humano. Só peça a aprovação depois de conferir o pacote no registro oficial e preencher a tabela "Dependências novas" do plano: existe, nome exato (sem letra trocada em relação ao pacote conhecido), primeira e última publicação, mantenedor, licença, e o comando usado com a saída colada (ex.: `npm view <pacote> name time.created time.modified maintainers license`).
+   Pacote que não existe, tem menos de ~30 dias ou tem nome parecido com outro muito usado: **pare e relate; nunca instale**.
 4. **Diffs pequenos**: um commit por tarefa; se o diff de código de produção passar de ~300 linhas, pare e divida. Testes de caracterização e docs podem exceder, em commits coesos.
 5. **Nunca declare "pronto" com typecheck, testes ou lint falhando.** Se não conseguir corrigir, diga o que falha.
 6. Não invente comandos: use só os da tabela acima.
@@ -38,6 +39,7 @@ API de treino (NestJS 11 + TypeScript + Prisma 7 + PostgreSQL 16). Contexto: `do
 ## Regras de verificação
 1. Antes de chamar um problema de "pré-existente" ou "dívida antiga", reproduza-o na `main` limpa.
 2. Afirmação sobre dependências, build, ambiente ou deploy exige comando executado e saída citada. Sem execução, marque **"não verificado"**.
+3. **Teste primeiro.** Tarefa que muda comportamento começa pelo teste do critério de aceite, que deve falhar pelo motivo certo antes da implementação. Nunca altere, enfraqueça, desative ou apague teste existente para fazê-lo passar; se o teste estiver errado, pare e relate. Escreva só o teste que o critério pede (nada de caso impossível ou detalhe interno). Documentação, configuração e refatoração já coberta por testes ficam de fora, e o plano declara isso.
 
 ## Fluxo de trabalho
 1. O modelo da sessão é definido no início. Se a tarefa recomenda outro modelo, avise antes de começar; não siga com o errado.
@@ -63,6 +65,7 @@ Comandos `prisma migrate`/`db` também pedem confirmação. Merge e push na `mai
 - Hook `Stop` roda typecheck + testes unitários + `npm run lint:check` (projeto inteiro; comandos em `.claude/verify.json`); bloqueia o encerramento se falharem.
 - Nunca leia nem imprima `.env` ou segredos.
 - O `Stop` também chama `.claude/hooks/doc-warning.mjs`, que só **avisa** (nunca bloqueia): mudança em controller, service, dto ou schema/migrations sem doc nem "Sem impacto em doc", link relativo quebrado em `docs/` e número de ADR duplicado.
+- E chama `.claude/hooks/test-warning.mjs`, que também só **avisa**: arquivo de teste apagado, teste desativado (`skip`, `todo`, `only`, `xit`) ou menos verificações do que na `main`. Alteração intencional de teste se declara com `Teste alterado: <motivo>` no commit ou no plano.
 
 ## Cuidados conhecidos
 - Módulo sessions entrou na main via PR #18 sem plano nem revisão contra domain.md (S1–S9) e sem testes de caracterização; auditoria pendente antes de qualquer deploy.
