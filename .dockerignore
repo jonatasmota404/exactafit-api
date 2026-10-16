@@ -1,0 +1,15 @@
+node_modules
+dist
+.git
+.github
+.claude
+.agents
+.windsurf
+docs
+test
+coverage
+.env*
+*.md
+docker-compose.yml
+Dockerfile
+.dockerignore
