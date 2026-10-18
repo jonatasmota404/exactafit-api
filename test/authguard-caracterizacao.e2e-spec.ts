@@ -172,9 +172,4 @@ describe('AuthGuard e2e (caracterização)', () => {
       expect(res.status).toBe(200);
     });
   });
-
-  // Não confirmado executando: fica como hipótese, sem afirmar.
-  test.todo(
-    'hipótese: com JWT_SECRET ausente, o guard passa undefined ao verifyAsync e o @nestjs/jwt cai no segredo do módulo (fallback fixo, U8); exige subir a app sem a variável',
-  );
 });

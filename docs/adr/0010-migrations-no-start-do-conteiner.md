@@ -18,7 +18,7 @@ O deploy será em VPS própria com Coolify (build pack Dockerfile), atrás do Tr
   2. Desfazer à mão o que a migration aplicou antes de falhar (no contêiner do Postgres).
   3. `./node_modules/.bin/prisma migrate resolve --rolled-back <nome_da_migration>`.
   4. Corrigir a migration **em uma migration nova** (nunca editar a existente, regra do `AGENTS.md`) e fazer novo deploy.
-- **Primeiro deploy bloqueado.** `JWT_SECRET` ainda tem valor padrão público em `src/auth/auth.module.ts` (fila 3, U8). O primeiro deploy só é liberado quando a fila 3 estiver mergeada e o pré-voo passar: `docker run` da imagem **sem** `JWT_SECRET` deve encerrar com exit ≠ 0. Em 2026-10-16 o pré-voo **falha** (o contêiner sobe e responde `GET /`). Esta decisão não adiciona checagem de boot.
+- **Pré-voo do `JWT_SECRET` (fila 3, U8).** O primeiro deploy só é liberado quando a fila 3 estiver mergeada na `main` e o pré-voo passar: `docker run` da imagem **sem** `JWT_SECRET` deve encerrar com exit ≠ 0. Em 2026-10-16 o pré-voo **falhava** (o contêiner subia e respondia `GET /`). Em 2026-10-18, na branch `fix/jwt-secret-obrigatorio` (plano `docs/plans/2026-10-18-jwt-secret-e-shutdown.md`), o pré-voo **passa**: sem `JWT_SECRET` e com `JWT_SECRET` de menos de 32 caracteres o contêiner aplica as migrations e sai com **exit 1** (`JWT_SECRET ausente ou com menos de 32 caracteres`, sem o valor). A validação fica no app (`src/auth/auth.module.ts`), não no `CMD`. Até o merge da branch, o deploy continua bloqueado.
 - `trust proxy` continua desligado. Gatilho: ao entrar rate limit, log de IP ou qualquer leitura de `req.ip`, reconferir `proxy-addr` (≥ 2.0.8) e configurar `trust proxy` com o número de saltos ou o CIDR do proxy, nunca `true`.
 
 ## Alternativas descartadas

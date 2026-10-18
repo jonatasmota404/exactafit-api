@@ -148,7 +148,7 @@ Manual: subir a API e chamar `GET /`, `POST /auth/register` e `POST /auth/login`
 - **Audit antes → depois** (`npm audit --omit=dev`): 9 (1 critical, 7 high, 1 moderate) → **4 (4 high: `prisma`, `@prisma/config`, `deepmerge-ts`, `mysql2`)**. Com `--omit=optional`: 4 (1 critical, 2 high, 1 moderate) → **0**. `proxy-addr`, `multer`, `@nestjs/platform-express`, `qs` e `fast-uri` não aparecem mais.
 - **Verificação (tudo passou):** typecheck; unitários 3/3; lint:check; build; e2e (Postgres descartável em porta própria, 6 suítes, 74 passed + 3 todo; o log de erro de FK no e2e é de teste de caracterização esperado). Imagem do Dockerfile contra Postgres vazio: 6 migrations aplicadas no start, `GET /` 200 `{"status":"ok"}`, `POST /auth/register` 201, `POST /auth/login` 200 (JSON e `application/x-www-form-urlencoded`, que exercita o `qs`), healthcheck `healthy`. `git diff --stat` vazio em `src/`, `test/`, `prisma/`, `.github/` e `Dockerfile`.
 - **Pendências:** PR 2 (mysql2/deepmerge-ts/prisma). Nova informação para ele: `prisma@7.10.1` já traz `deepmerge-ts` 8 e `mysql2` 3.24 e zera o audit sem override, mas ainda não cumpre ~30 dias (elegível a partir de 2026-11-14); decidir entre esperar ou override. `npm audit --omit=dev` completo segue em 4 até lá.
-- **PR/commit:** branch `chore/audit-fix-prod`; PR não aberto.
+- **PR/commit:** branch `chore/audit-fix-prod`; PR #30, mergeado em 2026-10-18.
 - **Docs atualizadas:** este plano. Sem impacto em doc (domain/ADR).
 
 ### Para o manual
