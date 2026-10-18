@@ -38,7 +38,7 @@ Onde o segredo é lido (`grep -rn "JWT_SECRET\|secret"` em `src test .github doc
 |---|---|---|
 | Falha sem segredo | `delete process.env.JWT_SECRET`; `compile()` de `[PrismaModule, AuthModule]` com `PrismaService` sobrescrito → rejeita com `/JWT_SECRET/` | `src/auth/auth.module.spec.ts` (novo) |
 | Falha com segredo curto | segredo de teste de 31 caracteres → rejeita com `/JWT_SECRET/`, mensagem não contém o valor | idem |
-| Boot com segredo | segredo de teste de 33 caracteres → `compile()` resolve; `signAsync` + `verifyAsync` fazem ida e volta | idem |
+| Boot com segredo (limite) | segredo de teste de **exatamente 32** caracteres → `compile()` resolve; `signAsync` + `verifyAsync` fazem ida e volta (31 recusa, 32 aceita) | idem |
 | Register/login seguem iguais | e2e existentes (`auth.e2e-spec.ts`, `authguard-caracterizacao.e2e-spec.ts`) **sem alteração de asserção**, com segredo de teste de 32+ do ambiente | — |
 | Pré-voo | manual: `docker run` sem `JWT_SECRET` → exit ≠ 0 (Resultado) | — |
 

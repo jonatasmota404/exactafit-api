@@ -36,8 +36,10 @@ describe('AuthModule (JWT_SECRET)', () => {
     expect(erro.message).not.toContain(curto);
   });
 
-  it('sobe com JWT_SECRET de 32+ caracteres e assina/verifica tokens', async () => {
-    process.env.JWT_SECRET = 'segredo-de-teste-unitario-com-32+';
+  it('sobe com JWT_SECRET de exatamente 32 caracteres e assina/verifica tokens', async () => {
+    const limite = 'segredo-de-teste-unitario-com-32';
+    expect(limite).toHaveLength(32);
+    process.env.JWT_SECRET = limite;
 
     const moduleRef = await compile();
     const jwt = moduleRef.get(JwtService);
