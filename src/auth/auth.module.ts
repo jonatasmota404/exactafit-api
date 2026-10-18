@@ -7,12 +7,15 @@ import { AuthGuard } from './auth.guard';
 
 @Module({
   imports: [
-    JwtModule.register({
+    JwtModule.registerAsync({
       global: true,
-      secret:
-        process.env.JWT_SECRET ||
-        'oDVCXALaROLyjK9JoeGNhqdbi1wmKqNdC8wd5u0Eblc=',
-      signOptions: { expiresIn: '7d' },
+      useFactory: () => {
+        const secret = process.env.JWT_SECRET;
+        if (!secret || secret.length < 32) {
+          throw new Error('JWT_SECRET ausente ou com menos de 32 caracteres');
+        }
+        return { secret, signOptions: { expiresIn: '7d' } };
+      },
     }),
   ],
   controllers: [AuthController],
