@@ -2,7 +2,7 @@
 
 > O humano aprova antes de o `implementador` começar. O plano preenchido, com o "Resultado" ao concluir, é o registro da tarefa.
 
-Aprovado por: **parcial** — o humano aprovou, em 2026-10-16, apenas a **reabertura do PR 2** (decisão de E1, abaixo). A implementação dos PRs 1 e 2 **continua pendente de aprovação**; nada foi implementado nesta tarefa.
+Aprovado por: **humano, em 2026-10-16** — PR 1 (parte A): `npm audit fix --omit=dev` só no lockfile, `@nestjs/common` e `@nestjs/core` alinhados a 11.2.7; fora do escopo: override de `mysql2`, `deepmerge-ts` 8 e a cadeia do `prisma` (PR 2, reaberto por E1); `trust proxy` segue desligado. **PR 2 continua pendente de aprovação.**
 Modelo recomendado: Sonnet 5.5 (o da sessão) — tarefa mecânica, mas em zona de risco (`package.json`); o que pesa é a verificação, não o modelo.
 
 ## Intenção
@@ -142,15 +142,16 @@ Manual: subir a API e chamar `GET /`, `POST /auth/register` e `POST /auth/login`
 3. **Aceitar risco residual documentado** (B3) caso `deepmerge-ts` 8 quebre o CLI, ou bloquear o deploy até haver 7.x corrigido? Recomendo aceitar com gatilho de revisão: os 4 avisos restantes não são alcançáveis no app.
 4. **`trust proxy`:** o deploy ficará atrás de proxy/PaaS? Se sim, o crítico do `proxy-addr` deixa de ser teórico e o PR 1 vira pré-requisito do deploy (já é, mas com prazo).
 
-## Resultado (preencher ao concluir)
-**Parcial, em 2026-10-16: só o plano foi atualizado. Nada de PR 1 nem de PR 2 foi implementado.**
-- **O que foi feito:** seção "Atualização de 2026-10-16" (PR 2 reaberto sob E1) e resposta à Pergunta 1. Medido com E1: `npm audit --omit=dev` = 9 (1 critical, 7 high, 1 moderate); `--omit=dev --omit=optional` = 4 (1 critical, 2 high, 1 moderate).
-- **Desvios do plano:** nenhum código nem lockfile alterado.
-- **Pendências:** aprovar e implementar o PR 1 (`npm audit fix --omit=dev`, bloqueia o crítico) e o PR 2 (override de `mysql2`; `deepmerge-ts` 8 em commit separado, resíduo aceito se quebrar o CLI; verificar `migrate deploy` dentro da imagem final); Pergunta 2 (alinhar `@nestjs/common`/`core`). Perguntas 3 e 4 respondidas: aceitar o resíduo documentado; `trust proxy` desligado, com gatilho.
-- **PR/commit:** branch `chore/dockerfile-coolify` (só o plano); PR não aberto.
-- **Docs atualizadas:** este plano.
+## Resultado (PR 1, parte A, 2026-10-16)
+- **O que foi feito:** branch `chore/audit-fix-prod` (da `main` `e56353e`), só `package-lock.json`. Subiram: `proxy-addr` 2.0.7→2.0.8, `qs` 6.15.3→6.16.1, `fast-uri` 3.1.5→3.1.8, `multer` 2.2.0→2.4.0 (saiu `concat-stream`/`typedarray`), `@nestjs/platform-express`, `@nestjs/common` e `@nestjs/core` 11.2.1→11.2.7. `package.json` intacto. Todos os `resolved` seguem em `registry.npmjs.org`; nenhum pacote novo.
+- **Desvio do plano (importante):** `npm audit fix --omit=dev` **puro** foi executado e descartado. Ele também subia a cadeia do Prisma (`prisma`/`@prisma/*` 7.9.1→7.10.1, engines 7.9.0→8.1.0, `deepmerge-ts` 7.1.5→8.0.2, `mysql2` 3.15.3→3.24.4) e zerava o audit, mas isso é escopo do PR 2 e `prisma@7.10.1` foi publicado em 2026-10-15 (1 dia; regra 3 pede ~30 dias). Apliquei só `npm update proxy-addr qs fast-uri multer @nestjs/platform-express @nestjs/common @nestjs/core --ignore-scripts`. O lockfile do `audit fix` completo ficou só no scratchpad da sessão (não versionado).
+- **Audit antes → depois** (`npm audit --omit=dev`): 9 (1 critical, 7 high, 1 moderate) → **4 (4 high: `prisma`, `@prisma/config`, `deepmerge-ts`, `mysql2`)**. Com `--omit=optional`: 4 (1 critical, 2 high, 1 moderate) → **0**. `proxy-addr`, `multer`, `@nestjs/platform-express`, `qs` e `fast-uri` não aparecem mais.
+- **Verificação (tudo passou):** typecheck; unitários 3/3; lint:check; build; e2e (Postgres descartável em porta própria, 6 suítes, 74 passed + 3 todo; o log de erro de FK no e2e é de teste de caracterização esperado). Imagem do Dockerfile contra Postgres vazio: 6 migrations aplicadas no start, `GET /` 200 `{"status":"ok"}`, `POST /auth/register` 201, `POST /auth/login` 200 (JSON e `application/x-www-form-urlencoded`, que exercita o `qs`), healthcheck `healthy`. `git diff --stat` vazio em `src/`, `test/`, `prisma/`, `.github/` e `Dockerfile`.
+- **Pendências:** PR 2 (mysql2/deepmerge-ts/prisma). Nova informação para ele: `prisma@7.10.1` já traz `deepmerge-ts` 8 e `mysql2` 3.24 e zera o audit sem override, mas ainda não cumpre ~30 dias (elegível a partir de 2026-11-14); decidir entre esperar ou override. `npm audit --omit=dev` completo segue em 4 até lá.
+- **PR/commit:** branch `chore/audit-fix-prod`; PR não aberto.
+- **Docs atualizadas:** este plano. Sem impacto em doc (domain/ADR).
 
 ### Para o manual
 - **O que mudou no comportamento:** nenhum.
-- **Decisões novas em domain/ADR:** ADR 0010 (CLI do Prisma no runtime reabre a parte B).
-- **O que o humano precisa entender:** enquanto o PR 1 não sair, a imagem carrega o `proxy-addr` crítico (não alcançável com `trust proxy` desligado); o PR 1 deve sair antes de qualquer rate limit ou log de IP.
+- **Decisões novas em domain/ADR:** nenhuma.
+- **O que o humano precisa entender:** o crítico (`proxy-addr`) saiu da imagem; restam 4 high só na cadeia do CLI do Prisma, não alcançáveis no app. `npm ci --ignore-scripts` apaga o client gerado: rode `npx prisma generate` antes de typecheck/testes. O gatilho de `trust proxy` continua: reconferir `proxy-addr` ao ligá-lo.
