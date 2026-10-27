@@ -3,10 +3,16 @@
 > Copie para `docs/plans/AAAA-MM-DD-<slug>.md`. O humano aprova antes de o `implementador` começar. O plano preenchido, com o "Resultado" ao concluir, é o registro da tarefa.
 
 Aprovado por: —
+Revisão do plano: — <!-- risco alto: "APROVADO em AAAA-MM-DD" do agente revisor-de-plano, ou "AJUSTAR aceito pelo humano: <pendências>" -->
 Modelo recomendado: <modelo> — <motivo>
 
 ## Intenção
 <!-- 1–3 frases: o que muda para o usuário/sistema e por quê. -->
+
+## Esclarecimentos
+<!-- Uma linha por resposta do humano: "- AAAA-MM-DD P: <pergunta> → R: <resposta, nas palavras do humano>".
+A resposta também é aplicada na seção certa deste plano, trocando o texto que ela invalida.
+Dúvida ainda sem resposta fica no ponto exato do plano com o marcador de dúvida (skill planejar-tarefa). -->
 
 ## Critérios de aceite
 - [ ] <!-- comportamento observável e testável, ex.: "PUT /routine/:id de outro usuário retorna 404" -->
@@ -63,6 +69,7 @@ npm run lint:check
 # se tocar banco/rotas: docker compose up -d && npx prisma migrate deploy && npm run test:e2e
 ```
 <!-- + passos manuais (curl, etc.), se houver -->
+<!-- Risco alto, opcional: antes/depois (docs/RECEITAS.md, receita 2). "Antes/depois: <comando de captura>; deve mudar só: <o alvo>". -->
 
 ## Documentação (definição de pronto)
 <!-- Se a tarefa muda rota, schema, regra de negócio ou módulo: atualize no mesmo commit. Marque um. -->

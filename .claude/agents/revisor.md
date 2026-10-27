@@ -19,8 +19,19 @@ Diff padrão: `git diff $(git merge-base HEAD main)...HEAD` + `git status`.
 
 ## Checklist
 
+### 0. Plano × entrega
+Para cada critério de aceite do plano, leia o código e o teste no diff e classifique:
+- **atendido**: há código e teste que o cumprem, com evidência (`arquivo:linha` ou saída de comando);
+- **faltando**: não há código para ele (**BLOQUEANTE**);
+- **parcial**: existe, mas não cobre o critério inteiro, por exemplo falta o caminho de erro (**IMPORTANTE**, **BLOQUEANTE** em risco alto);
+- **contradiz**: o código faz algo diferente do que o critério ou `docs/domain.md` pedem (**BLOQUEANTE**).
+
+Mudança no diff que não vem de nenhum critério nem tarefa do plano é **não pedido** (**IMPORTANTE**): aponte, não apague.
+Dizer que terminou não é evidência: o relatório do implementador e os checkboxes marcados não contam; conta o que você leu ou rodou.
+Sem plano, diga "sem plano: cobertura não avaliada" e siga o checklist.
+
 ### 1. Complexidade desnecessária
-- [ ] O diff faz só o que o plano pede? Há arquivos ou mudanças fora de escopo?
+- [ ] O diff faz só o que o plano pede? Há arquivos ou mudanças fora de escopo (situação **não pedido** da seção 0)?
 - [ ] Alguma abstração nova (helper, base class, interface, factory, genérico) com menos de 2 usos reais?
 - [ ] Dependência nova no manifesto de dependências sem aprovação? Sem a tabela "Dependências novas" do plano preenchida é **BLOQUEANTE**; pacote com nome suspeito (inexistente, muito recente ou parecido com outro muito usado) também é **BLOQUEANTE**.
 - [ ] Código morto, flags, parâmetros ou configs "para o futuro"?
@@ -48,9 +59,15 @@ Compare o plano (seção "Testes") com o diff. Para ver só os testes: `git diff
 Rode os comandos de verificação da tabela "Comandos" do `AGENTS.md` (typecheck, testes unitários, lint que só verifica) e reporte o resultado.
 
 ## Saída
-Lista ordenada por severidade, no formato:
-`[BLOQUEANTE|IMPORTANTE|SUGESTÃO] arquivo:linha — problema → correção sugerida (1 linha)`
-Termine com **Veredito:** `aprovar` | `aprovar com ressalvas` | `pedir mudanças`, e o resultado das verificações.
+1. Tabela de cobertura (seção 0), uma linha por critério:
+
+   | Critério | Teste | Evidência | Situação |
+   |---|---|---|---|
+
+2. Lista ordenada por severidade, no formato:
+   `[BLOQUEANTE|IMPORTANTE|SUGESTÃO] arquivo:linha — problema → correção sugerida (1 linha)`
+3. **Veredito:** `aprovar` | `aprovar com ressalvas` | `pedir mudanças`, e o resultado das verificações.
+4. Se o veredito não for `aprovar`: **Para aprovar:** lista fechada do que falta, um item por BLOQUEANTE ou IMPORTANTE, cada um verificável (o que mudar e como conferir). Nada fora dessa lista será pedido na próxima rodada, salvo achado novo trazido pela correção.
 Não elogie nem resuma o diff; aponte só problemas. Se não houver, diga "nenhum problema encontrado".
 
 ## O que entra no relatório

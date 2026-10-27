@@ -12,21 +12,21 @@ Duas regras de pensamento valem em todo o ciclo. (1) Decisão de domínio (regra
 2. Classificação de risco.
 3. Decisões de domínio que a IA não tem como saber. A IA pergunta e não presume.
 4. Aprovação do plano, cortando o excesso (cortar aqui é barato). Em risco médio ou alto, inclui a lista de testes do plano.
-5. Aceite: ler o diff dos pontos de risco e da documentação e rodar o fluxo real.
+5. Aceite: ler o diff dos pontos de risco e da documentação e rodar o fluxo real, seguindo o bloco "Aceite do humano" do template de PR.
 6. Merge, que é sempre do humano, e a retro.
 Todo o resto roda sozinho dentro das barreiras da seção 5.
 
 ## 3. Ciclo de uma tarefa
-Risco baixo (local, reversível, com teste) vai direto. Risco médio (regra de negócio nova) e alto (dinheiro, dados, auth, migrations, contrato externo) passam por plano.
+Risco baixo (local, reversível, com teste) vai direto. Risco médio (regra de negócio nova) e alto (dinheiro, dados, auth, migrations, contrato externo) passam por plano. Bug que não toca zona de risco segue a skill corrigir-bug: reproduzir, teste que falha, causa raiz (e o mesmo defeito em outros lugares), menor correção, revisor e PR.
 1. Escolha UMA tarefa que caiba em 30 a 60 minutos; senão, quebre.
 2. A branch nasce da main atualizada (`git pull --ff-only`). Uma sessão por diretório de trabalho; sessões paralelas usam `git worktree`.
 3. Explorar em modo leitura.
-4. Plano (skill planejar-tarefa) em docs/plans/, depois da entrevista por tarefa escalada pelo risco (baixo 0 a 3 perguntas, médio até 8, alto com reversibilidade, alternativas e pré-mortem): critérios testáveis, testes (um por critério), risco, menor esforço (skill menor-esforco), segurança em risco médio ou alto que toque autenticação, dados pessoais, entrada externa, segredos ou dependências (skill seguranca), arquivos a tocar (qualquer outro no diff é suspeito), abstrações novas (padrão: nenhuma), dependências novas (só com aprovação), como verificar, doc que muda ("Sem impacto em doc: motivo" se nenhuma), fora de escopo, perguntas ao humano. O humano aprova.
+4. Plano (skill planejar-tarefa) em docs/plans/, depois da entrevista por tarefa escalada pelo risco (baixo 0 a 3 perguntas, médio até 8, alto com reversibilidade, alternativas e pré-mortem): critérios testáveis, testes (um por critério), risco, menor esforço (skill menor-esforco), segurança em risco médio ou alto que toque autenticação, dados pessoais, entrada externa, segredos ou dependências (skill seguranca), arquivos a tocar (qualquer outro no diff é suspeito), abstrações novas (padrão: nenhuma), dependências novas (só com aprovação), como verificar, doc que muda ("Sem impacto em doc: motivo" se nenhuma), fora de escopo, perguntas ao humano (dúvida aberta fica no ponto exato do plano como `[DÚVIDA: …]`; respostas vão para "Esclarecimentos"). Plano com `[DÚVIDA:` não é aprovado nem executado. Em risco alto, o agente revisor-de-plano (só leitura) confere cobertura, ambiguidade, consistência, prova e como desfazer antes da aprovação; o plano pode pedir antes/depois (docs/RECEITAS.md, receita 2). O humano aprova.
 5. Testes primeiro em toda tarefa que muda comportamento: cada critério de aceite vira um teste que roda e falha pelo motivo certo (saída colada) antes da implementação. Nos riscos médio e alto, o humano já aprovou a lista de casos no plano. Ficam de fora documentação, configuração e refatoração já coberta por testes; o plano declara "Sem teste novo: motivo".
 6. Implementar em tarefas pequenas, um commit cada, até typecheck, testes e lint passarem. Teste aprovado não é alterado, enfraquecido nem apagado para passar; se estiver errado, para e relata.
-7. Revisor em sessão limpa: complexidade desnecessária, regras de negócio, cobertura dos critérios por testes (e se vieram antes, e se algum foi enfraquecido), segurança, documentação atualizada.
+7. Revisor em sessão limpa (para medir o que ele pega: docs/RECEITAS.md, receita 1): cobertura do plano por critério (atendido, faltando, parcial, contradiz, e o que veio sem ser pedido), complexidade desnecessária, regras de negócio, cobertura dos critérios por testes (e se vieram antes, e se algum foi enfraquecido), segurança, documentação atualizada. No máximo 3 rodadas de correção; na 3ª sem aprovação, o agente para e entrega um diagnóstico ao humano.
 8. Documentação no mesmo PR (domain ou ADR) e seção "Resultado" do plano preenchida, com o bloco "Para o manual". O curador leva isso ao manual do humano depois, em sessão própria.
-9. PR com o template, CI verde, humano lê e mergeia.
+9. PR com o template, CI verde; o humano lê, marca o bloco "Aceite do humano" do PR e mergeia. O agente nunca marca esse bloco.
 10. Retro: uma linha em docs/RETRO.md por erro repetido ou surpresa.
 
 Skills: o passo 4 é a skill planejar-tarefa; com o plano aprovado, a skill executar-tarefa conduz os passos 2 e 5 a 10 e para antes do merge.
