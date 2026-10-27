@@ -6,7 +6,7 @@ Objetivo: usar a capacidade humana só onde ela rende (intenção, plano, risco,
 Antes do primeiro commit do agente: ligar a proteção da main no GitHub (PR obrigatório, CI obrigatório, vale para administradores); instalar o kit (INSTALL.md do kit) e ajustar comandos e pastas de risco (PROJECT-ADJUST.md).
 
 ## Início (10 min)
-1. Peça `retomar` ao curador (`claude --agent curador-do-manual --add-dir ~/manuais/<projeto>`; só lê) ou leia `~/manuais/<projeto>/STATUS.md` (o manual fica fora do repositório).
+1. `use a skill onde-estou` para ver branch, PRs, planos e o próximo passo. Depois de uma pausa longa, peça `retomar` ao curador (`claude --agent curador-do-manual --add-dir ~/manuais/<projeto>`; só lê) ou leia `~/manuais/<projeto>/STATUS.md` (o manual fica fora do repositório).
 2. Escolha UMA tarefa da fila. Cabe em 30 a 60 min? Se não, quebre.
 3. Classifique o risco: baixo (local, reversível, com teste), médio (regra de negócio nova) ou alto (dinheiro, dados, auth, migrations, contrato externo).
 4. `git switch main && git pull --ff-only`, abra uma sessão nova e troque o modelo com /model conforme a fase.

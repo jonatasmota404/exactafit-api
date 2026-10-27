@@ -23,7 +23,13 @@ Produz só o plano. Não altere código, schema nem configuração.
    - **Dependências novas:** padrão `Nenhuma`. Se precisar, preencha a tabela da seção (existe no registro, primeira/última publicação, mantenedor, por que não dá para evitar), com o comando e a saída da consulta, e só então peça aprovação explícita.
    - **Como verificar:** comandos do projeto e passos manuais que provam cada critério.
    - **Fora de escopo:** o que parece relacionado e não será feito.
-4. Liste **perguntas para o humano** no fim do plano. Regra de negócio que não está em `docs/domain.md` vira pergunta, não suposição.
+4. Liste **perguntas para o humano** no fim do plano. Regra de negócio que não está em `docs/domain.md` vira pergunta, não suposição. Cada pergunta ainda sem resposta também fica no ponto exato do plano que ela afeta, como `[DÚVIDA: <o que falta decidir>]`. Plano com esse marcador não está pronto para aprovação, e o `executar-tarefa` se recusa a rodá-lo.
+
+## Revisão do plano (risco alto; opcional em médio)
+Depois de escrever o plano e antes de pedir a aprovação:
+1. Chame o subagente `revisor-de-plano`, em contexto limpo, com o caminho do plano.
+2. AJUSTAR: aplique no plano os itens de "Para aprovar" e chame o revisor mais uma vez. Se ainda vier AJUSTAR, leve as pendências ao humano junto com o plano.
+3. Preencha a linha `Revisão do plano:` com o veredito e a data, ou com as pendências que o humano aceitou.
 
 ## Entrevista por tarefa (antes do plano)
 Investigue primeiro (código, comandos, histórico do git) e pergunte para **confirmar**, não para o humano explicar do zero. Uma pergunta por vez, no máximo 2 opções com o custo de cada; grave com as palavras do humano e marque `SUGESTÃO(IA, não confirmada)` o que não foi confirmado. "Ainda não sei" é resposta válida (vira TODO ou decisão adiada com gatilho de revisão).
@@ -38,6 +44,8 @@ Só pergunte o que **muda o que será construído**. Decisão barata de reverter
 
 - **Domínio** (regra, o que o produto deve fazer, números de limite): só o humano. Nunca presuma nem sugira número sem base.
 - **Técnica**: recomende UMA opção, com 2 alternativas, trade-offs, reversibilidade e custo de mudar depois; confira contra `docs/domain.md`, ADRs e `AGENTS.md` e aponte conflito.
+- Cada pergunta traz uma frase de **por que importa** (o que muda no que será construído) e a opção recomendada primeiro.
+- Cada resposta vira uma linha em "Esclarecimentos" do plano (`AAAA-MM-DD P: … → R: …`) e é aplicada na seção certa, trocando o texto que ela invalida e tirando o `[DÚVIDA: …]` correspondente. Não deixe texto contraditório.
 - Pare de perguntar quando o plano deixar de mudar com a resposta.
 
 ## Critérios

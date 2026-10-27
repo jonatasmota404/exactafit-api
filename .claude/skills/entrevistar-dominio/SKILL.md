@@ -21,7 +21,7 @@ Fecha as lacunas de `docs/domain.md` perguntando ao humano. O humano decide tudo
 - Quando ajudar, ofereça **no máximo 2 opções**, cada uma com o custo (impacto em schema, validação ou contrato). **Não escolha pelo humano e não diga qual prefere.**
 - Registre as respostas **com as palavras do humano**. O que você sugeriu e ele não confirmou fica `SUGESTÃO(IA, não confirmada)`.
 - Se a resposta **contradiz** uma regra ou ADR existente, aponte o conflito **antes de gravar** e pergunte qual vale.
-- Se faltar informação que você não tem (formato de dados, regras do treino dele), diga isso e marque `TODO(humano)`. Nunca invente.
+- Se faltar informação que você não tem (formato de dados, regras do negócio dele), diga isso e marque `TODO(humano)`. Nunca invente.
 - **"Ainda não sei" é resposta válida:** vira `TODO(humano)` ou decisão `ADIADO`, com o motivo.
 - Ao **fim de cada bloco**, mostre o trecho gravado para o humano corrigir antes de seguir.
 

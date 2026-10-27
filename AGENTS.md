@@ -44,7 +44,7 @@ API de treino (NestJS 11 + TypeScript + Prisma 7 + PostgreSQL 16). Contexto: `do
 ## Fluxo de trabalho
 1. O modelo da sessão é definido no início. Se a tarefa recomenda outro modelo, avise antes de começar; não siga com o errado.
 2. Toda branch nasce da `main`. Se depende de outra branch, mergeie a outra primeiro (merge commit, não squash).
-3. Tarefa não trivial → plano em `docs/PLAN_TEMPLATE.md`, aprovado pelo humano. O plano preenchido fica em `docs/plans/` e, com a seção "Resultado" preenchida ao concluir, é o registro da tarefa.
+3. Tarefa não trivial → plano em `docs/PLAN_TEMPLATE.md`, aprovado pelo humano. Bug que não toca zona de risco → skill `corrigir-bug`, sem plano. O plano preenchido fica em `docs/plans/` e, com a seção "Resultado" preenchida ao concluir, é o registro da tarefa.
 4. Subagente `implementador` executa o plano aprovado (um commit por tarefa).
 5. Subagente `revisor` revisa o diff (somente leitura), com o checklist de `docs/REVIEW.md`.
 6. Decisão estrutural → ADR em `docs/adr/` (copie `0000-template.md`).
@@ -62,6 +62,7 @@ Comandos `prisma migrate`/`db` também pedem confirmação. Merge e push na `mai
 - Hook `PreToolUse` bloqueia: `rm -rf`, push forçado, `git reset --hard`, `git clean -f`, `git branch -D` e `-d --force`, `prisma migrate reset`, `prisma db push` destrutivo, SQL destrutivo, `docker compose down -v`, acesso a `.env`/chaves. Testes: `node --test '.claude/hooks/*.test.mjs'`.
 - **Falso positivo conhecido:** o hook casa texto e não entende shell. Ele bloqueia padrão perigoso que aparece só como texto (corpo de PR, mensagem de commit). Contorno: escreva o texto num arquivo e use `gh pr create --body-file <arq>` ou `git commit -F <arq>`. Se qualquer comando for negado (hook, permissão ou classificador), pare e relate; nunca contorne trocando de branch, diretório ou comando, e nunca atribua ao humano uma autorização que ele não deu.
 - Merge e push na `main` são bloqueados pelo hook `guard-main` (independe de permissões) e pela proteção de branch no GitHub; `gh pr merge` está em deny. Quem mergeia é o humano, pelo PR.
+- Hook `PostToolUse` (`lint-on-edit.mjs`) roda as verificações rápidas de `onEdit` em `.claude/verify.json` só no arquivo recém-editado e devolve o erro na hora.
 - Hook `Stop` roda typecheck + testes unitários + `npm run lint:check` (projeto inteiro; comandos em `.claude/verify.json`); bloqueia o encerramento se falharem.
 - Nunca leia nem imprima `.env` ou segredos.
 - O `Stop` também chama `.claude/hooks/doc-warning.mjs`, que só **avisa** (nunca bloqueia): mudança em controller, service, dto ou schema/migrations sem doc nem "Sem impacto em doc", link relativo quebrado em `docs/` e número de ADR duplicado.

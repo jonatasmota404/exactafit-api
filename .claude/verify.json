@@ -3,5 +3,8 @@
     { "name": "typecheck", "cmd": "npm run typecheck" },
     { "name": "testes unitários", "cmd": "npm test -- --silent" },
     { "name": "lint", "cmd": "npm run lint:check" }
+  ],
+  "onEdit": [
+    { "name": "lint", "cmd": "npx --no-install eslint {file}", "match": "\\.ts$" }
   ]
 }
