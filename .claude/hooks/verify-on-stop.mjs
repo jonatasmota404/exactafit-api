@@ -19,9 +19,12 @@ const changed = [
 // Nada alterado na branch nem no working tree: nada a verificar.
 if (changed.length === 0) process.exit(0);
 
-// Avisos (documentação e testes alterados): só informam, nunca bloqueiam (falha do script é ignorada).
-const warnings = ['doc-warning.mjs', 'test-warning.mjs']
-  .map((f) => (spawnSync('node', [fileURLToPath(new URL(`./${f}`, import.meta.url))], { encoding: 'utf8' }).stdout ?? '').trim())
+// Avisos: só informam, nunca bloqueiam (falha do script é ignorada). Roda cada um que existir ao lado deste hook:
+// test-warning vem no kit; doc-warning é opcional (docs/OPCIONAL.md).
+const warnings = ['test-warning.mjs', 'doc-warning.mjs']
+  .map((f) => fileURLToPath(new URL(`./${f}`, import.meta.url)))
+  .filter((f) => existsSync(f))
+  .map((f) => (spawnSync('node', [f], { encoding: 'utf8' }).stdout ?? '').trim())
   .filter(Boolean);
 
 // Comandos do projeto: .claude/verify.json, relativo ao diretório do projeto (o hook roda com cwd nele).

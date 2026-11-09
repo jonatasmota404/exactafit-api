@@ -2,37 +2,39 @@
 
 > Fonte da verdade para regras de negócio. Agentes **não devem presumir** regras que não estão aqui; na dúvida, perguntar.
 > As regras foram extraídas do código da versão da `main` de 2026-10-12 e revisadas pelo humano em 2026-10-12.
+> **Revisão de escopo em 2026-11-09** ([ADR 0011](adr/0011-app-generico-plano-e-dado.md)): o produto é o descrito em [`produto.md`](produto.md) (visão, fases e critérios de aceite). Este arquivo guarda as regras; o `produto.md`, o que construir e em que ordem. Pontos que a consolidação deixou como pergunta e o humano mandou seguir com a recomendação do próprio documento estão marcados `DECIDIDO (por delegação)`.
 >
 > **Status das regras:**
 > - `CONFIRMADO`: o humano validou o comportamento atual do código.
 > - `DECIDIDO (muda o código)`: o humano decidiu algo diferente do que o código faz hoje. Ver "Mudanças de código decorrentes".
 > - `ADIADO`: a decisão foi explicitamente adiada.
-> - `DECIDIDO (por delegação)`: o humano autorizou aplicar as recomendações da IA sem perguntar caso a caso (a partir do bloco 9). Itens hoje com essa marca: a regra de F4 "pelo menos um dos dois obrigatório" (**não revisada pelo humano**) e o local da mídia em (b) (confirmado pelo humano).
+> - `DECIDIDO (por delegação)`: o humano autorizou aplicar as recomendações da IA sem perguntar caso a caso (a partir do bloco 9). Itens hoje com essa marca: a regra de F4 "pelo menos um dos dois obrigatório" (**não revisada pelo humano**) e, desde 2026-11-09, as recomendações da consolidação em `produto.md` que o humano mandou seguir sem perguntar.
 > - `ADIADO (decidir no plano)`: detalhe de implementação que fica para o plano de cada tarefa.
 > - `CONFIRMAR(humano)`: regra ainda não validada.
 
 ## Visão do produto
-Ver também [Decisões de produto (antes pendentes)](#decisões-de-produto-antes-pendentes) e os ADRs em [`adr/`](adr/).
+Ver [`produto.md`](produto.md), o [ADR 0011](adr/0011-app-generico-plano-e-dado.md) e as decisões abaixo.
 
-**Quem usa** (palavras do humano): "eu e amigos e talvez outros alunos da academia se der certo pra eu vender o app para as academias." Multiusuário desde o V1 (palavras do humano: "desde o V1 tem que ter multiusuários").
+**O que é:** app genérico de treino e dieta, de uso individual ou em família. Representa qualquer dieta e qualquer programa de treino definidos pelo usuário, de uma pessoa comum a um fisiculturista. Os dois planos reais (perfil A: déficit simples, 125 kg para 80 kg; perfil B: recomposição, 1,68 m e 67 kg) são **apenas modelos de exemplo**, carregados como dados que o usuário usa, copia e edita.
 
-**Problema que resolve** (palavras do humano): "É chato ficar dependendo de ficha de treino [...] a maioria dos apps é chato, depende de você fazer avaliação com professor, queria algo que você se matricula, baixa, monta uma ficha de treino padrão com IA". O app também ajuda a praticar cardio e exercícios em casa e guarda o histórico.
+**Princípios** (`DECIDIDO`, revisão em 2026-11-09):
+- **O plano é dado, não código.** Nada de perfis A/B, quantidade de refeições, prato de 4 peças ou regra de ajuste fixo no código.
+- **Teste de generalidade:** a mesma engine representa o perfil A, o perfil B e um terceiro plano sem relação (push/pull/legs em 6 dias com superséries, 5 refeições e superávit), sem mudar código.
+- **Household opcional:** toda feature funciona sem ele.
+- **Assistente de criação opcional:** sugere metas e estrutura a partir do perfil, com fórmulas determinísticas; o plano resultante é sempre dado editável. Sem IA em tempo de execução (`DECIDIDO (por delegação)`).
+- **Só academia:** sem perfis de equipamento nem programa de casa; o usuário escolhe qualquer exercício.
+- **Sempre privado:** peso, medidas, fotos, ciclo, metas e sugestões. **Compartilhado no household** só o que é comida da casa: cardápio, prato cozinhado, visão da cozinha e lista de compras.
+- **Menores de 18 anos** não recebem sugestões automáticas.
+- **Não é dispositivo médico:** o app sugere; o usuário aceita ou recusa. Textos de aviso fixos.
 
-**Visão futura, fora do V1** (decidido: opção B):
-- Acompanhamento humano: a academia paga para o professor avaliar o aluno e montar a ficha dele. Exigiria papel de professor, vínculo professor–aluno e entidade academia. U7 (sem papéis) continua valendo no V1.
-- Matrícula numa academia parceira como condição de uso, que é o modelo de receita. Palavras do humano: "tu precisa estar matriculado na academia parceira pra usar, se não eu não ganho dinheiro".
+**Fora do escopo agora:** ficha de treino gerada por IA em tempo de execução; os 1.324 exercícios do dataset e a mídia; importação inteira da TACO (a base de alimentos começa curada e editável); papéis de professor e academia; venda para terceiros; treino de casa e perfis de equipamento; ajuste automático por ciclo; linguagem de regras livre.
 
-**Dentro do V1** (decidido):
-- Ficha de treino padrão gerada por IA (opção A). `TODO(humano)`: qual serviço de IA, o que o usuário informa para gerar a ficha, e aprovação da dependência nova (regra anti-overengineering 3). A IA só pode montar a ficha com exercícios do catálogo.
-- Cardio e exercícios em casa (opção A). Cardio registra só o tempo (distância fica fora do V1) e exige campo novo de duração em `SetLog`; exercício sem carga tem carga vazia (S5, S7). Ver "Mudanças de código decorrentes".
-- Histórico de treino.
-
-**Mídia do dataset (© Gym visual):** liberada para uso **enquanto o app não for comercial** (decisão do humano). `TODO(humano)`: reconferir a licença da mídia e da "API oficial" **antes de qualquer uso comercial**.
+**Revisão em 2026-11-09.** Antes: app de treino para "eu e amigos", com visão futura de venda para academias (professor, matrícula em academia parceira), ficha padrão por IA, cardio e exercícios em casa no V1 e alimentação fora do V1.
 
 ## Decisões de produto (antes pendentes)
 
 ### (a) Uso offline e sincronização — DECIDIDO (muda o código)
-- **Offline no V1: sim.** Alcance: só registrar o treino (abrir sessão e lançar séries) numa ficha que já estava no aparelho. Fichas e catálogo são só leitura offline.
+- **Offline no V1: sim.** Alcance: só registrar o treino (abrir sessão e lançar séries) numa ficha que já estava no aparelho. Fichas e catálogo são só leitura offline. **Revisão em 2026-11-09:** o cálculo da porção também funciona sem rede ([ADR 0012](adr/0012-front-pwa.md)); se o registro de refeição entra no sincronismo, decide-se no plano da tarefa.
 - **Sentido do sincronismo:** do aparelho para a API (sessões e séries). Os ids são gerados no cliente e o envio precisa poder repetir sem duplicar.
 - **Conflito com S3:** se o sincronismo trouxer mais de uma sessão aberta do mesmo usuário, a API aceita todas e deixa aberta a de `startedAt` mais recente, encerrando as demais (critério revisado em 2026-10-12; o inicial era a ordem de chegada, que encerrava a sessão de hoje quando uma esquecida chegava tarde). Exceção de S3 só para o sincronismo.
 - **Datas:** o aparelho envia `startedAt` e `finishedAt` (S1 muda; hoje é `now()` do servidor).
@@ -40,28 +42,51 @@ Ver também [Decisões de produto (antes pendentes)](#decisões-de-produto-antes
 - Formato do endpoint de sincronismo: `ADIADO (decidir no plano)`.
 - ADR: [0004](adr/0004-uso-offline-e-sincronizacao.md).
 
-### (b) Dataset de exercícios — DECIDIDO (muda o código)
-- **Carga repetível:** cada exercício oficial guarda o identificador que tinha no dataset. O script insere o que é novo e atualiza o que já existe, sem duplicar.
-- **Mídia:** a API não expõe a mídia publicamente; ela é entregue apenas a usuário autenticado e a todos os autenticados desde já, sem chave que a desligue (decidido: opção B). A atribuição "© Gym visual — https://gymvisual.com/" acompanha toda entrega.
-- **Licença da mídia e da "API oficial"** (decisão do humano): liberada para uso **enquanto o app não for comercial**; a condição "não comercial" faz parte da decisão. `TODO(humano)`: reconferir a licença antes de qualquer uso comercial.
-- **Onde a mídia fica** (~299 MB, `DECIDIDO (por delegação)`, confirmado pelo humano): volume na VPS servido pelo proxy do Coolify, fora do git e fora do banco; o banco guarda só o caminho. `TODO(humano)`: como a exigência "só usuário autenticado" é aplicada quando o proxy serve o arquivo direto.
-- **Idioma das instruções** (decisão do humano): inglês e português, com **português como padrão**. O dataset não tem português (traz en e outros 9 idiomas, sem pt), então a tradução precisa ser produzida. `TODO(humano)`: como produzir a tradução e quem revisa; tradução do nome dos exercícios e dos 10 valores de `muscleGroup`.
-- **Fonte** (palavras do humano): "eu já tenho o dataset no meu computador baixado, vamos usar ele. Quando o app crescer e for usado comercialmente eu só viro a chave e pago a licença da API oficial." Caminho local: `/home/jonatas/Projetos/exercices-dataset/exercises-dataset/` (fora deste repositório).
-- **Formato** (lido de `data/exercises.json` e `exercises.schema.json`): lista com 1324 exercícios. Campos: `id` (texto de 4 dígitos, único), `name` (inglês), `category` (igual a `body_part`), `body_part` (10 valores: back, cardio, chest, lower arms, lower legs, neck, shoulders, upper arms, upper legs, waist), `equipment` (28 valores), `target` (19 valores), `muscle_group`, `secondary_muscles`, `instructions` e `instruction_steps` em 10 idiomas (en, es, it, tr, ru, zh, hi, pl, ko, fr; **não há português**), `media_id`, `image` (jpg 180×180), `gif_url` (gif 180×180), `attribution`, `created_at`. Não existe campo equivalente a `type` (força/cardio), nem nível ou força.
-- **Licença** (lida de `LICENSE` e `NOTICE.md` do dataset): os dados (nomes, categorias, instruções) são MIT, uso comercial permitido mantendo o aviso de copyright. A **mídia** (`images/`, `videos/`) é © Gym visual, fora da MIT: 180×180 apenas, atribuição "© Gym visual — https://gymvisual.com/" obrigatória em todo uso, regida pelos termos da Gym visual, e "clonar o repositório não concede licença da mídia". Se existe uma "API oficial" e qual o custo: **não verificado**.
-- **Fonte única da verdade** (palavras do humano): "por enquanto vamos assumir o dataset que eu lhe mandei como fonte única da verdade, isso fica um problema para o futuro quando for comercial usar outro dataset oficial." Trocar de dataset ou de licença da mídia fica **adiado**, sem desenho agora.
-- Campo de `muscleGroup`: `body_part` (E4). Pendências da mídia e do idioma estão acima.
-- ADR: [0005](adr/0005-carga-do-dataset-de-exercicios.md).
+### (b) Catálogo de exercícios — DECIDIDO (muda o código)
+- **Catálogo inicial curado** e global, mais **exercício próprio e privado** do usuário (`DECIDIDO (por delegação)`; reabre o [ADR 0009](adr/0009-catalogo-de-exercicios-fechado.md)). Ver E1 e E2.
+- O dataset completo (1.324 exercícios) e a mídia ficam **fora do escopo**. A fonte e o tamanho da carga inicial: ver P1.
+- **Revisão em 2026-11-09** ([ADR 0011](adr/0011-app-generico-plano-e-dado.md)). Antes: catálogo fechado vindo só do dataset local, com carga repetível de 1.324 exercícios, mídia © Gym visual em volume na VPS e instruções em pt e en ([ADR 0005](adr/0005-carga-do-dataset-de-exercicios.md), substituído).
 
-### (c) Alimentação — DECIDIDO
-- **Fora do V1.** Visão futura, sem schema nem regras.
+### (c) Alimentação — DECIDIDO (muda o código)
+- **Dentro do escopo** (revisão em 2026-11-09; antes: fora do V1).
+- **Plano de dieta** (`DietPlan`): refeições configuráveis (quantas e com que nome o usuário quiser, `MealSlot`) e metas de kcal, proteína, carboidrato e gordura por tipo de dia e por refeição (`DayTarget`). Fibra é opcional (`DECIDIDO (por delegação)`).
+- **Alimento** (`Food`): macros por 100 g, estado cru ou pronto, tags de restrição; editável e importável por CSV. Rendimento cru → pronto em `FoodYield`.
+- **Refeição modelo** (`MealTemplate`): composição livre ou por componentes, com meta por componente.
+- **Porção:** a de qualquer item sai da meta escolhida (kcal, proteína ou carboidrato) dividida pelo valor do alimento por 100 g. Exemplo: arroz a 130 kcal/100 g dá cerca de 146 g para alvo de 190 kcal e cerca de 115 g para 150 kcal. Funciona sem rede.
+- **Registro** (`MealLog`, `MealLogItem`): guarda **snapshot** dos macros no momento do registro; editar o alimento depois não muda o histórico.
+- **Lista de compras:** da semana, com rendimento cru → pronto; ovos calculados do cardápio em **cartelas de 30**.
+- **Evento social:** só dica opcional e botão "saí do plano", **sem contador negativo**.
+
+### (d) Treino genérico — DECIDIDO (muda o código)
+- **Programa** (`Program`): ciclo semanal por dia da semana ou rotativo de N dias, com alternância por semana opcional (ex.: A-B). Dias (`ProgramDay`) com treinos (`Workout`).
+- **Item do treino** (`WorkoutItem`, substitui `RoutineItem`): série normal, aquecimento, até a falha ou drop; faixa de repetições, tempo ou por lado; descanso; grupo de superssérie; RIR ou RPE opcional.
+- **Progressão** (`ProgressionRule`) por exercício: dupla, linear ou nenhuma, com passo percentual. Dupla: +2 a 5% quando o máximo da faixa foi feito em todas as séries. Ao abrir o exercício, o app mostra a carga anterior e a sugestão.
+- **Fases** (`Phase`): blocos definidos pelo usuário e semana leve a cada N semanas (Fase 4 do `produto.md`).
+- `WorkoutRoutine` e `RoutineItem` são absorvidos por `Program` e `WorkoutItem`; as regras F valem para a ficha atual até essa migração, e o plano dela diz quais passam para o modelo novo.
+
+### (e) Acompanhamento, revisão e sugestões — DECIDIDO (muda o código)
+- `BodyMetric` (peso, medidas), `ProgressPhoto`, `CycleLog`, `DayLog` (passos, água, sono, caminhada). Meta de passos configurável por pessoa (modelos: A 8.000 a 10.000, B 7.000 a 9.000).
+- **Peso oculto por escolha do usuário**, aplicado na API: a API não devolve o peso por padrão a quem escolheu ocultá-lo (esconder só na tela não basta).
+- **Regras de revisão** (`ReviewRule`): só **tipos parametrizados** (variação de ritmo, estagnação, piso e teto), com janela, limite e ação sobre a meta; sem linguagem de regras livre (`DECIDIDO (por delegação)`). Presets dos perfis A e B. Uma regra = um teste.
+- **Sugestão** (`Suggestion`): sempre aceita ou recusada pelo usuário; nunca aplicada sozinha. Média de 4 semanas no acompanhamento.
+- **Pisos** (`DECIDIDO (por delegação)`): sugestão automática **nunca cruza o piso**. Plano definido pelo usuário fora do piso: avisa, mas permite. Piso para perfis genéricos: 1.700 kcal para mulheres e o gasto basal estimado para homens; o modelo do perfil B nunca abaixo de 1.700 kcal.
+- **Assistente de criação:** fórmulas determinísticas de gasto e metas a partir do perfil (sexo, nascimento, altura); recusa menores de 18 anos.
+- Placar semanal de hábitos **sem sequência que zera**.
+
+### (f) Household e privacidade — DECIDIDO (muda o código)
+- `Household` e `HouseholdMember`, opcionais; entrada por convite com código; sair não apaga os dados do usuário.
+- Compartilhado entre membros: cardápio, prato cozinhado, visão da cozinha (as porções de cada um) e lista de compras. Todo o resto é do usuário (ver invariantes 12 e 13).
+- Dados de saúde nunca vão para log.
+
+### (g) Front — DECIDIDO
+- PWA instalável e offline-first, em repositório próprio ([ADR 0012](adr/0012-front-pwa.md); `DECIDIDO (por delegação)`). Lembretes por push; no iOS só com o app instalado na tela inicial.
 
 ## Glossário
 | Termo | Definição | Nome no código |
 |---|---|---|
 | Usuário | Pessoa com conta (e-mail e senha) que monta fichas e registra treinos. Todos têm as mesmas permissões no V1. É desativado por padrão e só é apagado a pedido do titular, por fluxo explícito de exclusão de conta. | `User` |
-| Exercício | Item do catálogo, que é **fechado**: vem só do dataset oficial; usuários não criam exercícios. Tem nome e grupo muscular. (**Revisão em 2026-10-14**, [ADR 0009](adr/0009-catalogo-de-exercicios-fechado.md). Antes: item do catálogo oficial ou criado pelo usuário, pertencendo só a ele.) | `Exercise` |
-| Catálogo oficial | Conjunto global e somente leitura de exercícios vindo do dataset local; é o **único** catálogo (fechado). Cada exercício guarda o id que tinha no dataset. (**Revisão em 2026-10-14**, [ADR 0009](adr/0009-catalogo-de-exercicios-fechado.md). Antes: convivia com exercícios do usuário, e o nome no código era `Exercise` sem dono, a criar.) | `Exercise` (sem dono) |
+| Exercício | Item do catálogo inicial (global) ou exercício próprio do usuário, visível só a ele. Tem nome e grupo muscular. (**Revisão em 2026-11-09**, [ADR 0011](adr/0011-app-generico-plano-e-dado.md). Antes: catálogo fechado, sem exercício do usuário, ADR 0009.) | `Exercise` |
+| Catálogo | Conjunto global e somente leitura de exercícios, carregado pela carga inicial curada (P1). Exercício do catálogo não tem dono. (**Revisão em 2026-11-09**, [ADR 0011](adr/0011-app-generico-plano-e-dado.md). Antes: único catálogo, vindo do dataset de 1.324 exercícios.) | `Exercise` (sem dono) |
 | Ficha de treino | Plano do usuário: nome, descrição opcional e itens ordenados (até 50). Até 10 fichas **ativas** por usuário; é arquivada e não é apagada (só no fluxo de exclusão de conta). Sem itens, é rascunho. | `WorkoutRoutine` |
 | Item da ficha | Um exercício dentro da ficha, com ordem, número de séries-alvo e repetições-alvo. | `RoutineItem` |
 | Sessão de treino | Um treino realizado a partir de uma ficha. Fica aberta enquanto `finishedAt` estiver vazio. Início e fim vêm do aparelho. | `WorkoutSession` |
@@ -70,6 +95,11 @@ Ver também [Decisões de produto (antes pendentes)](#decisões-de-produto-antes
 | Carga | Peso em kg, `Decimal(6,2)`. Vazia significa sem carga. | `SetLog.weightKg` |
 | Grupo muscular | Um dos 10 valores de `body_part` do dataset: back, cardio, chest, lower arms, lower legs, neck, shoulders, upper arms, upper legs, waist. `cardio` define o exercício de cardio. | `Exercise.muscleGroup` |
 | Sincronismo | Envio, do aparelho para a API, das sessões e séries registradas offline, com ids gerados no cliente. | não existe |
+| Programa | Plano de treino do usuário com ciclo semanal ou rotativo de N dias; substitui a ficha. | `Program` (a criar) |
+| Plano de dieta | Refeições configuráveis e metas de macros por tipo de dia e por refeição. | `DietPlan` (a criar) |
+| Modelo | Plano de exemplo (dieta, treino, regras) carregado como dado, que o usuário usa ou copia. Os perfis A e B são modelos. | `PlanTemplate` (a criar) |
+| Household | Grupo opcional (família) que compartilha só a comida da casa. | `Household` (a criar) |
+| Sugestão | Proposta de mudança de meta gerada por uma regra de revisão; o usuário aceita ou recusa. | `Suggestion` (a criar) |
 
 ## Regras de negócio
 
@@ -88,14 +118,16 @@ Ver também [Decisões de produto (antes pendentes)](#decisões-de-produto-antes
 ### Exercícios
 | # | Regra | Onde | Status |
 |---|---|---|---|
-| E1 | O catálogo de exercícios é **fechado**: vem só do dataset oficial ([ADR 0005](adr/0005-carga-do-dataset-de-exercicios.md)), é global e todos os usuários veem o mesmo catálogo. Usuários não criam exercícios. Hoje nenhum exercício tem dono, todos veem todos e qualquer usuário autenticado cria exercício por `POST /exercises`. Motivo (palavras do humano): "pode dar problema, é melhor ter uma base fixa de exercícios que o proprietário do sistema atualize e seja uma base comum para todos." **Revisão em 2026-10-14** ([ADR 0009](adr/0009-catalogo-de-exercicios-fechado.md)). Antes: catálogo oficial global e somente leitura + exercício criado por usuário pertencendo só a ele, implementação no V1 ([ADR 0003](adr/0003-catalogo-oficial-e-exercicios-do-usuario.md), substituído). Depois: catálogo fechado, sem exercício do usuário. | `schema.prisma`, `exercises.service.ts` | `DECIDIDO (muda o código)` |
-| E2 | Usuários **não criam, não editam e não removem** exercícios (E1). Hoje qualquer usuário autenticado cria exercício por `POST /exercises`, que entra no catálogo de todos; não há `PUT` nem `DELETE`. O destino de `POST /exercises` (remover, ou restringir a quem carrega o dataset) é pergunta aberta: ver P1 em "Decisões pendentes". **Revisão em 2026-10-14** ([ADR 0009](adr/0009-catalogo-de-exercicios-fechado.md)). Antes: qualquer usuário criava exercícios que pertenciam só a ele, e editava e removia os próprios (opção A); exercício oficial ou de outro usuário dava 404; remoção recusada (409) com séries ou em ficha. Depois: nenhuma escrita de exercício por usuário. | `exercises.controller.ts` | `DECIDIDO (muda o código)` |
+| E1 | Há um **catálogo** global (carga inicial curada, P1) e **exercícios próprios** do usuário. Exercício próprio é **privado**: só o dono vê e usa. Hoje nenhum exercício tem dono e todos veem todos. **Revisão em 2026-11-09** ([ADR 0011](adr/0011-app-generico-plano-e-dado.md), `DECIDIDO (por delegação)`). Antes: catálogo fechado, sem exercício do usuário ([ADR 0009](adr/0009-catalogo-de-exercicios-fechado.md), substituído). | `schema.prisma`, `exercises.service.ts` | `DECIDIDO (muda o código)` |
+| E2 | `POST /exercises` cria exercício **próprio** do usuário do token, nunca do catálogo. `GET /exercises` devolve o catálogo mais os próprios. Exercício de outro usuário responde 404. Editar e remover o próprio: decidir no plano da tarefa (E6 vale). Hoje o `POST` grava exercício sem dono, que todos veem. **Revisão em 2026-11-09** ([ADR 0011](adr/0011-app-generico-plano-e-dado.md)). Antes: usuário não criava exercício e o destino do `POST` estava em aberto (P1 antigo). | `exercises.controller.ts`, `exercises.service.ts` | `DECIDIDO (muda o código)` |
 | E3 | `name` obrigatório, até 100 caracteres. No dataset o maior nome tem 67. | `create-exercises.dto.ts` | `CONFIRMADO` |
 | E4 | `muscleGroup` aceita só os 10 valores de `body_part` do dataset: back, cardio, chest, lower arms, lower legs, neck, shoulders, upper arms, upper legs, waist (hoje é texto livre). O campo `type` **sai**: o cardio é decidido por `muscleGroup = cardio` (o dataset não tem `type`; antes ele tinha padrão `strength`). Quem ainda enviar `type` no `POST /exercises` recebe 400. `TODO(humano)`: tradução dos valores para o app. | `create-exercises.dto.ts`, `schema.prisma` | `DECIDIDO (muda o código)` |
 | E5 | Nomes duplicados são permitidos (no dataset, 6 nomes se repetem). | ausência de `@unique` | `CONFIRMADO` |
-| E6 | Um exercício com séries registradas não pode ser apagado; um que está em ficha também não (C3). Ver [ADR 0001](adr/0001-exclusao-sem-cascata-de-historico.md). Não há rota de remoção de exercício por usuário (E2). Se a atualização do dataset pode remover exercício do catálogo: pergunta aberta (P2). **Revisão em 2026-10-14** ([ADR 0009](adr/0009-catalogo-de-exercicios-fechado.md)). Antes: a proteção também valia para a remoção do próprio exercício pelo usuário (E2, 409). Depois: vale para qualquer remoção de exercício; usuário não remove exercício. | `schema.prisma` (hoje cascade) | `DECIDIDO (muda o código)` |
+| E6 | Um exercício com séries registradas não pode ser apagado; um que está em ficha ou programa também não (C3). Ver [ADR 0001](adr/0001-exclusao-sem-cascata-de-historico.md). Vale para o catálogo e para o exercício próprio. **Revisão em 2026-11-09.** Antes: não havia remoção por usuário porque não havia exercício próprio. | `schema.prisma` (hoje cascade) | `DECIDIDO (muda o código)` |
 
 ### Fichas de treino
+Valem para `WorkoutRoutine` e `RoutineItem` até a migração para `Program` e `WorkoutItem` (decisão (d)); o plano dessa migração diz quais regras passam para o modelo novo.
+
 | # | Regra | Onde | Status |
 |---|---|---|---|
 | F1 | Uma ficha pertence ao usuário do token. Um usuário só lista, lê e altera as próprias fichas. A ficha de outro usuário responde 404. **Trade-offs aceitos:** (1) 404 em vez de 403 esconde que a ficha existe, mas o app não distingue "não existe" de "não é sua". (2) Sem compartilhamento no V1: amigo não vê nem copia a ficha, e o professor montar a ficha do aluno (visão futura) exigirá exceção a F1. (3) Hoje o `PUT` checa a posse fora da transação e escreve filtrando só por `id`, o que foge da convenção "toda query filtra por `userId`" (risco de corrida baixo, não verificado em execução). (4) Com o offline, o aparelho pode enviar sessão de ficha já arquivada; ela é aceita (S1). | `routine.service.ts` | `CONFIRMADO` |
@@ -105,7 +137,7 @@ Ver também [Decisões de produto (antes pendentes)](#decisões-de-produto-antes
 | F3 | Ficha sem itens é permitida, como rascunho. "Rascunho" **não** é um estado explícito: é só uma ficha sem itens (decidido: opção A). | `create-routine.dto.ts` | `CONFIRMADO` |
 | F4 | `targetSets` de 1 a 20, `targetReps` de 1 a 100 **quando informado**, `order` ≥ 0 (hoje qualquer inteiro passa). Para cardio, o item ganha a duração-alvo em segundos (campo novo, opcional) e `targetReps` passa a ser opcional (decidido: opção A). Pelo menos um dos dois é obrigatório (`DECIDIDO (por delegação)`). `TODO(humano)`: faixa da duração-alvo. | `create-routine.dto.ts` | `DECIDIDO (muda o código)` |
 | F5 | O mesmo exercício pode aparecer mais de uma vez na ficha, desde que o `order` seja único. | ausência de constraint | `CONFIRMADO` |
-| F6 | O item só aceita exercício do catálogo (E1). Exercício inexistente dá 400 "Exercício não encontrado" (hoje a FK recusa e o erro provavelmente vira 500). Qual item falhou na mensagem: `ADIADO (decidir no plano)`. **Revisão em 2026-10-14** ([ADR 0009](adr/0009-catalogo-de-exercicios-fechado.md)). Antes: aceitava exercício do catálogo oficial ou do próprio usuário, e exercício inexistente e de outro usuário davam a mesma resposta 400. Depois: só catálogo; não existe exercício de outro usuário. | `schema.prisma`, `routine.service.ts` | `DECIDIDO (muda o código)` |
+| F6 | O item só aceita exercício do catálogo ou próprio do usuário (E1). Exercício inexistente ou de outro usuário dá a mesma resposta 400 "Exercício não encontrado" (hoje a FK recusa e o erro provavelmente vira 500). Qual item falhou na mensagem: `ADIADO (decidir no plano)`. **Revisão em 2026-11-09** (ADR 0011). Antes: só catálogo (ADR 0009). | `schema.prisma`, `routine.service.ts` | `DECIDIDO (muda o código)` |
 | F7 | Os itens são devolvidos em ordem crescente de `order`, com os dados do exercício. | `routine.service.ts` | `CONFIRMADO` |
 | F8 | A atualização é parcial. Se `items` vier, substitui todos os itens, que ganham ids novos. Isso é aceitável porque o histórico (`SetLog`) guarda o `exerciseId` e não depende dos itens da ficha. | `routine.service.ts` `update` | `CONFIRMADO` |
 | F9 | A ficha é **arquivada**, nunca apagada. Hoje não há exclusão nem arquivamento. A ficha arquivada pode **voltar a ser ativa** (arquivar e desarquivar). `GET /routine` devolve só as ativas por padrão; as arquivadas só vêm se pedidas e continuam acessíveis pelo id. A ficha arquivada **pode ser editada**. Ver [ADR 0001](adr/0001-exclusao-sem-cascata-de-historico.md). Formato da ação de arquivar/desarquivar: `ADIADO (decidir no plano)`. | `schema.prisma`, `routine.*` | `DECIDIDO (muda o código)` |
@@ -122,18 +154,18 @@ Ver também [Decisões de produto (antes pendentes)](#decisões-de-produto-antes
 | S5 | Uma série registrada tem `setNumber`, `failed` (padrão `false`) e referencia um exercício. `repsCompleted`, `weightKg` e a duração (segundos, só para cardio; campo novo) são **opcionais**. A API não valida o que cada série precisa ter: uma série vazia é aceita e os relatórios devem tolerar (decidido: opção B). Cardio registra só tempo; distância fica fora do V1. Os ids das séries e das sessões são gerados no cliente (offline). | `schema.prisma` `SetLog` | `DECIDIDO (muda o código)` |
 | S6 | `failed` = série em que não completei as repetições planejadas. O valor é **informado pelo usuário**; a API não confere com `repsCompleted` (risco aceito: pode contradizer). Ver [ADR 0002](adr/0002-definicao-de-serie-falhada.md). | `SetLog.failed` | `DECIDIDO` |
 | S7 | A carga é em kg, `Decimal(6,2)` (0,00 a 9999,99). Vazia significa sem carga (peso do corpo). Hoje é `Float`. | `SetLog.weightKg` | `DECIDIDO (muda o código)` |
-| S8 | O número da série é único por sessão e exercício (constraint no banco; duplicata dá 409). O app continua a numeração quando o mesmo exercício reaparece na ficha (F5). No sincronismo, uma série em conflito não derruba o lote. Série de exercício que **não está na ficha** da sessão é aceita, desde que o exercício exista no catálogo (**revisão em 2026-10-14**, [ADR 0009](adr/0009-catalogo-de-exercicios-fechado.md); antes: "exista e seja visível ao usuário (oficial ou próprio)"); relatórios devem tolerar série sem item correspondente (decidido: opção A). | `schema.prisma` | `DECIDIDO (muda o código)` |
+| S8 | O número da série é único por sessão e exercício (constraint no banco; duplicata dá 409). O app continua a numeração quando o mesmo exercício reaparece na ficha (F5). No sincronismo, uma série em conflito não derruba o lote. Série de exercício que **não está na ficha** da sessão é aceita, desde que o exercício exista e seja visível ao usuário (catálogo ou próprio) (**revisão em 2026-11-09**, ADR 0011; antes: "exista no catálogo", ADR 0009); relatórios devem tolerar série sem item correspondente (decidido: opção A). | `schema.prisma` | `DECIDIDO (muda o código)` |
 | S9 | O usuário **corrige** série e sessão registradas (atualização por id), mas **nunca apaga** (decidido: opção A). Uma sessão registrada **nunca é apagada**; erro se corrige editando a sessão. Motivo: com sincronização offline, apagar uma sessão exigiria um marcador de exclusão, e um aparelho antigo poderia ressuscitá-la. Uma sessão aberta por engano se encerra. Uma sessão encerrada **não reabre**: `finishedAt`, depois de preenchido, não volta a vazio (decidido: opção A; encerrar por engano obriga a abrir sessão nova). | rotas novas | `DECIDIDO (muda o código)` |
 
 ### Exclusão (ver [ADR 0001](adr/0001-exclusao-sem-cascata-de-historico.md))
 | # | Regra | Status |
 |---|---|---|
-| C1 | O usuário **nunca é apagado**, só desativado (decidido: opção B). `User` ganha um campo de desativação e as FKs de `User` viram restrição. O `AuthGuard` passa a verificar se o usuário **existe e está ativo** a cada pedido e recusa com 401 o inexistente e o desativado, mesmo com token válido (decidido: opção A; custo: uma consulta por requisição, toca `src/auth/`). Hoje o guard só verifica a assinatura e não consulta o banco (confirmado por teste de caracterização, `test/authguard-caracterizacao.e2e-spec.ts`): um usuário desativado continuaria acessando por até 7 dias, a validade do token (U6). O e-mail do desativado continua ocupado (cadastro com ele dá 409). **Exceção:** a pedido do titular, um fluxo explícito de **exclusão de conta apaga todos os dados do usuário** (decisão do humano; sem texto jurídico). Como as FKs são restrição (C3), o fluxo roda numa transação que remove antes séries, sessões, itens e fichas, e depois o usuário. Exercícios não são apagados: são do catálogo, sem dono (E1). **Revisão em 2026-10-14** ([ADR 0009](adr/0009-catalogo-de-exercicios-fechado.md)). Antes: a exclusão apagava também os exercícios criados pelo usuário (`Exercise.userId` em cascata). Depois: não há exercício do usuário nem `Exercise.userId`. `TODO(humano)`: o processo (canal de contato e prazo), antes de haver usuários de terceiros. | `DECIDIDO (muda o código)` |
+| C1 | O usuário **nunca é apagado**, só desativado (decidido: opção B). `User` ganha um campo de desativação e as FKs de `User` viram restrição. O `AuthGuard` passa a verificar se o usuário **existe e está ativo** a cada pedido e recusa com 401 o inexistente e o desativado, mesmo com token válido (decidido: opção A; custo: uma consulta por requisição, toca `src/auth/`). Hoje o guard só verifica a assinatura e não consulta o banco (confirmado por teste de caracterização, `test/authguard-caracterizacao.e2e-spec.ts`): um usuário desativado continuaria acessando por até 7 dias, a validade do token (U6). O e-mail do desativado continua ocupado (cadastro com ele dá 409). **Exceção:** a pedido do titular, um fluxo explícito de **exclusão de conta apaga todos os dados do usuário** (decisão do humano; sem texto jurídico). Como as FKs são restrição (C3), o fluxo roda numa transação que remove antes séries, sessões, itens e fichas, e depois o usuário. Apaga também os exercícios próprios do usuário e todos os dados de dieta, medidas, fotos, ciclo, hábitos e sugestões; exercícios do catálogo não são apagados. Se o usuário está num household, sai dele antes. **Revisão em 2026-11-09** (ADR 0011). Antes: não havia exercício do usuário (ADR 0009). `TODO(humano)`: o processo (canal de contato e prazo), antes de haver usuários de terceiros. | `DECIDIDO (muda o código)` |
 | C2 | Histórico (sessões e séries) nunca é apagado em cascata. Fichas são arquivadas (F9). Hoje apagar uma ficha apaga as sessões e séries dela. | `DECIDIDO (muda o código)` |
-| C3 | Um exercício com séries registradas **ou em alguma ficha** não pode ser apagado (E6). FKs que viram restrição: `SetLog.exerciseId`, `RoutineItem.exerciseId`, `WorkoutSession.routineId`, `SetLog.sessionId`, `WorkoutSession.userId`, `WorkoutRoutine.userId`. `RoutineItem.routineId` continua cascade. **Revisão em 2026-10-14** ([ADR 0009](adr/0009-catalogo-de-exercicios-fechado.md)). Antes: citava E2 e o 409 na remoção do próprio exercício, e previa a FK nova `Exercise.userId` (dono) em cascata, disparada só na exclusão de conta. Depois: sem rota de remoção por usuário e sem `Exercise.userId`. | `DECIDIDO (muda o código)` |
+| C3 | Um exercício com séries registradas **ou em alguma ficha** não pode ser apagado (E6). FKs que viram restrição: `SetLog.exerciseId`, `RoutineItem.exerciseId`, `WorkoutSession.routineId`, `SetLog.sessionId`, `WorkoutSession.userId`, `WorkoutRoutine.userId`. `RoutineItem.routineId` continua cascade. **Revisão em 2026-10-14** ([ADR 0009](adr/0009-catalogo-de-exercicios-fechado.md)). Antes: citava E2 e o 409 na remoção do próprio exercício, e previa a FK nova `Exercise.userId` (dono) em cascata, disparada só na exclusão de conta. Depois: sem rota de remoção por usuário e sem `Exercise.userId`. **Revisão em 2026-11-09** (ADR 0011): `Exercise.userId` (dono) volta com o exercício próprio; o comportamento da FK fica para o plano da tarefa, respeitando E6 e C1. | `DECIDIDO (muda o código)` |
 
 ### Progressão e métricas
-- O código não faz nenhum cálculo (volume, 1RM, progressão). **Fora do V1** (decidido: opção A): a API só guarda e devolve o histórico, que é preservado, e qualquer métrica pode ser calculada depois sobre os mesmos dados. Se a ficha por IA precisar de uma métrica para adaptar a próxima ficha, isso precisa ser reaberto.
+- **Dentro do escopo** (revisão em 2026-11-09; antes: fora do V1): carga anterior e sugestão da próxima pela regra de progressão do item (decisão (d)) e média de 4 semanas no acompanhamento (decisão (e)). O histórico continua preservado, então outras métricas podem ser calculadas depois sobre os mesmos dados.
 - Fuso horário: datas em UTC (`TIMESTAMP(3)` sem fuso); o app exibe no fuso do aparelho (decidido: opção A). "Treinos por dia" precisa do fuso do aparelho em cada pedido ou fica por UTC.
 
 ## Invariantes (devem sempre ser verdade)
@@ -142,12 +174,17 @@ Ver também [Decisões de produto (antes pendentes)](#decisões-de-produto-antes
 3. Histórico de sessões e séries nunca é apagado em cascata (C2); só o fluxo de exclusão de conta a pedido do titular apaga histórico (C1). `DECIDIDO`
 4. Cada usuário tem no máximo uma sessão aberta (S3), valendo depois de cada sincronismo, que encerra as excedentes. `DECIDIDO`
 5. O `order` é único dentro de cada ficha; lacunas são permitidas (F11). `DECIDIDO`
-6. Usuários nunca criam, alteram nem apagam exercícios; o catálogo vem só do dataset (E1, E2). `DECIDIDO` (**revisão em 2026-10-14**; antes: "O catálogo oficial nunca é alterado nem apagado pela API")
-7. Um item de ficha e uma série só referenciam exercício do catálogo (F6, S8). `DECIDIDO` (**revisão em 2026-10-14**; antes: "do catálogo oficial ou do próprio usuário")
+6. Usuários nunca alteram nem apagam exercícios do catálogo; exercício próprio só é visto e usado pelo dono (E1, E2). `DECIDIDO` (**revisão em 2026-11-09**; antes: "usuários nunca criam, alteram nem apagam exercícios")
+7. Um item de ficha e uma série só referenciam exercício do catálogo ou do próprio usuário (F6, S8). `DECIDIDO` (**revisão em 2026-11-09**; antes: "só do catálogo")
 8. Série e sessão registradas nunca são apagadas, só corrigidas (S9), exceto pela exclusão de conta (C1). `DECIDIDO`
 9. O usuário é desativado, não apagado, exceto pelo fluxo de exclusão de conta a pedido do titular (C1). `DECIDIDO`
 10. Um usuário tem no máximo 10 fichas ativas, e uma ficha tem no máximo 50 itens (F10). `DECIDIDO`
 11. O número da série é único por sessão e exercício (S8). `DECIDIDO`
+12. Peso, medidas, fotos, ciclo, metas e sugestões de um usuário nunca são devolvidos a outro, nem dentro do mesmo household (decisões (e) e (f)). `DECIDIDO`
+13. O household compartilha só cardápio, prato cozinhado, visão da cozinha e lista de compras; toda feature funciona sem household (f). `DECIDIDO`
+14. Sugestão automática nunca é aplicada sem aceite do usuário, nunca cruza o piso e nunca é gerada para menor de 18 anos (e). `DECIDIDO`
+15. Nenhum valor dos perfis A e B fica fixo no código: entram como modelos (dados) ([ADR 0011](adr/0011-app-generico-plano-e-dado.md)). `DECIDIDO`
+16. O registro de refeição guarda snapshot dos macros; mudar o alimento depois não altera o histórico (c). `DECIDIDO`
 
 ## Casos de borda conhecidos (comportamento atual, não verificado em execução)
 Cada caso virou correção, validação ou comportamento aceito. Os casos foram decididos com o humano; o 6 começou por delegação e foi depois **confirmado** por ele.
@@ -166,11 +203,13 @@ Perguntas ao dono, **sem decisão**. Nenhuma tarefa presume a resposta.
 
 | # | Pergunta | Origem | Status |
 |---|---|---|---|
-| P1 | O que acontece com `POST /exercises`: remover, ou restringir a quem carrega o dataset? | E1, E2, [ADR 0009](adr/0009-catalogo-de-exercicios-fechado.md) | `TODO(humano)` |
-| P2 | Como o dataset é atualizado depois do V1? | E1, E6, (b), [ADR 0009](adr/0009-catalogo-de-exercicios-fechado.md) | `TODO(humano)` |
+| P1 | De onde vem a carga inicial do catálogo e quantos exercícios entram (o dataset completo e a mídia estão fora)? Bloqueia só a tarefa de carga do catálogo. | (b), E1 | `TODO(humano)` |
+| P2 | Fotos de progresso: guardar no servidor ou só lembrar de tirar? Bloqueia só a Fase 2. | (e) | `TODO(humano)` |
+| P3 | Qual celular cada um usa (Android ou iPhone), por causa dos lembretes? Bloqueia só a Fase 3. | (g) | `TODO(humano)` |
+| P4 | Supino inclinado do perfil B no modelo: "2 ×" significa 2 séries ou 2 vezes por semana? Bloqueia só a carga do modelo B. | `produto.md` §5 | `TODO(humano)` |
 
 ## Mudanças de código decorrentes
-Nada disso está implementado, salvo onde a linha diz "Implementado". Cada item precisa de plano (`docs/PLAN_TEMPLATE.md`) aprovado antes. O risco é **baixo**, **médio** ou **alto**.
+Nada disso está implementado, salvo onde a linha diz "Implementado". Cada item segue a tabela "Risco: quem decide o quê" do `AGENTS.md`. O risco é **baixo**, **médio** ou **alto**. As áreas novas (dieta, programa, acompanhamento, household, front) estão em [`produto.md`](produto.md), seção 9, na ordem de execução.
 
 | Regras | O que muda | Risco |
 |---|---|---|
@@ -182,14 +221,14 @@ Nada disso está implementado, salvo onde a linha diz "Implementado". Cada item 
 | Caso 6 | Limite de 5 tentativas por 15 minutos, por e-mail e IP, no login. Mecanismo no plano; se exigir dependência nova, precisa da aprovação do humano. | **Médio**: toca `src/auth/`; pode bloquear usuário legítimo; possível dependência nova. |
 | C1 | Campo de desativação em `User` + migration; FKs de `User` viram restrição. | **Médio**: schema e migration; muda o comportamento de exclusão (ver C3). |
 | C1 (AuthGuard) | O `AuthGuard` passa a consultar o usuário a cada pedido e recusar com 401 o inexistente e o desativado. Hoje só verifica a assinatura. Depende do campo de desativação da linha anterior. **Plano próprio**; não implementado. | **Médio**: toca `src/auth/` (zona de risco); uma consulta a mais por requisição; o teste de caracterização que afirma o comportamento atual (aceita token de usuário inexistente) passa a falhar de propósito. |
-| E1 (`Exercise.userId`) | **Revisão em 2026-10-14** ([ADR 0009](adr/0009-catalogo-de-exercicios-fechado.md)). Antes: dono opcional em `Exercise` (`userId`, FK em cascata; nulo = catálogo oficial), filtro de `GET /exercises` por dono e `userId` gravado no `POST`. Depois: `Exercise` **não ganha** `userId` (hoje a coluna não existe: `prisma/schema.prisma:14-26`); `GET /exercises` continua devolvendo o mesmo catálogo para todos. Continua: coluna do id do dataset + migration (ver (b)). Exercícios já criados por usuários no banco (sem id do dataset) precisam de destino no plano; a API não está em produção (U8). | **Baixo**: remove trabalho planejado; a migration do id do dataset continua sendo schema (zona de risco). |
-| E2 (`POST /exercises`) | **Revisão em 2026-10-14** ([ADR 0009](adr/0009-catalogo-de-exercicios-fechado.md)). Antes: rotas `PUT` e `DELETE` de exercício do próprio usuário (404/409). Depois: **não criar** `PUT` nem `DELETE`; usuário deixa de criar exercício. O que fazer com `POST /exercises` (remover, ou restringir a quem carrega o dataset) depende de P1 e **não está decidido**; nenhuma tarefa mexe na rota antes da resposta. | **Médio**: remover a rota quebra quem a usa (e o teste de caracterização); restringir exige algum critério de quem pode escrever, e U7 diz que não há papéis no V1 (pode tocar `src/auth/`). |
-| E1, E2 (testes de caracterização) | **Novo em 2026-10-14** ([ADR 0009](adr/0009-catalogo-de-exercicios-fechado.md)). `test/exercises-caracterizacao.e2e-spec.ts`: o teste "E1/E2: exercício criado pelo usuário A aparece na listagem do usuário B" (linha 206) trava "todos veem todos" como divergência, mas com o catálogo fechado ver o mesmo catálogo **deixa de ser divergência**; a divergência passa a ser o usuário criar exercício. O comentário da linha 205 ficou desatualizado. Os testes do bloco `POST /exercises` (linhas 90–160) e o de rotas inexistentes (linha 187) mudam conforme a resposta de P1. Rever na tarefa que implementar E2, não antes. | **Baixo**: só testes; risco de travar a regra errada se mudarem antes de P1. |
+| E1 (`Exercise.userId`) | **Revisão em 2026-11-09** (ADR 0011). Dono opcional em `Exercise` (nulo = catálogo) + migration; `GET /exercises` devolve catálogo + próprios; `POST` grava o `userId` do token. Exercícios já criados por usuários no banco precisam de destino no plano (a API não está em produção, U8). | **Alto**: schema e migration; muda o contrato de `GET /exercises`. |
+| E2 (`POST /exercises`) | **Revisão em 2026-11-09** (ADR 0011). `POST /exercises` cria exercício próprio; exercício de outro usuário dá 404. Depende da linha anterior. | **Médio**: muda quem vê o exercício criado; o teste de caracterização de "todos veem todos" passa a falhar de propósito. |
+| E1, E2 (testes de caracterização) | `test/exercises-caracterizacao.e2e-spec.ts` trava "todos veem todos" e o `POST` sem dono. A tarefa de E1/E2 troca esses testes pelo comportamento novo, declarando `Teste alterado: <motivo>`. | **Baixo**: só testes. |
 | E4 | `muscleGroup` limitado aos 10 valores de `body_part` (enum no schema ou `@IsIn`, a decidir no plano). **Remover** a coluna `type` e o campo do DTO. Cardio = `muscleGroup = cardio`. | **Alto**: a migration apaga uma coluna e quebra quem envia `type` (400); dados fora da lista quebram a migration. |
 | E6, C2, C3 | Seis FKs de cascade para restrição: `SetLog.exerciseId`, `RoutineItem.exerciseId`, `WorkoutSession.routineId`, `SetLog.sessionId`, `WorkoutSession.userId`, `WorkoutRoutine.userId`. `RoutineItem.routineId` continua cascade. | **Médio**: migration em FK; muda o comportamento de exclusão. |
 | F1 (trade-off 3) | `PUT /routine/:id`: filtrar por `userId` na própria escrita, dentro da transação. **Tarefa separada** do caso 1. | **Baixo**: muda a escrita do `update`; cobrir com teste de ficha de outro usuário. |
 | F4 | `targetSets` 1–20, `order` ≥ 0, `targetReps` 1–100 quando informado. Em `RoutineItem`, `targetReps` passa a opcional e entra a duração-alvo em segundos (opcional) + migration. Pelo menos um dos dois obrigatório (decidido por delegação). Faixa da duração: `TODO(humano)`. | **Médio**: schema; requisições que hoje passam recebem 400. |
-| F6 | Ao salvar item, conferir que o exercício existe no catálogo; senão 400. (**Revisão em 2026-10-14**, [ADR 0009](adr/0009-catalogo-de-exercicios-fechado.md); antes: "existe e é oficial ou do usuário".) | **Baixo**: uma consulta a mais. |
+| F6 | Ao salvar item, conferir que o exercício existe e é do catálogo ou do próprio usuário; senão 400. (**Revisão em 2026-11-09**, ADR 0011; antes: só catálogo.) | **Baixo**: uma consulta a mais. |
 | F9 | Campo de arquivamento em `WorkoutRoutine` (nulo = ativa) + migration; ação de arquivar e desarquivar; `GET /routine` devolve só as ativas por padrão. | **Médio**: schema e contrato da listagem. |
 | F10 | Limites de 10 fichas **ativas** por usuário (arquivadas não contam) e 50 itens por ficha; erro ao passar. **Só junto com F9**: nenhuma tarefa implementa F10 antes. | **Baixo** em si; **dependente de F9** (o limite de ativas precisa do campo de arquivamento). |
 | F11 | Constraint única (`routineId`, `order`) + migration. Lacunas permitidas. | **Médio**: a migration falha se já houver `order` repetido. |
@@ -201,9 +240,6 @@ Nada disso está implementado, salvo onde a linha diz "Implementado". Cada item 
 | S8 | Constraint única (`sessionId`, `exerciseId`, `setNumber`); 409 na duplicata; um conflito não derruba o lote do sincronismo. | **Baixo**: tabela sem uso por código. |
 | S9 | Rotas de atualização por id para sessão e série; **sem rota de exclusão de sessão nem de série** (apagar exigiria marcador de exclusão no sincronismo); `finishedAt` preenchido não volta a vazio. | **Médio**: rotas novas com regras de posse; a ausência de exclusão é regra, não omissão. |
 | (a) Offline | Endpoint de sincronismo; ids de sessão e série gerados no cliente; envio idempotente. Ver [ADR 0004](adr/0004-uso-offline-e-sincronizacao.md). | **Alto**: contrato novo, idempotência e concorrência. |
-| (b) Dataset | Script repetível de carga do dataset local (id do dataset como chave); referência de mídia em `Exercise`; entrega de mídia só a usuário autenticado, com a atribuição. Ver [ADR 0005](adr/0005-carga-do-dataset-de-exercicios.md). | **Alto**: carga de 1324 registros, mídia de ~299 MB em volume na VPS servido pelo proxy do Coolify, caminho no banco; licença liberada só para uso não comercial. |
-| Ficha por IA | Endpoint que gera ficha com exercícios do catálogo, respeitando F4, F6 e F10. Ver [ADR 0007](adr/0007-ficha-por-ia-no-v1.md). | **Alto**: serviço externo, dependência nova (precisa de aprovação), custo por uso, dados do usuário saem da API. |
+| (b) Catálogo inicial | Carga repetível do catálogo inicial curado (sem mídia). Fonte e tamanho: P1. | **Médio**: carga de dados; depende de P1. |
 | Cardio | Ver S5, S7, F4 e E4. Ver [ADR 0006](adr/0006-cardio-no-v1-e-remocao-do-type.md). | incluído nas linhas acima |
 | Exclusão de conta (C1) | Fluxo explícito, a pedido do titular, que apaga todos os dados do usuário. Numa transação: remove antes séries, sessões, itens e fichas (FKs de restrição) e depois o usuário. Não apaga exercícios. Processo (canal e prazo): `TODO(humano)`. **Revisão em 2026-10-14** ([ADR 0009](adr/0009-catalogo-de-exercicios-fechado.md)). Antes: apagava também os exercícios do usuário (`Exercise.userId` em cascata). | **Alto**: apaga histórico de forma irreversível; interage com as FKs de restrição de C3; a ordem errada falha por violação de FK. (Antes também apagava exercícios; esse risco sai.) |
-| Idioma (pt/en) | Instruções dos exercícios em inglês e português, com português como padrão. Modelo de dados (colunas, tabela ou JSON por idioma) e API a definir no plano; a tradução do dataset ainda precisa ser produzida, e COMO e por QUEM é `TODO(humano)`. Ver [ADR 0005](adr/0005-carga-do-dataset-de-exercicios.md). | **Alto**: mexe no modelo de `Exercise`, na carga do dataset (1324 exercícios × instruções) e em todas as respostas com instruções; conteúdo traduzido sem revisor definido. |
-| Mídia em volume | Volume na VPS servido pelo proxy do Coolify; o banco guarda só o caminho. Configuração de deploy (Coolify) e regra de acesso por usuário autenticado. | **Médio**: infra fora do repositório; a autenticação da mídia direta pelo proxy é `TODO(humano)`. |

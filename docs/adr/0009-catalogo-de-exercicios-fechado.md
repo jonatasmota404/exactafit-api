@@ -1,6 +1,6 @@
 # ADR 0009 — Catálogo de exercícios fechado
 
-- **Status:** aceito (implementação ainda não planejada). Substitui o [ADR 0003](0003-catalogo-oficial-e-exercicios-do-usuario.md).
+- **Status:** substituído por [ADR 0011](0011-app-generico-plano-e-dado.md) em 2026-11-09 (exercício próprio e privado do usuário volta). Antes: aceito, não implementado. Substituía o [ADR 0003](0003-catalogo-oficial-e-exercicios-do-usuario.md).
 - **Data:** 2026-10-14
 - **Autor:** Jônatas Júnior
 

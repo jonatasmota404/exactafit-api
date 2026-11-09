@@ -1,6 +1,6 @@
 # ADR 0006 — Cardio no V1 e remoção do campo `type`
 
-- **Status:** aceito (implementação ainda não planejada)
+- **Status:** aceito (implementação ainda não planejada). Em 2026-11-09 o treino em casa saiu do escopo ([ADR 0011](0011-app-generico-plano-e-dado.md)); a parte de cardio e da remoção de `type` continua valendo.
 - **Data:** 2026-10-12
 - **Autor:** Jônatas Júnior
 

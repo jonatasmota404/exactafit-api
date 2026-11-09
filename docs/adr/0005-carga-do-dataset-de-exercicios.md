@@ -1,6 +1,6 @@
 # ADR 0005 — Carga do dataset de exercícios
 
-- **Status:** aceito (implementação ainda não planejada)
+- **Status:** substituído por [ADR 0011](0011-app-generico-plano-e-dado.md) em 2026-11-09 (dataset completo e mídia fora do escopo; catálogo inicial curado). Antes: aceito, não implementado. O texto abaixo é mantido como registro.
 - **Data:** 2026-10-12
 - **Autor:** Jônatas Júnior
 

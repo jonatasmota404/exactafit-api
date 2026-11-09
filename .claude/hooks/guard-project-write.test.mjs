@@ -1,4 +1,4 @@
-// Testes do hook guard-manual-write. Rodar: node --test '.claude/hooks/*.test.mjs'
+// Testes do hook guard-project-write. Rodar: node --test '.claude/hooks/*.test.mjs'
 import { test, before } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
@@ -7,19 +7,19 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const hook = fileURLToPath(new URL('./guard-manual-write.mjs', import.meta.url));
+const hook = fileURLToPath(new URL('./guard-project-write.mjs', import.meta.url));
 let root;
 let project;
-let manual;
+let fora;
 
 before(() => {
-  root = realpathSync(mkdtempSync(join(tmpdir(), 'guard-manual-')));
+  root = realpathSync(mkdtempSync(join(tmpdir(), 'guard-project-')));
   project = join(root, 'projeto');
-  manual = join(root, 'manual');
+  fora = join(root, 'fora');
   mkdirSync(join(project, 'src'), { recursive: true });
-  mkdirSync(manual);
-  symlinkSync(project, join(manual, 'atalho')); // link do manual para dentro do projeto
-  symlinkSync(join(project, 'src'), join(manual, 'atalho-src'));
+  mkdirSync(fora);
+  symlinkSync(project, join(fora, 'atalho')); // link de fora para dentro do projeto
+  symlinkSync(join(project, 'src'), join(fora, 'atalho-src'));
 });
 
 const run = (tool_input, { cwd = project, env = true } = {}) =>
@@ -31,7 +31,7 @@ const run = (tool_input, { cwd = project, env = true } = {}) =>
 
 const blocked = (r) => {
   assert.equal(r.status, 2, r.stderr);
-  assert.match(r.stderr, /guard-manual-write/);
+  assert.match(r.stderr, /guard-project-write/);
 };
 
 test('caminho absoluto dentro do projeto: bloqueia', () => {
@@ -43,28 +43,28 @@ test('caminho relativo (cwd é o projeto): bloqueia', () => {
 });
 
 test('.. que escapa para fora do projeto: permite', () => {
-  assert.equal(run({ file_path: '../manual/index.md' }).status, 0);
+  assert.equal(run({ file_path: '../fora/sonda.test.js' }).status, 0);
 });
 
 test('.. que sai e volta para dentro do projeto: bloqueia', () => {
-  blocked(run({ file_path: join(manual, '..', 'projeto', 'src', 'a.ts') }));
+  blocked(run({ file_path: join(fora, '..', 'projeto', 'src', 'a.ts') }));
 });
 
 test('nome que começa com ".." dentro do projeto (..dados): bloqueia', () => {
   blocked(run({ file_path: join(project, '..dados', 'x') }));
 });
 
-test('../manual/x, fora do projeto: permite', () => {
-  assert.equal(run({ file_path: join(project, '..', 'manual', 'x') }).status, 0);
+test('../fora/x, fora do projeto: permite', () => {
+  assert.equal(run({ file_path: join(project, '..', 'fora', 'x') }).status, 0);
 });
 
 test('caminho fora do projeto: permite', () => {
-  assert.equal(run({ file_path: join(manual, 'STATUS.md') }).status, 0);
+  assert.equal(run({ file_path: join(fora, 'sonda.test.js') }).status, 0);
 });
 
-test('link simbólico no manual apontando para dentro do projeto: bloqueia', () => {
-  blocked(run({ file_path: join(manual, 'atalho', 'src', 'a.ts') }));
-  blocked(run({ file_path: join(manual, 'atalho-src', 'novo', 'b.ts') }));
+test('link simbólico fora do projeto apontando para dentro do projeto: bloqueia', () => {
+  blocked(run({ file_path: join(fora, 'atalho', 'src', 'a.ts') }));
+  blocked(run({ file_path: join(fora, 'atalho-src', 'novo', 'b.ts') }));
 });
 
 test('sem file_path: permite (nada a escrever)', () => {
@@ -73,10 +73,18 @@ test('sem file_path: permite (nada a escrever)', () => {
 
 test('sem CLAUDE_PROJECT_DIR, vale o cwd', () => {
   blocked(run({ file_path: 'src/a.ts' }, { env: false }));
-  assert.equal(run({ file_path: join(manual, 'x.md') }, { env: false }).status, 0);
+  assert.equal(run({ file_path: join(fora, 'x.md') }, { env: false }).status, 0);
 });
 
 test('entrada ilegível: bloqueia', () => {
   const r = spawnSync('node', [hook], { input: 'não é json', encoding: 'utf8' });
   assert.equal(r.status, 2);
+});
+
+test('sonda no worktree temporário do revisor, fora do projeto: permite', () => {
+  assert.equal(run({ file_path: join(root, 'tmp-revisao', 'revisao', 'src', 'a.sonda.test.ts') }).status, 0);
+});
+
+test('metadados do git do projeto (.git/worktrees): bloqueia', () => {
+  blocked(run({ file_path: join(project, '.git', 'worktrees', 'revisao', 'HEAD') }));
 });
