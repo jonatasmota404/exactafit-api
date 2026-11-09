@@ -232,7 +232,7 @@ Nada disso está implementado, salvo onde a linha diz "Implementado". Cada item 
 | F9 | Campo de arquivamento em `WorkoutRoutine` (nulo = ativa) + migration; ação de arquivar e desarquivar; `GET /routine` devolve só as ativas por padrão. | **Médio**: schema e contrato da listagem. |
 | F10 | Limites de 10 fichas **ativas** por usuário (arquivadas não contam) e 50 itens por ficha; erro ao passar. **Só junto com F9**: nenhuma tarefa implementa F10 antes. | **Baixo** em si; **dependente de F9** (o limite de ativas precisa do campo de arquivamento). |
 | F11 | Constraint única (`routineId`, `order`) + migration. Lacunas permitidas. | **Médio**: a migration falha se já houver `order` repetido. |
-| S1, S2 | `startedAt` e `finishedAt` (opcional) enviados pelo aparelho + migration. | **Baixo**: nenhum código usa sessões ainda. |
+| S1, S2 | `startedAt` e `finishedAt` (opcional) enviados pelo aparelho + migration. | **Baixo** (nível a reavaliar no plano da tarefa 2 de `produto.md`): `POST /sessions` já grava sessões; a migration precisa tratar as linhas existentes. |
 | S3 | Uma sessão aberta por usuário. No sincronismo: aceitar todas, manter a de `startedAt` mais recente, encerrar as demais com `finishedAt = startedAt`, numa transação. | **Alto**: concorrência; índice parcial em SQL; regra de exceção. |
 | S4 | Rejeitar ficha sem itens só ao iniciar online. No `POST /sessions` (módulo `sessions`, na `main`). | **Baixo**. |
 | S6 | No registro de série (módulo `sessions`; a rota ainda não existe), aceitar `failed` no body e gravar o valor recebido, sem calcular. Melhoria futura possível, não decidida: gravar em `SetLog` um snapshot de `targetReps` (exigiria schema e migration). | **Baixo**: nenhum código usa `SetLog` na `main`. |

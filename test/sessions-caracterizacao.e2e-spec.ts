@@ -171,7 +171,10 @@ describe('Sessions e2e (caracterização)', () => {
     });
 
     it('S9: não existe rota que apague sessão (404)', async () => {
-      const { body } = await startSession(tokenA, { routineId: routineA });
+      const { status: created, body } = await startSession(tokenA, {
+        routineId: routineA,
+      });
+      expect(created).toBe(201);
       const res = await request(http())
         .delete(`/sessions/${body.id}`)
         .set(auth(tokenA));
@@ -240,7 +243,10 @@ describe('Sessions e2e (caracterização)', () => {
     });
 
     it('S9 (A5): não há rotas de leitura nem de correção de sessão (404)', async () => {
-      const { body } = await startSession(tokenA, { routineId: routineA });
+      const { status: created, body } = await startSession(tokenA, {
+        routineId: routineA,
+      });
+      expect(created).toBe(201);
       const calls = [
         () => request(http()).get('/sessions').set(auth(tokenA)),
         () => request(http()).get(`/sessions/${body.id}`).set(auth(tokenA)),
