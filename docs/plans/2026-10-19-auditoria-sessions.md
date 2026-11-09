@@ -188,13 +188,9 @@ Nenhuma bloqueia esta tarefa: os testes travam o comportamento atual seja qual f
 - **P5 — execução:** confirma o uso de `npx prisma migrate deploy` e do e2e **só no Postgres descartável** descrito em "Como verificar"?
 
 ## Resultado (preencher ao concluir)
-- **O que foi feito:**
-- **Desvios do plano:**
-- **Pendências:**
-- **PR/commit:**
-- **Docs atualizadas:**
-
-### Para o manual
-- **O que mudou no comportamento:**
-- **Decisões novas em domain/ADR:**
-- **O que o humano precisa entender:**
+- **O que foi feito:** `test/sessions-caracterizacao.e2e-spec.ts` com 14 casos (7 conforme, 7 divergentes), cobrindo toda a tabela "Testes"; o comportamento lido no código se confirmou na execução, sem surpresa. `docs/domain.md` e `AGENTS.md` deixaram de descrever sessions como "só schema"/pendente de auditoria (A8). Nenhum código de produção, schema ou dependência mudou.
+- **Desvios do plano:** executado já no kit 1.2, em que esta tarefa é de risco baixo: seguiu direto ao PR, sem aprovação prévia do plano nem `implementador`. `docs/RETRO.md` e o bloco "Para o manual" saíram do kit e não foram preenchidos. Os achados continuam válidos com o escopo novo (`docs/produto.md`): A1, A2, A3, A6 e A7 entram na tarefa 2; A4, A5 e A9 na tarefa 3; as perguntas P1–P4 deste plano são decididas nos critérios de aceite dessas tarefas.
+- **Pendências:** correções A1–A9 (tarefas 2, 3 e 17 de `docs/produto.md`).
+- **PR/commit:** branch `test/auditoria-sessions`.
+- **Docs atualizadas:** `docs/domain.md` (descrição de sessions, sem mudar regra), `AGENTS.md` ("Cuidados conhecidos").
+- **Evidência:** Postgres 16 descartável em porta livre (42631), `npx prisma migrate deploy` e `npm run test:e2e`: 88 passaram, 2 `todo` (já existentes em `routines-caracterizacao`), 90 no total. A suíte nova sozinha: 14 de 14.
