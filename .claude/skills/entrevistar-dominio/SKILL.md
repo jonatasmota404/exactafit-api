@@ -13,7 +13,7 @@ Fecha as lacunas de `docs/domain.md` perguntando ao humano. O humano decide tudo
 3. Só então faça a primeira pergunta.
 
 ## Domínio versus técnico; investigar primeiro
-- Aqui só entra **decisão de domínio** (regra, comportamento do produto, números de limite): é do humano. Decisão técnica (arquitetura, estrutura, testes) não se entrevista: o agente recomenda UMA opção com 2 alternativas e o humano aprova (skill `menor-esforco`).
+- Aqui só entra **decisão de domínio** (regra, comportamento do produto, números de limite): é do humano. Decisão técnica (arquitetura, estrutura, testes) não se entrevista: o agente recomenda UMA opção com 2 alternativas e o humano aprova.
 - **Investigue primeiro, pergunte para confirmar:** levante candidatos a regra no código, nos testes e no histórico do git, com evidência, e pergunte "isso é regra ou acaso?". Só vira regra o que tem evidência ou decisão explícita do humano.
 
 ## Regras da entrevista

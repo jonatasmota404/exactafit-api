@@ -1,11 +1,11 @@
 ---
 name: mapear-projeto
-description: Use ao chegar num repositório sem documentação confiável, ou quando pedirem para mapear, documentar a arquitetura ou extrair regras de negócio do código. Só lê código; produz regras candidatas para docs/domain.md marcadas CONFIRMAR(humano) e perguntas ao humano. A visão geral para o humano é do curador do manual. Não use para implementar nem para registrar decisões já tomadas (use registrar-decisoes).
+description: Use ao chegar num repositório sem documentação confiável, ou quando pedirem para mapear, documentar a arquitetura ou extrair regras de negócio do código. Só lê código; produz regras candidatas para docs/domain.md marcadas CONFIRMAR(humano) e perguntas ao humano. Para explicar o projeto ao humano sob demanda, use conversar. Não use para implementar nem para registrar decisões já tomadas (use registrar-decisoes).
 ---
 
 # Mapear projeto
 
-Leitura do código, sem alterá-lo. O único arquivo escrito é `docs/domain.md`; as perguntas vão na resposta ao humano. A visão geral (módulos, fluxos) é escrita pelo curador do manual, fora do repositório, seguindo os passos 2 e 3.
+Leitura do código, sem alterá-lo. O único arquivo escrito é `docs/domain.md`; as perguntas e a visão geral (módulos, fluxos) vão na resposta ao humano. Depois, a skill `conversar` responde sob demanda a partir do código e de `docs/domain.md`.
 
 ## Regra central
 Afirmação sobre ambiente (dependências, build, versões, CI, deploy, banco) exige **comando executado e saída citada**. Sem execução, escreva **"não verificado"**. Ler o `package.json` não prova o que está instalado nem como é feito o deploy.

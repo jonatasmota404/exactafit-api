@@ -91,18 +91,6 @@
         ]
       }
     ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "cd \"$CLAUDE_PROJECT_DIR\" && node .claude/hooks/verify-on-stop.mjs",
-            "timeout": 300,
-            "statusMessage": "Verificando typecheck, testes e lint..."
-          }
-        ]
-      }
-    ],
     "PostToolUse": [
       {
         "matcher": "Write|Edit",
@@ -112,6 +100,18 @@
             "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/lint-on-edit.mjs\"",
             "timeout": 60,
             "statusMessage": "Verificando o arquivo editado..."
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && node .claude/hooks/verify-on-stop.mjs",
+            "timeout": 300,
+            "statusMessage": "Verificando typecheck, testes e lint..."
           }
         ]
       }

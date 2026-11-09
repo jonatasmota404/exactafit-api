@@ -1,93 +1,23 @@
-# Plano: <título da tarefa>
+# Plano de risco: <título da tarefa>
 
-> Copie para `docs/plans/AAAA-MM-DD-<slug>.md`. O humano aprova antes de o `implementador` começar. O plano preenchido, com o "Resultado" ao concluir, é o registro da tarefa.
+> Só risco alto (risco baixo e médio não têm arquivo). Copie para `docs/plans/AAAA-MM-DD-<slug>.md`. Descartável: o essencial vai para a descrição do PR e este arquivo é removido (`git rm`) no mesmo PR.
 
 Aprovado por: —
-Revisão do plano: — <!-- risco alto: "APROVADO em AAAA-MM-DD" do agente revisor-de-plano, ou "AJUSTAR aceito pelo humano: <pendências>" -->
-Modelo recomendado: <modelo> — <motivo>
-
-## Intenção
-<!-- 1–3 frases: o que muda para o usuário/sistema e por quê. -->
-
-## Esclarecimentos
-<!-- Uma linha por resposta do humano: "- AAAA-MM-DD P: <pergunta> → R: <resposta, nas palavras do humano>".
-A resposta também é aplicada na seção certa deste plano, trocando o texto que ela invalida.
-Dúvida ainda sem resposta fica no ponto exato do plano com o marcador de dúvida (skill planejar-tarefa). -->
+Revisão do plano: — <!-- "APROVADO em AAAA-MM-DD" do revisor-de-plano, ou "AJUSTAR aceito pelo humano: <pendências>" -->
 
 ## Critérios de aceite
-- [ ] <!-- comportamento observável e testável, ex.: "PUT /routine/:id de outro usuário retorna 404" -->
-- [ ] Typecheck, testes unitários e lint passam.
+<!-- Um por linha: comportamento observável (entrada → resultado), incluindo o caminho de erro, e o teste que o prova.
+Nada de "funciona bem". Pergunta sem resposta fica no ponto exato como [DÚVIDA: …]. -->
+- [ ] C1: <comportamento> — teste: <caso> em `<arquivo de teste>`
 
-## Testes (escritos antes do código)
-<!-- Um teste por critério de aceite que muda comportamento, incluindo o caminho de erro. Só o que o critério pede: sem caso impossível nem detalhe interno.
-Risco médio ou alto: o humano aprova esta lista junto com o plano.
-Tarefa sem comportamento novo (documentação, configuração, refatoração já coberta por testes): escreva "Sem teste novo: <motivo>". -->
-| Critério | Caso (entrada → esperado) | Arquivo de teste |
-|---|---|---|
-| | | |
+Fora de escopo: <!-- o que parece relacionado e não será feito -->
 
 ## Risco
-- **Nível:** baixo | médio | alto
-- **Toca zona de risco?** (migrations, schema, autenticação, workflows; lista no `AGENTS.md`): sim/não. Qual?
-- **O que pode quebrar:**
+- **Zona tocada:** <!-- lista no AGENTS.md -->
+- **Como desfazer:** <!-- comando ou passos executáveis; migração de dados, se houver -->
+- **Pré-mortem:** <!-- se der errado em produção, por quê? -->
+- **Segurança:** <!-- skill seguranca: itens que se aplicam e como serão verificados; ou "não se aplica: <motivo>" -->
+- **Dependências novas:** Nenhuma. <!-- Se houver: comando e saída da conferência no registro (AGENTS.md, regra 5). -->
 
-## Menor esforço
-<!-- Skill menor-esforco. Uma linha: "Menor esforço: considerei <alternativas>; escolhi <X> porque <motivo>". -->
-
-## Segurança (risco médio ou alto)
-<!-- Skill seguranca. Só se tocar autenticação, dados pessoais, entrada externa, segredos ou dependências; senão "não se aplica: <motivo>".
-- Itens do checklist que se aplicam, como serão verificados:
-- Itens que não se aplicam agora, e por quê:
-- Risco alto: modelo de ameaças curto (ativos; quem ataca; o que pode dar errado; mitigação) e ADR se difícil de reverter. -->
-
-## Tarefas (um commit cada)
-1. <!-- tarefa pequena e verificável -->
-2.
-
-## Arquivos a tocar
-| Arquivo | Mudança |
-|---|---|
-| `<caminho>` | |
-
-## Abstrações novas
-<!-- Padrão: nenhuma. Se houver, justifique com os DOIS usos reais que já existem. -->
-- Nenhuma.
-
-## Dependências novas
-<!-- Padrão: `Nenhuma`. Se houver, confira cada pacote no registro oficial ANTES de pedir aprovação (comando e saída colados; ex. npm: `npm view <pacote> name time.created time.modified maintainers license`). Pacote que não existe, com menos de ~30 dias ou com nome parecido com outro muito usado: pare e relate. -->
-Nenhuma.
-
-| Pacote | Existe no registro | Primeira/última publicação | Mantenedor | Por que não dá para evitar |
-|---|---|---|---|---|
-| | | | | |
-
-## Como verificar
-```bash
-npm run typecheck
-npm test
-npm run lint:check
-# se tocar banco/rotas: docker compose up -d && npx prisma migrate deploy && npm run test:e2e
-```
-<!-- + passos manuais (curl, etc.), se houver -->
-<!-- Risco alto, opcional: antes/depois (docs/RECEITAS.md, receita 2). "Antes/depois: <comando de captura>; deve mudar só: <o alvo>". -->
-
-## Documentação (definição de pronto)
-<!-- Se a tarefa muda rota, schema, regra de negócio ou módulo: atualize no mesmo commit. Marque um. -->
-- [ ] Atualiza: `docs/domain.md` | ADR `docs/adr/NNNN-...` <!-- risque o que não vale -->
-- [ ] Sem impacto em doc: <!-- motivo; se ficar o texto "<motivo>", a declaração não vale -->
-
-## Fora de escopo
-- <!-- o que NÃO será feito nesta tarefa, mesmo que pareça relacionado -->
-
-## Resultado (preencher ao concluir)
-- **O que foi feito:**
-- **Desvios do plano:** <!-- ou "nenhum" -->
-- **Pendências:** <!-- ou "nenhuma" -->
-- **PR/commit:**
-- **Docs atualizadas:** <!-- arquivos, ou "Sem impacto em doc: <motivo>" -->
-
-### Para o manual
-<!-- Repasse ao curador do manual. -->
-- **O que mudou no comportamento:**
-- **Decisões novas em domain/ADR:** <!-- IDs, ou "nenhuma" -->
-- **O que o humano precisa entender:**
+## Validação do humano
+<!-- O comando ou os passos para o humano rodar o comportamento depois do PR (requisição, tela, script) e o resultado esperado. -->

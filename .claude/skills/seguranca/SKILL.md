@@ -9,7 +9,7 @@ Guia de perguntas para o plano e para a revisão. Detalhe por tipo de trabalho e
 
 ## Escalada
 - **Risco baixo:** não passa por esta skill.
-- **Médio ou alto, tocando** autenticação, dados pessoais, entrada externa, segredos ou dependências: o plano ganha a seção **"Segurança"** com:
+- **Médio ou alto, tocando** autenticação, dados pessoais, entrada externa, segredos ou dependências: a linha **"Segurança"** do plano de risco (em risco médio, as mesmas perguntas na conversa ou no PR) traz:
   - quais itens do checklist se aplicam e quais não (cada "não se aplica agora" com o motivo);
   - como cada item aplicável será verificado (teste, comando, revisão humana).
 - **Alto:** acrescente um **modelo de ameaças curto** (ativos; quem ataca; o que pode dar errado; mitigação) e um **ADR** se a decisão for difícil de reverter (autenticação, plataforma, contrato externo, dados).
@@ -20,7 +20,7 @@ Guia de perguntas para o plano e para a revisão. Detalhe por tipo de trabalho e
 3. Decisão de domínio (quem pode ver o quê, o que é dado sensível, limites de uso) é do humano: pergunte; não presuma.
 
 ## Princípios
-- **Controle simples e padrão antes de mecanismo próprio** (skill `menor-esforco`): biblioteca madura e já instalada antes de código de criptografia, sessão ou autorização feito à mão.
+- **Controle simples e padrão antes de mecanismo próprio** (regra 1 do `AGENTS.md`): biblioteca madura e já instalada antes de código de criptografia, sessão ou autorização feito à mão.
 - Item que não se aplica é **declarado**, não omitido.
 - Revisão de segurança por IA tem pontos cegos e **não substitui o aceite humano** em autenticação, dados e segredos.
 - A camada robusta são as **verificações objetivas no CI do projeto** (varredura de segredos, auditoria de dependências, análise estática). Esta skill só as recomenda; não crie workflow de CI do projeto dentro de uma tarefa de feature.

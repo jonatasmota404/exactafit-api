@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -110,4 +110,38 @@ test('teste apagado na branch: avisa, sem bloquear', () => {
   const { out } = run(dir);
   assert.equal(out.decision, undefined);
   assert.match(out.systemMessage, /Aviso de testes: .*apagado.*src\/a\.spec\.ts/);
+});
+
+// Cópia do hook numa pasta própria, com só os avisos pedidos ao lado (simula o projeto com ou sem o opcional).
+// doc-warning é opcional: usa o instalado ao lado ou, dentro do kit, o de opcional/. Sem nenhum, o teste é pulado.
+const docWarning = [join(dirname(hook), 'doc-warning.mjs'), join(dirname(hook), '../../../opcional/.claude/hooks/doc-warning.mjs')].find(existsSync);
+const hookWith = (avisos) => {
+  const dir = mkdtempSync(join(tmpdir(), 'hooks-'));
+  for (const f of ['verify-on-stop.mjs', ...avisos]) {
+    copyFileSync(f === 'doc-warning.mjs' ? docWarning : join(dirname(hook), f), join(dir, f));
+  }
+  return join(dir, 'verify-on-stop.mjs');
+};
+
+const codigoSemDoc = () => {
+  const dir = project({ config: { checks: [ok] }, dirty: false });
+  mkdirSync(join(dir, 'src'), { recursive: true });
+  writeFileSync(join(dir, 'src/conta.service.ts'), 'export const x = 1;\n');
+  return dir;
+};
+
+const runHook = (h, dir) => {
+  const r = spawnSync('node', [h], { cwd: dir, input: '{}', encoding: 'utf8' });
+  assert.equal(r.status, 0);
+  return r.stdout.trim() ? JSON.parse(r.stdout) : null;
+};
+
+test('sem doc-warning ao lado (padrão do kit): não avisa documentação e não quebra', () => {
+  assert.equal(runHook(hookWith(['test-warning.mjs']), codigoSemDoc()), null);
+});
+
+test('com doc-warning ao lado (opcional ligado): avisa código sem doc, sem bloquear', { skip: !docWarning && 'doc-warning.mjs não instalado' }, () => {
+  const out = runHook(hookWith(['test-warning.mjs', 'doc-warning.mjs']), codigoSemDoc());
+  assert.equal(out.decision, undefined);
+  assert.match(out.systemMessage, /Aviso de documentação: código alterado sem doc \(src\/conta\.service\.ts\)/);
 });

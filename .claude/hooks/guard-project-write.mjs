@@ -1,12 +1,12 @@
 #!/usr/bin/env node
-// PreToolUse(Write|Edit) do agente curador-do-manual: impede escrita dentro do diretório do projeto.
-// O curador só escreve no manual, que fica fora do repositório.
+// PreToolUse(Write|Edit) do agente revisor: impede escrita dentro do diretório do projeto.
+// O revisor só escreve sondas num worktree temporário, fora do repositório.
 // Exit 2 = bloqueia a chamada; a mensagem em stderr volta para o modelo.
 import { lstatSync, readFileSync, readlinkSync, realpathSync } from 'node:fs';
 import { basename, dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 
 const block = (msg) => {
-  process.stderr.write(`Bloqueado pelo hook guard-manual-write. ${msg}\n`);
+  process.stderr.write(`Bloqueado pelo hook guard-project-write. ${msg}\n`);
   process.exit(2);
 };
 
@@ -51,7 +51,7 @@ try {
   const outside = rel === '..' || rel.startsWith('..' + sep) || isAbsolute(rel);
   const inside = !outside;
   if (inside) {
-    block(`${filePath} está dentro do projeto. O curador escreve só no manual, fora do repositório.`);
+    block(`${filePath} está dentro do projeto. O revisor não altera o projeto; escreva a sonda no worktree temporário, fora dele.`);
   }
 } catch {
   block('Caminho não resolvido; por segurança a escrita foi negada.');
