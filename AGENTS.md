@@ -1,6 +1,6 @@
 # AGENTS.md — exactafit-api
 
-API de treino: NestJS 11 + TypeScript + Prisma 7 + PostgreSQL 16. Domínio: `docs/domain.md`. Decisões: `docs/adr/`.
+API do Exacta Fit (treino, dieta e acompanhamento): NestJS 11 + TypeScript + Prisma 7 + PostgreSQL 16. Produto, fases e ordem das tarefas: `docs/produto.md`. Domínio: `docs/domain.md`. Decisões: `docs/adr/`.
 
 ## Comandos (todos verificados)
 | Ação | Comando |

@@ -1,6 +1,6 @@
 # ADR 0007 — Ficha de treino por IA no V1
 
-- **Status:** proposto (depende de aprovação de dependência e de definições do humano)
+- **Status:** substituído por [ADR 0011](0011-app-generico-plano-e-dado.md) em 2026-11-09 (sem IA em tempo de execução; ficha por IA fora do escopo). Antes: proposto, não implementado. O texto abaixo é mantido como registro.
 - **Data:** 2026-10-12
 - **Autor:** Jônatas Júnior
 
