@@ -144,7 +144,7 @@ Valem para `WorkoutRoutine` e `RoutineItem` até a migração para `Program` e `
 | F10 | Limites: **no máximo 10 fichas ativas por usuário** e **no máximo 50 itens por ficha**. A ficha arquivada **não conta** no limite: arquivar libera espaço e o histórico continua guardado (**revisão** da decisão anterior, em que a arquivada contava; confirmada pelo humano). Consequência: fichas arquivadas não têm teto; `TODO(humano)`: se precisa de um. Resposta de erro ao passar do limite: `ADIADO (decidir no plano)`. **F10 só será implementada junto com F9** (campo de arquivamento): nenhuma tarefa implementa F10 antes (decisão do humano). | ausência no código | `DECIDIDO (muda o código)` |
 | F11 | O `order` é único dentro da ficha (hoje pode repetir). Só precisa ser única: lacunas são permitidas (decidido: opção A). | `create-routine.dto.ts`, `schema.prisma` | `DECIDIDO (muda o código)` |
 
-### Sessões e séries (só schema; nenhum código usa ainda)
+### Sessões e séries (só `POST /sessions` existe; comportamento atual travado em `test/sessions-caracterizacao.e2e-spec.ts`)
 | # | Regra | Onde | Status |
 |---|---|---|---|
 | S1 | Uma sessão pertence a um usuário e a uma ficha. O início (`startedAt`) e o fim (`finishedAt`) vêm do aparelho, por causa do offline (hoje o início é `now()` do servidor). Sessão de ficha já arquivada é aceita. A API aceita a data enviada sem validar (decidido: opção B; risco aceito: treino no futuro ou duração negativa). Datas em UTC; o app exibe no fuso do aparelho. | `schema.prisma` `WorkoutSession` | `DECIDIDO (muda o código)` |
@@ -234,8 +234,8 @@ Nada disso está implementado, salvo onde a linha diz "Implementado". Cada item 
 | F11 | Constraint única (`routineId`, `order`) + migration. Lacunas permitidas. | **Médio**: a migration falha se já houver `order` repetido. |
 | S1, S2 | `startedAt` e `finishedAt` (opcional) enviados pelo aparelho + migration. | **Baixo**: nenhum código usa sessões ainda. |
 | S3 | Uma sessão aberta por usuário. No sincronismo: aceitar todas, manter a de `startedAt` mais recente, encerrar as demais com `finishedAt = startedAt`, numa transação. | **Alto**: concorrência; índice parcial em SQL; regra de exceção. |
-| S4 | Rejeitar ficha sem itens só ao iniciar online. Depende do módulo `sessions` (`wip/sessions`). | **Baixo**. |
-| S6 | No registro de série (módulo `sessions`, `wip/sessions`), aceitar `failed` no body e gravar o valor recebido, sem calcular. Melhoria futura possível, não decidida: gravar em `SetLog` um snapshot de `targetReps` (exigiria schema e migration). | **Baixo**: nenhum código usa `SetLog` na `main`. |
+| S4 | Rejeitar ficha sem itens só ao iniciar online. No `POST /sessions` (módulo `sessions`, na `main`). | **Baixo**. |
+| S6 | No registro de série (módulo `sessions`; a rota ainda não existe), aceitar `failed` no body e gravar o valor recebido, sem calcular. Melhoria futura possível, não decidida: gravar em `SetLog` um snapshot de `targetReps` (exigiria schema e migration). | **Baixo**: nenhum código usa `SetLog` na `main`. |
 | S5, S7 | `SetLog`: `weightKg` de `Float` para `Decimal(6,2)` opcional; `repsCompleted` opcional; duração em segundos opcional. | **Baixo**: nenhum código usa `SetLog` ainda; `Decimal` muda a serialização no JSON. |
 | S8 | Constraint única (`sessionId`, `exerciseId`, `setNumber`); 409 na duplicata; um conflito não derruba o lote do sincronismo. | **Baixo**: tabela sem uso por código. |
 | S9 | Rotas de atualização por id para sessão e série; **sem rota de exclusão de sessão nem de série** (apagar exigiria marcador de exclusão no sincronismo); `finishedAt` preenchido não volta a vazio. | **Médio**: rotas novas com regras de posse; a ausência de exclusão é regra, não omissão. |
