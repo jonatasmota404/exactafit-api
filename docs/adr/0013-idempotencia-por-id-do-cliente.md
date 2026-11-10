@@ -10,6 +10,7 @@ O [ADR 0004](0004-uso-offline-e-sincronizacao.md) decidiu que os ids de sessão 
 ## Decisão
 - `id` (UUID gerado no aparelho) e `startedAt` são **obrigatórios** no `POST /sessions`; sem eles, 400.
 - `startedAt` exige data, hora e fuso (`2026-11-09T10:00:00Z` ou `2026-11-09T07:00:00-03:00`). Só data, ou hora sem fuso, dá 400. A API grava em UTC e não valida a faixa (S1).
+- O `id` vale sem diferenciar maiúsculas e minúsculas: a API grava e busca sempre em minúsculas.
 - **Reenvio:** o mesmo `id` enviado de novo pelo mesmo usuário devolve **200 com a sessão já gravada**, sem alterar nada, mesmo com corpo diferente. Corrigir uma sessão é papel de outra rota (S9).
 - `id` de sessão de **outro usuário** dá **409**, sem devolver dados da sessão alheia.
 - Ordem das checagens: (1) DTO, 400; (2) busca pelo `id`: do usuário, 200 com a original; de outro, 409; (3) ficha inexistente ou de outro usuário, 404; (4) cria, 201. Se o `create` falhar por unicidade (`P2002`, corrida de dois envios), a API relê pelo `id` e aplica o passo 2.
