@@ -12,6 +12,8 @@ export class SessionsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(userId: string, dto: CreateSessionDto) {
+    // UUID é o mesmo valor em qualquer caixa; grava e busca sempre em minúsculas.
+    dto = { ...dto, id: dto.id.toLowerCase() };
     const existing = await this.prisma.workoutSession.findUnique({
       where: { id: dto.id },
     });
