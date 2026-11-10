@@ -76,10 +76,11 @@ model WorkoutSession {
   id String @id @default(uuid())
   userId String @map("user_id")
   routineId String @map("routine_id")
-  startedAt DateTime @default(now()) @map("started_at")
+  startedAt DateTime @map("started_at")
+  finishedAt DateTime? @map("finished_at")
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  workoutRoutine WorkoutRoutine @relation(fields: [routineId], references:[id], onDelete:Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  workoutRoutine WorkoutRoutine @relation(fields: [routineId], references:[id], onDelete: Restrict)
 
   setLogs SetLog[]
 
@@ -91,14 +92,16 @@ model SetLog{
     sessionId String @map("session_id")
     exerciseId String @map("exercise_id")
     setNumber Int @map("set_number")
-    weightKg Float @map("weight_kg")
-    repsCompleted Int @map("reps_completed")
+    weightKg Decimal? @db.Decimal(6,2) @map("weight_kg")
+    repsCompleted Int? @map("reps_completed")
+    durationSeconds Int? @map("duration_seconds")
     failed  Boolean @default(false)
-    workoutSession WorkoutSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-    exercise       Exercise       @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+    workoutSession WorkoutSession @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+    exercise       Exercise       @relation(fields: [exerciseId], references: [id], onDelete: Restrict)
 
     createdAt DateTime @default(now()) @map("created_at")
     updatedAt DateTime @updatedAt @map("updated_at")
 
+  @@unique([sessionId, exerciseId, setNumber])
   @@map("set_logs")
 }

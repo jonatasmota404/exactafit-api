@@ -1,4 +1,5 @@
-import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Post, Req, Res, UseGuards } from '@nestjs/common';
+import type { Response } from 'express';
 import { AuthGuard } from '../auth/auth.guard';
 import { CreateSessionDto } from './dto/create-session.dto';
 import { SessionsService } from './sessions.service';
@@ -15,8 +16,14 @@ export interface AuthenticatedRequest extends Request {
 export class SessionsController {
   constructor(private readonly sessionService: SessionsService) {}
   @Post()
-  create(@Req() req: AuthenticatedRequest, @Body() dto: CreateSessionDto) {
+  async create(
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: CreateSessionDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const userId = req['user'].sub;
-    return this.sessionService.create(userId, dto);
+    const { created, session } = await this.sessionService.create(userId, dto);
+    res.status(created ? 201 : 200);
+    return session;
   }
 }
