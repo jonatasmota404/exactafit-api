@@ -258,6 +258,21 @@ describe('Sessions e2e (caracterização)', () => {
       expect(saved?.startedAt.toISOString()).toBe(STARTED_AT);
     });
 
+    it('C5: data impossível em startedAt dá 400 e nada é gravado', async () => {
+      for (const startedAt of [
+        '2026-13-45T10:00:00Z',
+        '2026-02-30T10:00:00Z',
+        '2026-11-09T25:00:00Z',
+      ]) {
+        const payload = body(routineA, { startedAt });
+        const { status } = await startSession(tokenA, payload);
+        expect({ startedAt, status }).toEqual({ startedAt, status: 400 });
+        expect(
+          await prisma.workoutSession.count({ where: { id: payload.id } }),
+        ).toBe(0);
+      }
+    });
+
     it('C6: startedAt não tem faixa', async () => {
       const payload = body(routineA, { startedAt: '2030-01-01T00:00:00.000Z' });
       const { status, body: res } = await startSession(tokenA, payload);
