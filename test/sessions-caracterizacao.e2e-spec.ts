@@ -217,6 +217,28 @@ describe('Sessions e2e (caracterização)', () => {
       expect(after).toEqual(original);
     });
 
+    it('C2/C3: o id vale sem diferenciar maiúsculas e minúsculas', async () => {
+      const lower = randomUUID();
+      const upper = lower.toUpperCase();
+
+      const first = await startSession(tokenA, body(routineA, { id: upper }));
+      expect(first.status).toBe(201);
+      expect(first.body.id).toBe(lower);
+
+      const again = await startSession(tokenA, body(routineA, { id: lower }));
+      expect(again.status).toBe(200);
+      expect(again.body).toEqual(first.body);
+
+      const other = await startSession(tokenB, body(routineB, { id: upper }));
+      expect(other.status).toBe(409);
+
+      expect(
+        await prisma.workoutSession.count({
+          where: { id: { in: [lower, upper] } },
+        }),
+      ).toBe(1);
+    });
+
     it('C4: reenvio concorrente não duplica', async () => {
       const payload = body(routineA);
       const results = await Promise.all([
