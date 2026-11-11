@@ -678,6 +678,28 @@ describe('Programas (/programs)', () => {
     expect(Number(rows[0].n)).toBe(1);
   });
 
+  // Bug: deadlock (40P01) com ativações simultâneas visto no CI do PR #42; a API dava 500.
+  it('C11: 40 ativações em paralelo entre 4 programas não dão deadlock', async () => {
+    const u = await signUp();
+    const programs: ProgramResponse[] = [];
+    for (const name of ['A', 'B', 'C', 'D']) {
+      programs.push(await createOk(u, weekly(u, { name })));
+    }
+
+    const responses = await Promise.all(
+      Array.from({ length: 40 }, (_, i) =>
+        request(http())
+          .post(`/programs/${programs[(i * 3) % 4].id}/activate`)
+          .set(auth(u)),
+      ),
+    );
+    expect(responses.map((r) => r.status)).toEqual(Array(40).fill(200));
+
+    const rows = await prisma.$queryRaw<{ n: bigint }[]>`
+      SELECT count(*) AS n FROM programs WHERE user_id = ${u.id} AND active`;
+    expect(Number(rows[0].n)).toBe(1);
+  });
+
   // Sondas da revisão e do testador (rodada 1): entrada do cliente que dava 500.
   describe('entrada fora do alcance do banco dá 400', () => {
     const cases: [string, (u: User) => Record<string, unknown>][] = [
