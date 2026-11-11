@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 
@@ -60,7 +61,7 @@ export class MeService {
   }
 
   async updateProfile(userId: string, dto: UpdateProfileDto) {
-    const data: Record<string, unknown> = {};
+    const data: Prisma.UserUpdateInput = {};
     if (dto.sex !== undefined) data.sex = dto.sex;
     if (dto.heightCm !== undefined) data.heightCm = dto.heightCm;
     if (dto.birthDate !== undefined) {
