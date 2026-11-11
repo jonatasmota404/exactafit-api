@@ -501,4 +501,95 @@ describe('Sessions e2e (séries e encerramento)', () => {
     ).toBe(404);
     expect(await prisma.setLog.count({ where: { id: set.id } })).toBe(1);
   });
+
+  // Sondas do revisor e do testador que quebraram a primeira versão.
+  describe('casos de borda da revisão', () => {
+    const INT4_MAX = 2147483647;
+
+    it('inteiro acima do int4 dá 400 (não 500) no POST e no PATCH de série', async () => {
+      const u = await userWithSession();
+      for (const field of ['setNumber', 'repsCompleted', 'durationSeconds']) {
+        const payload = setBody({ [field]: INT4_MAX + 1 });
+        const { status } = await postSet(u.token, u.sessionId, payload);
+        expect({ field, status }).toEqual({ field, status: 400 });
+      }
+      const set = setBody();
+      expect((await postSet(u.token, u.sessionId, set)).status).toBe(201);
+      for (const field of ['setNumber', 'repsCompleted', 'durationSeconds']) {
+        const { status } = await patchSet(u.token, u.sessionId, set.id, {
+          [field]: INT4_MAX + 1,
+        });
+        expect({ field, status }).toEqual({ field, status: 400 });
+      }
+      expect(
+        (
+          await postSet(
+            u.token,
+            u.sessionId,
+            setBody({ setNumber: INT4_MAX, repsCompleted: INT4_MAX }),
+          )
+        ).status,
+      ).toBe(201);
+    });
+
+    it('id de série já usado em outra sessão do mesmo usuário dá 409', async () => {
+      const u = await userWithSession();
+      const set = setBody();
+      expect((await postSet(u.token, u.sessionId, set)).status).toBe(201);
+      expect(
+        (await patchSession(u.token, u.sessionId, { finishedAt: FINISHED_AT }))
+          .status,
+      ).toBe(200);
+      const other = await startSession(u.token, u.routineId);
+      expect(other.status).toBe(201);
+
+      const res = await postSet(u.token, other.id, set);
+      expect(res.status).toBe(409);
+      const saved = await prisma.setLog.findUnique({ where: { id: set.id } });
+      expect(saved?.sessionId).toBe(u.sessionId);
+    });
+
+    it('data que passa do ano 9999 em UTC dá 400 e não apaga o encerramento', async () => {
+      const u = await userWithSession();
+      const late = '9999-12-31T23:59:59-01:00';
+
+      const start = await startSession(u.token, u.routineId);
+      expect(start.status).toBe(409); // sessão aberta: confirma que o 400 abaixo vem da data
+      const post = await request(http())
+        .post('/sessions')
+        .set(auth(u.token))
+        .send({ id: randomUUID(), routineId: u.routineId, startedAt: late });
+      expect(post.status).toBe(400);
+
+      expect(
+        (await patchSession(u.token, u.sessionId, { finishedAt: FINISHED_AT }))
+          .status,
+      ).toBe(200);
+      for (const payload of [{ finishedAt: late }, { startedAt: late }]) {
+        const { status } = await patchSession(u.token, u.sessionId, payload);
+        expect({ payload, status }).toEqual({ payload, status: 400 });
+      }
+      const saved = await prisma.workoutSession.findUnique({
+        where: { id: u.sessionId },
+      });
+      expect(saved?.finishedAt?.toISOString()).toBe(FINISHED_AT);
+
+      expect(
+        (
+          await patchSession(u.token, u.sessionId, {
+            finishedAt: '9999-12-31T23:59:59Z',
+          })
+        ).status,
+      ).toBe(200);
+    });
+
+    it('PATCH de série com body vazio dá 400, como o de sessão', async () => {
+      const u = await userWithSession();
+      const set = setBody();
+      expect((await postSet(u.token, u.sessionId, set)).status).toBe(201);
+      expect((await patchSet(u.token, u.sessionId, set.id, {})).status).toBe(
+        400,
+      );
+    });
+  });
 });
