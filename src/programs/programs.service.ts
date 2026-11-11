@@ -37,7 +37,12 @@ export class ProgramsService {
 
   private parseDate(value: string) {
     const date = new Date(`${value}T00:00:00.000Z`);
-    if (isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value) {
+    // O Postgres não tem ano 0: '0000-…' daria 500.
+    if (
+      value < '0001' ||
+      isNaN(date.getTime()) ||
+      date.toISOString().slice(0, 10) !== value
+    ) {
       throw new BadRequestException('startDate inválida');
     }
     return date;

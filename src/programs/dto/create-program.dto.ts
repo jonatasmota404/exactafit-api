@@ -5,24 +5,29 @@ import {
   IsEnum,
   IsInt,
   IsNotEmpty,
+  IsObject,
   IsString,
   IsUUID,
   Matches,
+  Max,
   MaxLength,
   Min,
   ValidateIf,
   ValidateNested,
 } from 'class-validator';
+import { INT4_MAX } from '../../sessions/dto/create-set.dto';
 
 export const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 
 export class ProgramDayDto {
   @IsInt()
   @Min(1)
+  @Max(INT4_MAX)
   week!: number;
 
   @IsInt()
   @Min(1)
+  @Max(INT4_MAX)
   day!: number;
 
   @IsUUID()
@@ -30,6 +35,7 @@ export class ProgramDayDto {
 
   @IsInt()
   @Min(0)
+  @Max(INT4_MAX)
   order!: number;
 }
 
@@ -55,6 +61,7 @@ export class CreateProgramDto {
 
   @ValidateIf((_, v) => v !== undefined)
   @IsArray()
+  @IsObject({ each: true })
   @ValidateNested({ each: true })
   @Type(() => ProgramDayDto)
   days?: ProgramDayDto[];

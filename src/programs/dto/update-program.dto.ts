@@ -5,6 +5,7 @@ import {
   IsEnum,
   IsInt,
   IsNotEmpty,
+  IsObject,
   IsString,
   Matches,
   MaxLength,
@@ -41,6 +42,7 @@ export class UpdateProgramDto {
 
   @ValidateIf(present)
   @IsArray()
+  @IsObject({ each: true })
   @ValidateNested({ each: true })
   @Type(() => ProgramDayDto)
   days?: ProgramDayDto[];
