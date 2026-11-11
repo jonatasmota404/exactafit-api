@@ -95,8 +95,11 @@ export class SessionsService {
     const existing = await this.reenvioSet(userId, session.id, dto.id);
     if (existing) return existing;
 
-    const exercise = await this.prisma.exercise.findUnique({
-      where: { id: dto.exerciseId },
+    const exercise = await this.prisma.exercise.findFirst({
+      where: {
+        id: dto.exerciseId,
+        OR: [{ userId: null }, { userId }],
+      },
     });
     if (!exercise) throw new NotFoundException('Exercício não encontrado');
 

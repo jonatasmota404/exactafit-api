@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateRoutineDto } from './dto/create-routine.dto';
 import { NotFoundException } from '@nestjs/common';
@@ -8,7 +8,21 @@ import { UpdateRoutineDto } from './dto/update-routine.dto';
 export class RoutineService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private async assertExercisesVisible(
+    userId: string,
+    items: { exerciseId: string }[],
+  ) {
+    const ids = [...new Set(items.map((i) => i.exerciseId))];
+    const found = await this.prisma.exercise.count({
+      where: { id: { in: ids }, OR: [{ userId: null }, { userId }] },
+    });
+    if (found !== ids.length) {
+      throw new BadRequestException('Exercício não encontrado');
+    }
+  }
+
   async create(userId: string, dto: CreateRoutineDto) {
+    await this.assertExercisesVisible(userId, dto.items);
     return await this.prisma.workoutRoutine.create({
       data: {
         userId: userId,
@@ -72,6 +86,7 @@ export class RoutineService {
 
   async update(userId: string, id: string, dto: UpdateRoutineDto) {
     await this.findOne(userId, id);
+    if (dto.items) await this.assertExercisesVisible(userId, dto.items);
 
     return await this.prisma.$transaction(async (tx) => {
       if (dto.items) {
