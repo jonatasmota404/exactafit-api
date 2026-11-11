@@ -30,6 +30,40 @@ model Exercise {
   @@map("exercises")
 }
 
+enum FoodState {
+  RAW
+  COOKED
+}
+
+enum FoodTag {
+  GLUTEN_FREE
+  LACTOSE_FREE
+  VEGAN
+  VEGETARIAN
+}
+
+// Alimento (A1): userId nulo = catálogo; preenchido = próprio e privado. Valores por 100 g.
+// O CHECK da soma (A3) está só na migration: o Prisma não modela CHECK.
+model Food {
+  id String @id @default(uuid())
+  userId String? @map("user_id")
+  user User? @relation(fields: [userId], references: [id], onDelete: Restrict)
+  name String @db.VarChar(100)
+  state FoodState
+  kcal Decimal @db.Decimal(4, 1)
+  proteinG Decimal @map("protein_g") @db.Decimal(4, 1)
+  carbsG Decimal @map("carbs_g") @db.Decimal(4, 1)
+  fatG Decimal @map("fat_g") @db.Decimal(4, 1)
+  fiberG Decimal? @map("fiber_g") @db.Decimal(4, 1)
+  tags FoodTag[] @default([])
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@map("foods")
+}
+
 enum Sex {
   F
   M
@@ -50,6 +84,7 @@ model User {
   workoutSessions WorkoutSession[]
   exercises       Exercise[]
   programs        Program[]
+  foods           Food[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
