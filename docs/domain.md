@@ -58,13 +58,24 @@ Ver [`produto.md`](produto.md), o [ADR 0011](adr/0011-app-generico-plano-e-dado.
 - **Evento social:** só dica opcional e botão "saí do plano", **sem contador negativo**.
 
 ### (d) Treino genérico — DECIDIDO (muda o código)
-- **Treino** (`Workout`): a antiga ficha (ex.: "Treino A"). O **programa** (`Program`) só organiza os treinos no ciclo: ciclo semanal por dia da semana ou rotativo de N dias, com alternância por semana opcional (ex.: A-B). Dias (`ProgramDay`) apontam para treinos. **Implementado em 2026-11-11** (tarefa 6, schema; as rotas `/programs` são da tarefa 7).
+- **Treino** (`Workout`): a antiga ficha (ex.: "Treino A"). O **programa** (`Program`) só organiza os treinos no ciclo: ciclo semanal por dia da semana ou rotativo de N dias, com alternância por semana opcional (ex.: A-B). Dias (`ProgramDay`) apontam para treinos. **Implementado em 2026-11-11** (tarefa 6, schema) **e em 2026-11-11** (tarefa 7a, rotas `/programs`).
 - **Campos de `Program`:** `id`, `userId` (FK `RESTRICT`), `name` (até 100), `cycleType` (`WEEKLY` ou `ROTATING`), `cycleDays` (7 no semanal, N no rotativo), `weeks`, `startDate` (data que ancora o ciclo), `active`, timestamps. A contagem de qual semana e qual dia valem hoje (a partir de `startDate` e do fuso do usuário) fica para `GET /today` (tarefa 15).
-- **Campos de `ProgramDay`:** `id`, `programId` (FK `CASCADE`), `week` (1 a `weeks`), `day` (dia da semana 1 a 7 no semanal; posição 1 a N no rotativo), `workoutId` (FK `RESTRICT`), `order` (permite mais de um treino no mesmo dia). Os limites desses números são da tarefa 7.
+- **Campos de `ProgramDay`:** `id`, `programId` (FK `CASCADE`), `week` (1 a `weeks`), `day` (dia da semana 1 a 7 no semanal; posição 1 a N no rotativo), `workoutId` (FK `RESTRICT`), `order` (permite mais de um treino no mesmo dia). Limites: ver "Rotas de `/programs`" abaixo.
 - **`weeks`** (alternância por semana) só existe no semanal; no rotativo é sempre 1.
 - **Dia sem linha no programa é dia sem treino.** Nesse dia a tela Hoje mostra a caminhada, que é hábito do registro diário (`DayLog`, decisão (e)) e não um tipo de dia do programa. Uma caminhada planejada como treino é um `Workout` com exercício de cardio.
-- **Um programa ativo por usuário**, vários programas permitidos. Garantido no service da tarefa 7 (o Prisma não declara índice parcial; um índice só no SQL viraria drift). O dono do treino de cada `ProgramDay` também é validado no service da tarefa 7.
-- **Item do treino** (`WorkoutItem`, antes `RoutineItem`; os campos abaixo entram na tarefa 7, com migration): série normal, aquecimento, até a falha ou drop; faixa de repetições, tempo ou por lado; descanso; grupo de superssérie; RIR ou RPE opcional.
+- **Um programa ativo por usuário**, vários programas permitidos. Garantido no service (tarefa 7a; o Prisma não declara índice parcial; um índice só no SQL viraria drift). O dono do treino de cada `ProgramDay` também é validado no service da tarefa 7.
+- **Rotas de `/programs`** (tarefa 7a, **implementado em 2026-11-11**, plano `docs/plans/2026-11-11-programas-crud.md`): `POST`, `GET`, `GET /:id`, `PATCH /:id`, `DELETE /:id`, `POST /:id/activate` e `POST /:id/deactivate`, sempre filtrando por `userId`. Programa inexistente ou de outro usuário: 404 "Programa não encontrado". Dia com treino inexistente ou de outro usuário: 400 "Treino não encontrado".
+  - **Limites do ciclo:** semanal tem `cycleDays` 7 e `weeks` de 1 a 4; rotativo tem `cycleDays` de 2 a 14 e `weeks` 1. `week` do dia de 1 a `weeks`; `day` de 1 a `cycleDays`.
+  - **Remoção:** permitida; os dias saem junto e os treinos ficam. Apagar o ativo deixa o usuário sem programa ativo.
+  - **Ativação:** `activate` ativa este e desativa os outros do usuário (transação); `deactivate` deixa o usuário sem ativo (pode ficar sem ativo). Sem teto de programas por usuário nem de treinos por dia.
+  - **R1.** Corpo: `name`, `cycleType`, `cycleDays`, `weeks`, `startDate`, `days` (`week`, `day`, `workoutId`, `order`). `active` no corpo dá 400.
+  - **R2.** Padrões só no `POST` (semanal: `cycleDays` 7, `weeks` 1; rotativo: `weeks` 1 e `cycleDays` obrigatório). O `PATCH` confere o estado final, sem completar campos.
+  - **R3.** `days` no `PATCH` substitui todos os dias; os que ficam precisam caber no ciclo final.
+  - **R4.** `null` no `PATCH` dá 400 em qualquer campo.
+  - **R5.** Programa sem dias é permitido (rascunho).
+  - **R6.** `order` inteiro ≥ 0, único no mesmo (`week`, `day`); lacunas permitidas.
+  - **R7.** `startDate` entra e volta como `AAAA-MM-DD` (data impossível ou com hora dá 400).
+- **Item do treino** (`WorkoutItem`, antes `RoutineItem`; os campos abaixo entram na tarefa 7b, com migration): série normal, aquecimento, até a falha ou drop; faixa de repetições, tempo ou por lado; descanso; grupo de superssérie; RIR ou RPE opcional.
 - **Progressão** (`ProgressionRule`) por exercício: dupla, linear ou nenhuma, com passo percentual. Dupla: +2 a 5% quando o máximo da faixa foi feito em todas as séries. Ao abrir o exercício, o app mostra a carga anterior e a sugestão.
 - **Fases** (`Phase`): blocos definidos pelo usuário e semana leve a cada N semanas (Fase 4 do `produto.md`).
 - `WorkoutRoutine` e `RoutineItem` foram **renomeados** para `Workout` e `WorkoutItem` (tarefa 6, [ADR 0014](adr/0014-ficha-vira-treino.md)); não são absorvidos por `Program`. As fichas existentes viram treinos fora de programa, e sessões e histórico apontam para os mesmos registros. **Revisão em 2026-11-11.** Antes: absorvidos por `Program`. As regras F valem para `Workout` e `WorkoutItem`.
@@ -100,7 +111,7 @@ Ver [`produto.md`](produto.md), o [ADR 0011](adr/0011-app-generico-plano-e-dado.
 | Carga | Peso em kg, `Decimal(6,2)`. Vazia significa sem carga. | `SetLog.weightKg` |
 | Grupo muscular | Um dos 10 valores de `body_part` do dataset: back, cardio, chest, lower arms, lower legs, neck, shoulders, upper arms, upper legs, waist. `cardio` define o exercício de cardio. | `Exercise.muscleGroup` |
 | Sincronismo | Envio, do aparelho para a API, das sessões e séries registradas offline, com ids gerados no cliente. | não existe |
-| Programa | Organiza os treinos do usuário num ciclo semanal ou rotativo de N dias; um programa **ativo** por usuário (ativar um desativa o anterior; regra da tarefa 7). Não substitui o treino. | `Program`, `ProgramDay` (schema implementado em 2026-11-11, tarefa 6; ainda sem rota) |
+| Programa | Organiza os treinos do usuário num ciclo semanal ou rotativo de N dias; um programa **ativo** por usuário (ativar um desativa o anterior; tarefa 7a). Não substitui o treino. | `Program`, `ProgramDay` (schema na tarefa 6; rotas `/programs` implementadas em 2026-11-11, tarefa 7a) |
 | Plano de dieta | Refeições configuráveis e metas de macros por tipo de dia e por refeição. | `DietPlan` (a criar) |
 | Modelo | Plano de exemplo (dieta, treino, regras) carregado como dado, que o usuário usa ou copia. Os perfis A e B são modelos. | `PlanTemplate` (a criar) |
 | Household | Grupo opcional (família) que compartilha só a comida da casa. | `Household` (a criar) |

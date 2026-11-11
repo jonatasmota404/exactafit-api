@@ -119,7 +119,7 @@ describe('Programas (/programs)', () => {
         transform: true,
       }),
     );
-    await app.init();
+    await app.listen(0);
     prisma = app.get(PrismaService);
   });
 

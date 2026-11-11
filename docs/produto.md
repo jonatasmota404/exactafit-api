@@ -145,17 +145,18 @@ Cada linha é uma tarefa, uma branch e um PR. O risco segue a tabela "Risco: que
 | 4 | Exercício próprio e privado: dono em `Exercise`, `GET` com catálogo + próprios, `POST` cria próprio | E1, E2, F6 | 2 | alto | — |
 | 5 | Carga do catálogo inicial curado | (b) | 2 | médio | 4, **P1** |
 | 6 | A ficha vira treino: renomear `WorkoutRoutine`/`RoutineItem` para `Workout`/`WorkoutItem` (banco, código e rotas `/workouts`), FKs `Workout.userId` e `WorkoutItem.exerciseId` em `RESTRICT`, e schema `Program` e `ProgramDay` (sem rota) | (d), F, C3 | 2, 4 | alto | 4 |
-| 7 | CRUD `/programs` (ciclo semanal ou rotativo, ativação com um programa ativo por usuário, dia só com treino do dono, limites do ciclo) e campos novos do item do treino (tipo de série, faixa de repetições, tempo ou por lado, descanso, superssérie, RIR/RPE), com migration | (d) | 2, 4 | alto | 6 |
-| 8 | Progressão: `ProgressionRule` e `GET /exercises/:id/last-performance` com a sugestão | (d) | 6 | médio | 3, 7 |
+| 7a | CRUD `/programs` (ciclo semanal ou rotativo, ativação com um programa ativo por usuário, dia só com treino do dono, limites do ciclo). Plano: `docs/plans/2026-11-11-programas-crud.md`. **Feito em 2026-11-11** | (d) | 2, 4 | alto | 6 |
+| 7b | Campos novos do item do treino (tipo de série, faixa de repetições, tempo ou por lado, descanso, superssérie, RIR/RPE), com migration | (d) | 2, 4 | alto | 7a |
+| 8 | Progressão: `ProgressionRule` e `GET /exercises/:id/last-performance` com a sugestão | (d) | 6 | médio | 3, 7b |
 | 9 | Perfil do usuário (`/me/profile`: sexo, nascimento, altura, fuso) e usuário ativo no guard | C1, (e) | — | alto | — |
 | 10 | Alimentos: `Food`, `FoodYield`, `/foods` e importação por CSV | (c) | 2, 3 | alto | — |
 | 11 | Plano de dieta: `DietPlan`, `MealSlot`, `DayTarget`, `MealTemplate`, `/diet-plans` | (c) | 2 | alto | 10 |
 | 12 | Cálculo da porção como função pura, sem rede (o front reutiliza) | (c) | 3 | baixo | 10 |
 | 13 | Registro de refeição: `MealLog` e `MealLogItem` com snapshot dos macros | (c), inv. 16 | 4 | alto | 11 |
-| 14 | Modelos: `PlanTemplate`, carga dos perfis A e B, `/templates` (usar e copiar) | inv. 15 | 1 | médio | 7, 11, **P4** (só o B) |
-| 15 | `GET /today`: refeições do plano ativo, treino do dia pelo ciclo, passos | (c), (d), (e) | 4 | médio | 7, 13 |
+| 14 | Modelos: `PlanTemplate`, carga dos perfis A e B, `/templates` (usar e copiar) | inv. 15 | 1 | médio | 7a, 7b, 11, **P4** (só o B) |
+| 15 | `GET /today`: refeições do plano ativo, treino do dia pelo ciclo, passos | (c), (d), (e) | 4 | médio | 7a, 13 |
 | 16 | Household: `Household`, `HouseholdMember`, convite por código, visão da cozinha, teste de acesso cruzado | (f), inv. 12, 13 | 7 | alto | 11, 13 |
 | 17 | `POST /sync` idempotente (enviar o lote duas vezes não duplica) | (a), S3, S8 | 5 | alto | 3 |
-| 18 | Front PWA: repositório novo com o kit, Hoje, prato, treino e editores, offline-first | ADR 0012 | 4, 5 | alto | 3, 7, 11, 12 |
+| 18 | Front PWA: repositório novo com o kit, Hoje, prato, treino e editores, offline-first | ADR 0012 | 4, 5 | alto | 3, 7a, 7b, 11, 12 |
 
 Tarefas sem dependência entre si (por exemplo 4, 9 e 10) podem andar em paralelo, cada uma na própria branch a partir da `main`. A Fase 2 em diante é quebrada do mesmo jeito quando a Fase 1 fechar.
