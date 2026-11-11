@@ -12,7 +12,7 @@ import {
   ValidateIf,
   ValidateNested,
 } from 'class-validator';
-import { DATE_ONLY, ProgramDayDto } from './create-program.dto';
+import { DATE_ONLY, NO_NUL, ProgramDayDto } from './create-program.dto';
 
 // Em todos os campos, null falha o validador de tipo (R4); só undefined é ignorado.
 const present = (_: unknown, v: unknown) => v !== undefined;
@@ -22,6 +22,7 @@ export class UpdateProgramDto {
   @IsString()
   @IsNotEmpty()
   @MaxLength(100)
+  @Matches(NO_NUL, { message: 'name não aceita byte nulo' })
   name?: string;
 
   @ValidateIf(present)
