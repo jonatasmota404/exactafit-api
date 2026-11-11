@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Request } from 'express';
+import { PrismaService } from '../prisma/prisma.service';
 import 'dotenv/config';
 
 interface JwtPayload {
@@ -15,7 +16,10 @@ interface JwtPayload {
 
 @Injectable()
 export class AuthGuard implements CanActivate {
-  constructor(private readonly jwtService: JwtService) {}
+  constructor(
+    private readonly jwtService: JwtService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
@@ -26,15 +30,29 @@ export class AuthGuard implements CanActivate {
       throw new UnauthorizedException('Token inválido');
     }
 
+    let payload: JwtPayload;
     try {
-      const payload = await this.jwtService.verifyAsync<JwtPayload>(token, {
+      payload = await this.jwtService.verifyAsync<JwtPayload>(token, {
         secret: process.env.JWT_SECRET,
       });
-
-      request['user'] = payload;
     } catch {
       throw new UnauthorizedException('Token inválido');
     }
+
+    if (typeof payload.sub !== 'string') {
+      throw new UnauthorizedException('Token inválido');
+    }
+
+    // Fora do try: erro do banco sobe como 500, não como sessão inválida.
+    const user = await this.prisma.user.findUnique({
+      where: { id: payload.sub },
+      select: { deactivatedAt: true },
+    });
+    if (!user || user.deactivatedAt) {
+      throw new UnauthorizedException('Token inválido');
+    }
+
+    request['user'] = payload;
 
     return true;
   }
