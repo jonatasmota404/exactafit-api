@@ -669,4 +669,42 @@ describe('Programas (/programs)', () => {
       SELECT count(*) AS n FROM programs WHERE user_id = ${u.id} AND active`;
     expect(Number(rows[0].n)).toBe(1);
   });
+
+  // Sondas da revisão e do testador (rodada 1): entrada do cliente que dava 500.
+  describe('entrada fora do alcance do banco dá 400', () => {
+    const cases: [string, (u: User) => Record<string, unknown>][] = [
+      [
+        'order acima do int4',
+        (u) =>
+          weekly(u, {
+            days: [
+              { week: 1, day: 1, workoutId: u.workoutA, order: 2147483648 },
+            ],
+          }),
+      ],
+      [
+        'order 1e20',
+        (u) =>
+          weekly(u, {
+            days: [{ week: 1, day: 1, workoutId: u.workoutA, order: 1e20 }],
+          }),
+      ],
+      ['days com array vazio dentro', (u) => weekly(u, { days: [[]] })],
+      ['startDate no ano 0000', (u) => weekly(u, { startDate: '0000-01-01' })],
+    ];
+
+    it.each(cases)('%s no POST e no PATCH', async (_name, body) => {
+      const u = await signUp();
+      expect((await create(u, body(u))).status).toBe(400);
+      expect(await countPrograms(u.id)).toBe(0);
+
+      const p = await createOk(u, weekly(u));
+      const res = await request(http())
+        .patch(`/programs/${p.id}`)
+        .set(auth(u))
+        .send(body(u));
+      expect(res.status).toBe(400);
+      expect(await get(u, p.id)).toEqual(p);
+    });
+  });
 });
