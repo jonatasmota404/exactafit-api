@@ -188,10 +188,14 @@ export class ProgramsService {
     if (count === 0) throw new NotFoundException(NOT_FOUND);
   }
 
-  // Desliga todos os programas do usuário (trava as linhas) e liga o escolhido;
-  // se ele não existe, o 404 desfaz o desligamento.
+  // Desliga todos os programas do usuário e liga o escolhido; se ele não existe,
+  // o 404 desfaz o desligamento. A linha do usuário é travada antes para pôr as
+  // ativações dele em fila: o updateMany trava os programas na ordem física da
+  // tabela, que muda a cada UPDATE, e ativações simultâneas davam deadlock (40P01).
+  // NO KEY UPDATE não bloqueia as checagens de FK em users.
   activate(userId: string, id: string) {
     return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT 1 FROM users WHERE id = ${userId} FOR NO KEY UPDATE`;
       await tx.program.updateMany({
         where: { userId },
         data: { active: false },
