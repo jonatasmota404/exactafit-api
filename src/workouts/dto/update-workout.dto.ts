@@ -1,9 +1,9 @@
 import { OmitType, PartialType } from '@nestjs/mapped-types';
 import { IsNotEmpty, IsString, MaxLength, ValidateIf } from 'class-validator';
-import { CreateRoutineDto } from './create-routine.dto';
+import { CreateWorkoutDto } from './create-workout.dto';
 
-export class UpdateRoutineDto extends PartialType(
-  OmitType(CreateRoutineDto, ['name'] as const),
+export class UpdateWorkoutDto extends PartialType(
+  OmitType(CreateWorkoutDto, ['name'] as const),
 ) {
   @ValidateIf((_, value) => value !== undefined)
   @IsString()

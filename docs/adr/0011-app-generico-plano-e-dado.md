@@ -17,7 +17,7 @@ O escopo anterior era uma API só de treino: ficha por IA no V1, catálogo fecha
 - **Fora:** papéis de professor e academia, venda para terceiros, treino em casa e perfis de equipamento, ajuste automático por ciclo.
 
 ## Consequências
-- `WorkoutRoutine` e `RoutineItem` serão absorvidos por `Program` e `WorkoutItem` (migration de risco alto, com plano próprio).
+- `WorkoutRoutine` e `RoutineItem` serão absorvidos por `Program` e `WorkoutItem` (migration de risco alto, com plano próprio). **Alterado pelo [ADR 0014](0014-ficha-vira-treino.md):** são renomeados para `Workout` e `WorkoutItem`; o `Program` só organiza os treinos.
 - `Exercise` ganha dono opcional; `POST /exercises` passa a criar exercício privado do usuário.
 - Muitas tabelas novas (dieta, acompanhamento, household, sugestões); dados de saúde exigem isolamento por usuário aplicado na API.
 - Regras de ajuste de calorias são recomendações de saúde: código determinístico, versionado e testado regra por regra, com avisos fixos.

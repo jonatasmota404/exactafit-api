@@ -20,7 +20,7 @@ export class CreateSessionDto {
   id!: string;
 
   @IsUUID()
-  routineId!: string;
+  workoutId!: string;
 
   @IsISO8601({ strict: true, strictSeparator: true })
   @Matches(ISO_COM_FUSO, {

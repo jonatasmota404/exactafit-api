@@ -265,7 +265,7 @@ describe('Workouts e2e', () => {
     afterAll(async () => {
       // Exercício próprio prende o usuário (FK Restrict): exercícios antes dos usuários.
       // Treinos antes de exercícios e usuários: as FKs não apagam mais em cascata (C3).
-      await prisma.workoutRoutine.deleteMany({
+      await prisma.workout.deleteMany({
         where: { userId: { in: userIds } },
       });
       await prisma.exercise.deleteMany({
@@ -281,7 +281,7 @@ describe('Workouts e2e', () => {
         'Exercício não encontrado',
       );
       expect(
-        await prisma.workoutRoutine.count({
+        await prisma.workout.count({
           where: { userId: userB, name: 'F6 alheio' },
         }),
       ).toBe(0);
@@ -321,8 +321,8 @@ describe('Workouts e2e', () => {
         expect((res.body as { message: string }).message).toBe(
           'Exercício não encontrado',
         );
-        const items = await prisma.routineItem.findMany({
-          where: { routineId: routine.id },
+        const items = await prisma.workoutItem.findMany({
+          where: { workoutId: routine.id },
         });
         expect(items.map((i) => i.id).sort()).toEqual([...before].sort());
       }

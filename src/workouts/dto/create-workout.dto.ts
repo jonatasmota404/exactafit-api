@@ -10,7 +10,7 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
-export class CreateRoutineDto {
+export class CreateWorkoutDto {
   @IsString()
   @IsNotEmpty()
   @MaxLength(100)
@@ -23,11 +23,11 @@ export class CreateRoutineDto {
 
   @IsArray()
   @ValidateNested({ each: true })
-  @Type(() => CreateRoutineItemDto)
-  items!: CreateRoutineItemDto[];
+  @Type(() => CreateWorkoutItemDto)
+  items!: CreateWorkoutItemDto[];
 }
 
-export class CreateRoutineItemDto {
+export class CreateWorkoutItemDto {
   @IsUUID()
   exerciseId!: string;
   @IsInt()

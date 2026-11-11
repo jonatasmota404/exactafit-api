@@ -7,8 +7,8 @@ import { SessionsService } from './sessions.service';
 describe('SessionsService', () => {
   let service: SessionsService;
   const prisma = {
-    workoutRoutine: { findFirst: jest.fn() },
-    routineItem: { count: jest.fn() },
+    workout: { findFirst: jest.fn() },
+    workoutItem: { count: jest.fn() },
     workoutSession: {
       findUnique: jest.fn(),
       findFirst: jest.fn(),
@@ -18,13 +18,13 @@ describe('SessionsService', () => {
 
   const dto = {
     id: '11111111-1111-4111-8111-111111111111',
-    routineId: '22222222-2222-4222-8222-222222222222',
+    workoutId: '22222222-2222-4222-8222-222222222222',
     startedAt: '2026-11-09T10:00:00.000Z',
   };
   const stored = (userId: string) => ({
     id: dto.id,
     userId,
-    routineId: dto.routineId,
+    workoutId: dto.workoutId,
     startedAt: new Date(dto.startedAt),
     finishedAt: null,
   });
@@ -52,11 +52,11 @@ describe('SessionsService', () => {
 
   describe('P2002 na criação', () => {
     beforeEach(() => {
-      prisma.workoutRoutine.findFirst.mockResolvedValue({
-        id: dto.routineId,
+      prisma.workout.findFirst.mockResolvedValue({
+        id: dto.workoutId,
         userId: 'user-a',
       });
-      prisma.routineItem.count.mockResolvedValue(1);
+      prisma.workoutItem.count.mockResolvedValue(1);
       prisma.workoutSession.findFirst.mockResolvedValue(null);
       prisma.workoutSession.create.mockRejectedValue(p2002());
     });

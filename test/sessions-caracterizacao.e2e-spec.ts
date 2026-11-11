@@ -92,7 +92,7 @@ describe('Sessions e2e (caracterização)', () => {
   };
 
   const sessionsOf = (workoutId: string) =>
-    prisma.workoutSession.count({ where: { routineId: workoutId } });
+    prisma.workoutSession.count({ where: { workoutId: workoutId } });
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -140,7 +140,7 @@ describe('Sessions e2e (caracterização)', () => {
       where: { userId: { in: userIds } },
     });
     // Treinos antes de exercícios e usuários: as FKs não apagam mais em cascata (C3).
-    await prisma.workoutRoutine.deleteMany({
+    await prisma.workout.deleteMany({
       where: { userId: { in: userIds } },
     });
     await prisma.exercise.deleteMany({ where: { id: { in: exerciseIds } } });
@@ -419,7 +419,7 @@ describe('Sessions e2e (caracterização)', () => {
         data: {
           id: randomUUID(),
           userId,
-          routineId: workoutId,
+          workoutId: workoutId,
           startedAt: new Date(STARTED_AT),
         },
       });
@@ -514,7 +514,7 @@ describe('Sessions e2e (caracterização)', () => {
       const deletes = [
         () => prisma.workoutSession.delete({ where: { id: session.id } }),
         () => prisma.user.delete({ where: { id: c.id } }),
-        () => prisma.workoutRoutine.delete({ where: { id: routineC } }),
+        () => prisma.workout.delete({ where: { id: routineC } }),
         () => prisma.exercise.delete({ where: { id: exerciseC } }),
       ];
       for (const del of deletes) {
@@ -526,9 +526,7 @@ describe('Sessions e2e (caracterização)', () => {
         await prisma.workoutSession.count({ where: { id: session.id } }),
       ).toBe(1);
       expect(await prisma.user.count({ where: { id: c.id } })).toBe(1);
-      expect(
-        await prisma.workoutRoutine.count({ where: { id: routineC } }),
-      ).toBe(1);
+      expect(await prisma.workout.count({ where: { id: routineC } })).toBe(1);
       expect(await prisma.exercise.count({ where: { id: exerciseC } })).toBe(1);
     });
   });

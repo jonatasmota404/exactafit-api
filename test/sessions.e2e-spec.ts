@@ -157,7 +157,7 @@ describe('Sessions e2e (séries e encerramento)', () => {
       where: { userId: { in: userIds } },
     });
     // Treinos antes de exercícios e usuários: as FKs não apagam mais em cascata (C3).
-    await prisma.workoutRoutine.deleteMany({
+    await prisma.workout.deleteMany({
       where: { userId: { in: userIds } },
     });
     await prisma.exercise.deleteMany({ where: { id: { in: exerciseIds } } });
@@ -212,11 +212,11 @@ describe('Sessions e2e (séries e encerramento)', () => {
         data: {
           id,
           userId: user.id,
-          routineId: routine,
+          workoutId: routine,
           startedAt: new Date(STARTED_AT),
         },
       });
-      await prisma.routineItem.deleteMany({ where: { routineId: routine } });
+      await prisma.workoutItem.deleteMany({ where: { workoutId: routine } });
       const again = await startSession(user.token, routine, id);
       expect(again.status).toBe(200);
       expect(again.body.id).toBe(id);

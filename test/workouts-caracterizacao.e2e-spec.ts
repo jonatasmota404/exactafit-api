@@ -115,7 +115,7 @@ describe('Workouts e2e (caracterização)', () => {
 
   afterAll(async () => {
     // FKs Restrict (C3): treinos (itens em cascata) → exercícios → usuários.
-    await prisma.workoutRoutine.deleteMany({
+    await prisma.workout.deleteMany({
       where: { userId: { in: userIds } },
     });
     await prisma.exercise.deleteMany({ where: { id: { in: exerciseIds } } });
