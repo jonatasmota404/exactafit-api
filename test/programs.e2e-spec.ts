@@ -681,7 +681,7 @@ describe('Programas (/programs)', () => {
   // Bug: deadlock (40P01) com ativações simultâneas visto no CI do PR #42; a API dava 500.
   it('C11: 40 ativações em paralelo entre 4 programas não dão deadlock', async () => {
     const u = await signUp();
-    const programs = [];
+    const programs: ProgramResponse[] = [];
     for (const name of ['A', 'B', 'C', 'D']) {
       programs.push(await createOk(u, weekly(u, { name })));
     }
