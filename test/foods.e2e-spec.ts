@@ -370,6 +370,15 @@ describe('Alimentos (tarefa 10a)', () => {
       expect(ids(await q('o_de_q'))).toContain(under.id);
     });
 
+    it('search acha nome com contrabarra pelo próprio texto', async () => {
+      const slash = await create(u, { name: `Arroz\\feijao ${uid}` });
+      const q = (s: string) => list(u, `?search=${encodeURIComponent(s)}`);
+
+      expect(ids(await q('\\'))).toContain(slash.id);
+      expect(ids(await q('z\\f'))).toContain(slash.id);
+      expect(ids(await q('\\'))).not.toContain(branco.id);
+    });
+
     const bad: Array<[string, string]> = [
       ['state fora da lista', '?state=FRIED'],
       ['tag fora da lista', '?tag=KETO'],
