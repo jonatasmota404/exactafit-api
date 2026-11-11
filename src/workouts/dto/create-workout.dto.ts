@@ -15,7 +15,7 @@ import {
   ValidateIf,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { SetType } from '@prisma/client';
+import { ProgressionType, SetType } from '@prisma/client';
 import { INT4_MAX } from '../../sessions/dto/create-set.dto';
 
 export class CreateWorkoutDto {
@@ -98,4 +98,14 @@ export class CreateWorkoutItemDto {
   @Min(1)
   @Max(10)
   rpe?: number | null;
+
+  @ValidateIf((_, value) => value !== undefined)
+  @IsEnum(ProgressionType)
+  progressionType?: ProgressionType;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  @Max(10)
+  progressionStepPercent?: number | null;
 }

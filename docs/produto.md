@@ -59,7 +59,7 @@ Esforço P/M/G. Risco B/M/A.
 | Assistente de criação | nada | fórmulas determinísticas de gasto e metas a partir do perfil, recusa de menores | M | M |
 | Hábitos | nada | passos, água, sono, caminhada, placar semanal sem sequência que zera | P | B |
 | Treino: programa genérico | `WorkoutRoutine`, `RoutineItem` (ficha avulsa, repetição única) | `Program` com ciclo semanal por dia ou rotativo de N dias e alternância por semana; tipos de série (aquecimento, normal, falha, drop), superssérie, faixa de repetições, tempo ou por lado, descanso, RIR ou RPE | G | M |
-| Treino: progressão e fases | nada | regra por exercício (dupla, linear, nenhuma), blocos definidos pelo usuário, semana leve a cada N semanas | M | B |
+| Treino: progressão e fases | nada | regra no item do treino (dupla, linear, nenhuma), blocos definidos pelo usuário, semana leve a cada N semanas | M | B |
 | Treino: log | `SetLog` só no schema | rotas de série e encerramento, Decimal, duração, ids do cliente, última carga, sugestão da próxima, cronômetro | M | M |
 | Catálogo de exercícios | tabela sem dados; domain.md proíbe exercício do usuário | carga dos exercícios iniciais, reabrir o ADR 0009 para exercício próprio e privado, restringir `POST /exercises` | M | M |
 | Importar e exportar plano | nada | JSON de dieta e de programa | P | B |
@@ -74,7 +74,7 @@ Esforço P/M/G. Risco B/M/A.
 
 **Dieta (novas):** `DietPlan`, `MealSlot` (quantas refeições e com que nome o usuário quiser), `DayTarget` (metas de kcal, proteína, carboidrato e gordura por tipo de dia e por refeição), `Food` (macros por 100 g, estado cru ou pronto, tags), `FoodYield`, `MealTemplate` (composição livre ou por componentes, com meta por componente), `PlannedMeal`, `PlannedMealItem`, `MealLog` e `MealLogItem` (com snapshot dos macros). A porção de qualquer item sai da meta escolhida (kcal, proteína ou carboidrato) dividida pelo valor por 100 g.
 
-**Treino (novas):** `Program` (ciclo semanal por dia da semana ou rotativo de N dias, com alternância por semana opcional), `ProgramDay`, `Workout`, `WorkoutItem` (substitui `RoutineItem`: série normal, aquecimento, até a falha ou drop; faixa de repetições, tempo ou por lado; descanso; grupo de superssérie; RIR ou RPE opcional), `ProgressionRule` (dupla, linear ou nenhuma, com passo percentual) e `Phase` (blocos definidos pelo usuário e semana leve a cada N semanas).
+**Treino (novas):** `Program` (ciclo semanal por dia da semana ou rotativo de N dias, com alternância por semana opcional), `ProgramDay`, `Workout`, `WorkoutItem` (substitui `RoutineItem`: série normal, aquecimento, até a falha ou drop; faixa de repetições, tempo ou por lado; descanso; grupo de superssérie; RIR ou RPE opcional; regra de progressão dupla, linear ou nenhuma, com passo percentual, decisão (d)), `Phase` (blocos definidos pelo usuário e semana leve a cada N semanas).
 
 **Acompanhamento e regras (novas):** `BodyMetric`, `ProgressPhoto`, `CycleLog`, `DayLog`, `ReviewRule` (tipos parametrizados com janela, limite e ação sobre a meta), `Suggestion` (aceita ou recusada), `PlanTemplate` (os PDFs e outros modelos), `Household`, `HouseholdMember` e `PushSubscription`.
 
@@ -91,7 +91,7 @@ Esforço P/M/G. Risco B/M/A.
 3. A porção sai de qualquer meta escolhida: arroz a 130 kcal/100 g dá cerca de 146 g para alvo 190 e cerca de 115 g para alvo 150, sem rede.
 4. Hoje mostra as refeições do plano ativo, o treino do dia conforme o ciclo do programa (por dia da semana com alternância A-B por semana, ou rotativo de N dias) ou a caminhada, e os passos, marcáveis com um toque.
 5. Em modo avião: registrar 3 séries, recarregar, os dados permanecem; ao voltar a rede sincroniza sem duplicar (enviar o lote duas vezes).
-6. Ao abrir o exercício aparecem a carga anterior e a sugestão conforme a regra de progressão do item (dupla: +2 a 5% quando o máximo da faixa foi feito em todas as séries).
+6. Ao abrir o exercício aparecem a carga anterior e a sugestão conforme a regra de progressão do item (dupla: sobe o passo do item, de 1 a 10%, quando o máximo da faixa foi feito em todas as séries).
 7. Sem household todas as telas funcionam; com household a cozinha mostra as duas porções e nenhum usuário vê peso, medidas ou fotos do outro (teste de acesso cruzado).
 
 **Fase 2: acompanhar e ajustar.** Medidas, fotos, ciclo, peso oculto por escolha do usuário, média de 4 semanas, regras de revisão configuráveis com aceite e recusa (um teste por regra; presets A e B), pisos nas sugestões automáticas (o modelo do B nunca abaixo de 1.700 kcal), alertas de saúde, pausa de dieta como sugestão, placar semanal e o assistente de criação de plano a partir do perfil (fórmulas determinísticas).
@@ -147,7 +147,7 @@ Cada linha é uma tarefa, uma branch e um PR. O risco segue a tabela "Risco: que
 | 6 | A ficha vira treino: renomear `WorkoutRoutine`/`RoutineItem` para `Workout`/`WorkoutItem` (banco, código e rotas `/workouts`), FKs `Workout.userId` e `WorkoutItem.exerciseId` em `RESTRICT`, e schema `Program` e `ProgramDay` (sem rota) | (d), F, C3 | 2, 4 | alto | 4 |
 | 7a | CRUD `/programs` (ciclo semanal ou rotativo, ativação com um programa ativo por usuário, dia só com treino do dono, limites do ciclo). Plano: `docs/plans/2026-11-11-programas-crud.md`. **Feito em 2026-11-11** | (d) | 2, 4 | alto | 6 |
 | 7b | Campos novos do item do treino (tipo de série, faixa de repetições, tempo ou por lado, descanso, superssérie, RIR/RPE), com migration. Plano: `docs/plans/2026-11-11-item-do-treino.md`. **Feito em 2026-11-11** | (d) | 2, 4 | alto | 7a |
-| 8 | Progressão: `ProgressionRule` e `GET /exercises/:id/last-performance` com a sugestão | (d) | 6 | médio | 3, 7b |
+| 8 | Progressão no item (`progressionType`, `progressionStepPercent`) e `GET /exercises/:id/last-performance` com a sugestão. Plano: `docs/plans/2026-11-11-progressao.md`. **Feito em 2026-11-11** | (d) | 6 | alto | 3, 7b |
 | 9 | Perfil do usuário (`/me/profile`: sexo, nascimento, altura, fuso) e usuário ativo no guard | C1, (e) | — | alto | — |
 | 10 | Alimentos: `Food`, `FoodYield`, `/foods` e importação por CSV | (c) | 2, 3 | alto | — |
 | 11 | Plano de dieta: `DietPlan`, `MealSlot`, `DayTarget`, `MealTemplate`, `/diet-plans` | (c) | 2 | alto | 10 |

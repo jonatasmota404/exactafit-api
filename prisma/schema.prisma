@@ -82,10 +82,18 @@ model WorkoutItem {
   supersetGroup Int? @map("superset_group")
   rir Int?
   rpe Decimal? @db.Decimal(3, 1)
+  progressionType ProgressionType @default(NONE) @map("progression_type")
+  progressionStepPercent Decimal? @db.Decimal(3, 1) @map("progression_step_percent")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("workout_items")
+}
+
+enum ProgressionType {
+  NONE
+  DOUBLE
+  LINEAR
 }
 
 enum SetType {
