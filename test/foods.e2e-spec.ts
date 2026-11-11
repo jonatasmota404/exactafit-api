@@ -350,6 +350,26 @@ describe('Alimentos (tarefa 10a)', () => {
       expect(ids(res)).not.toContain(feijao.id);
     });
 
+    it('search trata % e _ como texto, não como curinga', async () => {
+      const pct = await create(u, { name: `Leite 50% ${uid}` });
+      const under = await create(u, { name: `Pao_de_queijo ${uid}` });
+      const q = (s: string) => list(u, `?search=${encodeURIComponent(s)}`);
+
+      expect(ids(await q('ar%z'))).not.toContain(branco.id);
+      expect(ids(await q('ar_oz'))).not.toContain(branco.id);
+
+      const onlyPct = ids(await q('%'));
+      expect(onlyPct).toContain(pct.id);
+      expect(onlyPct).not.toContain(branco.id);
+
+      const onlyUnder = ids(await q('_'));
+      expect(onlyUnder).toContain(under.id);
+      expect(onlyUnder).not.toContain(branco.id);
+
+      expect(ids(await q('50%'))).toContain(pct.id);
+      expect(ids(await q('o_de_q'))).toContain(under.id);
+    });
+
     const bad: Array<[string, string]> = [
       ['state fora da lista', '?state=FRIED'],
       ['tag fora da lista', '?tag=KETO'],
