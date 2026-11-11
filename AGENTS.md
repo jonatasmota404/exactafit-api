@@ -59,4 +59,4 @@ Na dúvida entre dois níveis, use o maior. Bug fora de zona de risco: skill `co
 - Testes dos hooks: `node --test '.claude/hooks/*.test.mjs'`. Nunca leia nem imprima `.env` ou segredos.
 
 ## Cuidados conhecidos
-- Módulo sessions auditado contra S1–S9: achados A1–A10 em `docs/plans/2026-10-19-auditoria-sessions.md` e comportamento atual travado em `test/sessions-caracterizacao.e2e-spec.ts`. Correções pendentes antes de qualquer deploy (tarefas 2 e 3 de `docs/produto.md`).
+- Módulo sessions auditado contra S1–S9: achados A1–A10 em `docs/plans/2026-10-19-auditoria-sessions.md` e comportamento atual travado em `test/sessions-caracterizacao.e2e-spec.ts`. Tarefas 2 e 3 de `docs/produto.md` corrigiram A1–A7 e A9; pendentes: o índice que garante S3 com dois aparelhos ao mesmo tempo e a exceção do sincronismo (tarefa 17).

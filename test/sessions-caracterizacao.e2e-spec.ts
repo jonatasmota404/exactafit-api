@@ -122,6 +122,15 @@ describe('Sessions e2e (caracterização)', () => {
     routineB = await createRoutine(tokenB);
   });
 
+  // S3: cada usuário tem no máximo uma sessão aberta. Os casos abaixo abrem várias
+  // sessões para o mesmo usuário; encerrar as abertas isola um caso do outro.
+  beforeEach(async () => {
+    await prisma.workoutSession.updateMany({
+      where: { userId: { in: userIds }, finishedAt: null },
+      data: { finishedAt: new Date(STARTED_AT) },
+    });
+  });
+
   afterAll(async () => {
     // FKs do log são Restrict: séries → sessões → usuários (fichas em cascata) → exercícios.
     await prisma.setLog.deleteMany({
@@ -359,25 +368,24 @@ describe('Sessions e2e (caracterização)', () => {
     });
   });
 
-  describe('comportamento atual (diverge de domain.md)', () => {
-    it('S2/S3 (A2): duas sessões com ids diferentes ficam abertas, com finishedAt null', async () => {
+  describe('corrigido na tarefa 3 (antes divergia de domain.md)', () => {
+    it('S2/S3 (A2): segunda sessão aberta com outro id dá 409; a primeira fica aberta', async () => {
       const routine = await createRoutine(tokenA);
       const first = await startSession(tokenA, body(routine));
       const second = await startSession(tokenA, body(routine));
       expect(first.status).toBe(201);
-      expect(second.status).toBe(201);
+      expect(second.status).toBe(409);
       expect(first.body.finishedAt).toBeNull();
-      expect(second.body.finishedAt).toBeNull();
-      expect(await sessionsOf(routine)).toBe(2);
+      expect(await sessionsOf(routine)).toBe(1);
     });
 
-    it('S4 (A4): ficha sem itens inicia sessão (201)', async () => {
+    it('S4 (A4): ficha sem itens não inicia sessão (400)', async () => {
       const empty = await createRoutine(tokenA, []);
       const { status } = await startSession(tokenA, body(empty));
-      expect(status).toBe(201);
+      expect(status).toBe(400);
     });
 
-    it('S9 (A5): não há rotas de leitura nem de correção de sessão (404)', async () => {
+    it('S9 (A5): leitura e PUT continuam sem rota (404); PATCH existe e valida o body (400)', async () => {
       const { status: created, body: res } = await startSession(
         tokenA,
         body(routineA),
@@ -388,15 +396,15 @@ describe('Sessions e2e (caracterização)', () => {
         () => request(http()).get(`/sessions/${res.id}`).set(auth(tokenA)),
         () =>
           request(http()).put(`/sessions/${res.id}`).set(auth(tokenA)).send({}),
-        () =>
-          request(http())
-            .patch(`/sessions/${res.id}`)
-            .set(auth(tokenA))
-            .send({}),
       ];
       for (const call of calls) {
         expect((await call()).status).toBe(404);
       }
+      const patch = await request(http())
+        .patch(`/sessions/${res.id}`)
+        .set(auth(tokenA))
+        .send({});
+      expect(patch.status).toBe(400);
     });
   });
 

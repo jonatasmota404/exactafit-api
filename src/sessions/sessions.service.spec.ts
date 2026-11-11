@@ -8,7 +8,12 @@ describe('SessionsService', () => {
   let service: SessionsService;
   const prisma = {
     workoutRoutine: { findFirst: jest.fn() },
-    workoutSession: { findUnique: jest.fn(), create: jest.fn() },
+    routineItem: { count: jest.fn() },
+    workoutSession: {
+      findUnique: jest.fn(),
+      findFirst: jest.fn(),
+      create: jest.fn(),
+    },
   };
 
   const dto = {
@@ -51,6 +56,8 @@ describe('SessionsService', () => {
         id: dto.routineId,
         userId: 'user-a',
       });
+      prisma.routineItem.count.mockResolvedValue(1);
+      prisma.workoutSession.findFirst.mockResolvedValue(null);
       prisma.workoutSession.create.mockRejectedValue(p2002());
     });
 
