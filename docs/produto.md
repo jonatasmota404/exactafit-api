@@ -148,7 +148,7 @@ Cada linha é uma tarefa, uma branch e um PR. O risco segue a tabela "Risco: que
 | 7a | CRUD `/programs` (ciclo semanal ou rotativo, ativação com um programa ativo por usuário, dia só com treino do dono, limites do ciclo). Plano: `docs/plans/2026-11-11-programas-crud.md`. **Feito em 2026-11-11** | (d) | 2, 4 | alto | 6 |
 | 7b | Campos novos do item do treino (tipo de série, faixa de repetições, tempo ou por lado, descanso, superssérie, RIR/RPE), com migration. Plano: `docs/plans/2026-11-11-item-do-treino.md`. **Feito em 2026-11-11** | (d) | 2, 4 | alto | 7a |
 | 8 | Progressão no item (`progressionType`, `progressionStepPercent`) e `GET /exercises/:id/last-performance` com a sugestão. Plano: `docs/plans/2026-11-11-progressao.md`. **Feito em 2026-11-11** | (d) | 6 | alto | 3, 7b |
-| 9 | Perfil do usuário (`/me/profile`: sexo, nascimento, altura, fuso) e usuário ativo no guard | C1, (e) | — | alto | — |
+| 9 | Perfil do usuário (`/me/profile`: sexo, nascimento, altura, fuso) e usuário ativo no guard. Plano: `docs/plans/2026-11-11-perfil-e-usuario-ativo.md`. **Feito em 2026-11-11** | C1, (e) | — | alto | — |
 | 10 | Alimentos: `Food`, `FoodYield`, `/foods` e importação por CSV | (c) | 2, 3 | alto | — |
 | 11 | Plano de dieta: `DietPlan`, `MealSlot`, `DayTarget`, `MealTemplate`, `/diet-plans` | (c) | 2 | alto | 10 |
 | 12 | Cálculo da porção como função pura, sem rede (o front reutiliza) | (c) | 3 | baixo | 10 |

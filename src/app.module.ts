@@ -7,6 +7,7 @@ import { AuthModule } from './auth/auth.module';
 import { WorkoutsModule } from './workouts/workouts.module';
 import { SessionsModule } from './sessions/sessions.module';
 import { ProgramsModule } from './programs/programs.module';
+import { MeModule } from './me/me.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { ProgramsModule } from './programs/programs.module';
     WorkoutsModule,
     SessionsModule,
     ProgramsModule,
+    MeModule,
   ],
   controllers: [AppController],
   providers: [AppService],
