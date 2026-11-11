@@ -67,7 +67,11 @@ export class FoodsService {
       where: {
         OR: [{ userId: null }, { userId }],
         ...(query.search !== undefined && {
-          name: { contains: query.search, mode: 'insensitive' },
+          // A4: o contains do Prisma não escapa o LIKE; \, % e _ viram texto.
+          name: {
+            contains: query.search.replace(/[\\%_]/g, '\\$&'),
+            mode: 'insensitive',
+          },
         }),
         ...(query.state !== undefined && { state: query.state }),
         ...(query.tag !== undefined && { tags: { hasEvery: query.tag } }),
