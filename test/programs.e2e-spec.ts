@@ -691,6 +691,7 @@ describe('Programas (/programs)', () => {
       ],
       ['days com array vazio dentro', (u) => weekly(u, { days: [[]] })],
       ['startDate no ano 0000', (u) => weekly(u, { startDate: '0000-01-01' })],
+      ['name com byte nulo', (u) => weekly(u, { name: 'A\u0000B' })],
     ];
 
     it.each(cases)('%s no POST e no PATCH', async (_name, body) => {
