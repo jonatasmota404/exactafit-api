@@ -1,5 +1,5 @@
 import { IsISO8601, Matches, ValidateIf } from 'class-validator';
-import { ISO_COM_FUSO } from './create-session.dto';
+import { AnoUtcAte9999, ISO_COM_FUSO } from './create-session.dto';
 
 const msg = 'deve ser ISO 8601 com fuso (Z ou ±hh:mm)';
 
@@ -8,10 +8,12 @@ export class UpdateSessionDto {
   @ValidateIf((o: UpdateSessionDto) => o.startedAt !== undefined)
   @IsISO8601({ strict: true, strictSeparator: true })
   @Matches(ISO_COM_FUSO, { message: `startedAt ${msg}` })
+  @AnoUtcAte9999()
   startedAt?: string;
 
   @ValidateIf((o: UpdateSessionDto) => o.finishedAt !== undefined)
   @IsISO8601({ strict: true, strictSeparator: true })
   @Matches(ISO_COM_FUSO, { message: `finishedAt ${msg}` })
+  @AnoUtcAte9999()
   finishedAt?: string;
 }

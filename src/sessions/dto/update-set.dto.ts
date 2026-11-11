@@ -7,6 +7,7 @@ import {
   Min,
   ValidateIf,
 } from 'class-validator';
+import { INT4_MAX } from './create-set.dto';
 
 // weightKg, repsCompleted e durationSeconds aceitam null (limpar);
 // failed e setNumber não: só undefined é pulado.
@@ -20,11 +21,13 @@ export class UpdateSetDto {
   @IsOptional()
   @IsInt()
   @Min(0)
+  @Max(INT4_MAX)
   repsCompleted?: number | null;
 
   @IsOptional()
   @IsInt()
   @Min(0)
+  @Max(INT4_MAX)
   durationSeconds?: number | null;
 
   @ValidateIf((o: UpdateSetDto) => o.failed !== undefined)
@@ -34,5 +37,6 @@ export class UpdateSetDto {
   @ValidateIf((o: UpdateSetDto) => o.setNumber !== undefined)
   @IsInt()
   @Min(1)
+  @Max(INT4_MAX)
   setNumber?: number;
 }

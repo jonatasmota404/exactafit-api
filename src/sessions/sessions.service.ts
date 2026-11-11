@@ -92,7 +92,7 @@ export class SessionsService {
     });
     if (!session) throw new NotFoundException('Sessão não encontrada');
 
-    const existing = await this.reenvioSet(userId, dto.id);
+    const existing = await this.reenvioSet(userId, session.id, dto.id);
     if (existing) return existing;
 
     const exercise = await this.prisma.exercise.findUnique({
@@ -107,7 +107,7 @@ export class SessionsService {
       return { created: true, set };
     } catch (e) {
       if (isP2002(e)) {
-        const winner = await this.reenvioSet(userId, dto.id);
+        const winner = await this.reenvioSet(userId, session.id, dto.id);
         if (winner) return winner;
         throw new ConflictException('Número de série já registrado');
       }
@@ -121,6 +121,9 @@ export class SessionsService {
     setId: string,
     dto: UpdateSetDto,
   ) {
+    if (Object.values(dto).every((v) => v === undefined)) {
+      throw new BadRequestException('Informe ao menos um campo da série');
+    }
     const set = await this.prisma.setLog.findFirst({
       where: {
         id: setId.toLowerCase(),
@@ -142,14 +145,14 @@ export class SessionsService {
     }
   }
 
-  // Série com esse id: do usuário → reenvio (200); de outro → 409.
-  private async reenvioSet(userId: string, id: string) {
+  // Série com esse id: do usuário, na mesma sessão → reenvio (200); de outro usuário ou de outra sessão → 409.
+  private async reenvioSet(userId: string, sessionId: string, id: string) {
     const set = await this.prisma.setLog.findUnique({ where: { id } });
     if (!set) return null;
     const owner = await this.prisma.workoutSession.findUnique({
       where: { id: set.sessionId },
     });
-    if (owner?.userId !== userId) {
+    if (owner?.userId !== userId || set.sessionId !== sessionId) {
       throw new ConflictException('Id de série já utilizado');
     }
     return { created: false, set };
