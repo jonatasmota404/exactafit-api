@@ -9,7 +9,7 @@ import { Server } from 'http';
 type RoutineResponse = {
   id: string;
   name: string;
-  routineItems: RoutineItemResponse[];
+  items: RoutineItemResponse[];
 };
 
 type RoutineItemResponse = {
@@ -24,12 +24,12 @@ type RoutineListItem = {
   id: string;
   name: string;
   description: string | null;
-  routineItems: Array<{
+  items: Array<{
     id: string;
     order: number;
     targetSets: number;
     targetReps: number;
-    exercices: {
+    exercise: {
       id: string;
       name: string;
       muscleGroup: string;
@@ -40,21 +40,21 @@ type RoutineListItem = {
 type RoutineDetailResponse = {
   id: string;
   name: string;
-  routineItems: Array<{
+  items: Array<{
     id: string;
     order: number;
-    exercices: {
+    exercise: {
       name: string;
     };
   }>;
 };
 
-describe('Routines e2e', () => {
+describe('Workouts e2e', () => {
   let app: INestApplication;
   let prisma: PrismaService;
   let token: string;
   let exerciseId: string;
-  let routineId: string;
+  let workoutId: string;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -103,9 +103,9 @@ describe('Routines e2e', () => {
     await app.close();
   });
 
-  it('POST /routine -> deve criar uma ficha completa com exercicios planejados', async () => {
+  it('POST /workouts -> deve criar uma ficha completa com exercicios planejados', async () => {
     const response = await request(app.getHttpServer() as Server)
-      .post('/routine')
+      .post('/workouts')
       .set('Authorization', `Bearer ${token}`)
       .send({
         name: 'Treino A - Peito e Tríceps',
@@ -121,17 +121,17 @@ describe('Routines e2e', () => {
       });
 
     const body = response.body as RoutineResponse;
-    routineId = body.id;
+    workoutId = body.id;
 
     expect(response.status).toBe(201);
     expect(body).toHaveProperty('id');
     expect(body.name).toBe('Treino A - Peito e Tríceps');
-    expect(body.routineItems).toHaveLength(1);
+    expect(body.items).toHaveLength(1);
   });
 
   it('deve retornar 401 se nenhum token for fornecido', async () => {
     const response = await request(app.getHttpServer() as Server)
-      .post('/routine')
+      .post('/workouts')
       .send({
         name: 'Treino Inválido',
         items: [],
@@ -142,7 +142,7 @@ describe('Routines e2e', () => {
 
   it('deve retornar 400 se o campo name estiver ausente', async () => {
     const response = await request(app.getHttpServer() as Server)
-      .post('/routine')
+      .post('/workouts')
       .set('Authorization', `Bearer ${token}`)
       .send({
         // name omitido de propósito
@@ -153,9 +153,9 @@ describe('Routines e2e', () => {
     expect(response.status).toBe(400);
   });
 
-  it('GET /routine -> deve listar apenas as rotinas do usuário autenticado', async () => {
+  it('GET /workouts -> deve listar apenas as rotinas do usuário autenticado', async () => {
     const response = await request(app.getHttpServer() as Server)
-      .get('/routine')
+      .get('/workouts')
       .set('Authorization', `Bearer ${token}`);
 
     const list = response.body as RoutineListItem[];
@@ -164,23 +164,23 @@ describe('Routines e2e', () => {
     expect(Array.isArray(list)).toBe(true);
     expect(list.length).toBeGreaterThanOrEqual(1);
     expect(list[0]).toHaveProperty('id');
-    expect(list[0]).toHaveProperty('routineItems');
-    expect(list[0].routineItems[0]).toHaveProperty('exercices');
+    expect(list[0]).toHaveProperty('items');
+    expect(list[0].items[0]).toHaveProperty('exercise');
   });
 
-  it('GET /routine:id -> deve listar apenas a rotina do usuário autenticado', async () => {
+  it('GET /workouts:id -> deve listar apenas a rotina do usuário autenticado', async () => {
     const response = await request(app.getHttpServer() as Server)
-      .get(`/routine/${routineId}`)
+      .get(`/workouts/${workoutId}`)
       .set('Authorization', `Bearer ${token}`);
 
     const body = response.body as RoutineDetailResponse;
-    expect(body.id).toBe(routineId);
-    expect(body.routineItems).toBeDefined();
+    expect(body.id).toBe(workoutId);
+    expect(body.items).toBeDefined();
   });
 
-  it('PUT /routine:id -> deve dar update na rotina', async () => {
+  it('PUT /workouts:id -> deve dar update na rotina', async () => {
     const response = await request(app.getHttpServer() as Server)
-      .put(`/routine/${routineId}`)
+      .put(`/workouts/${workoutId}`)
       .set('Authorization', `Bearer ${token}`)
       .send({
         name: 'Treino A - Peito e Tríceps',
@@ -196,12 +196,12 @@ describe('Routines e2e', () => {
       });
 
     const body = response.body as RoutineResponse;
-    routineId = body.id;
+    workoutId = body.id;
 
     expect(response.status).toBe(200);
     expect(body).toHaveProperty('id');
     expect(body.name).toBe('Treino A - Peito e Tríceps');
-    expect(body.routineItems[0].targetReps).toBe(12);
+    expect(body.items[0].targetReps).toBe(12);
   });
 
   // Tarefa 4: F6 — o item só aceita exercício do catálogo ou do próprio usuário.
@@ -250,7 +250,7 @@ describe('Routines e2e', () => {
     };
 
     const postRoutine = (t: string, name: string, items: unknown[]) =>
-      request(http()).post('/routine').set(auth(t)).send({ name, items });
+      request(http()).post('/workouts').set(auth(t)).send({ name, items });
 
     beforeAll(async () => {
       const a = await signUp();
@@ -264,13 +264,17 @@ describe('Routines e2e', () => {
 
     afterAll(async () => {
       // Exercício próprio prende o usuário (FK Restrict): exercícios antes dos usuários.
+      // Treinos antes de exercícios e usuários: as FKs não apagam mais em cascata (C3).
+      await prisma.workoutRoutine.deleteMany({
+        where: { userId: { in: userIds } },
+      });
       await prisma.exercise.deleteMany({
         where: { id: { in: ownExerciseIds } },
       });
       await prisma.user.deleteMany({ where: { id: { in: userIds } } });
     });
 
-    it('C3: F6 no POST /routine', async () => {
+    it('C3: F6 no POST /workouts', async () => {
       const foreign = await postRoutine(tokenB, 'F6 alheio', [item(ownOfA, 1)]);
       expect(foreign.status).toBe(400);
       expect((foreign.body as { message: string }).message).toBe(
@@ -300,17 +304,17 @@ describe('Routines e2e', () => {
       expect(ok.status).toBe(201);
     });
 
-    it('C4: F6 no PUT /routine', async () => {
+    it('C4: F6 no PUT /workouts', async () => {
       const created = await postRoutine(tokenB, 'F6 put', [
         item(exerciseId, 1),
       ]);
       expect(created.status).toBe(201);
       const routine = created.body as RoutineResponse;
-      const before = routine.routineItems.map((i) => i.id);
+      const before = routine.items.map((i) => i.id);
 
       for (const exId of [ownOfA, randomUUID()]) {
         const res = await request(http())
-          .put(`/routine/${routine.id}`)
+          .put(`/workouts/${routine.id}`)
           .set(auth(tokenB))
           .send({ items: [item(exId, 1)] });
         expect({ exId, status: res.status }).toEqual({ exId, status: 400 });
@@ -324,7 +328,7 @@ describe('Routines e2e', () => {
       }
 
       const ok = await request(http())
-        .put(`/routine/${routine.id}`)
+        .put(`/workouts/${routine.id}`)
         .set(auth(tokenB))
         .send({
           items: [item(ownOfB, 1), item(ownOfB, 2), item(exerciseId, 3)],

@@ -14,14 +14,14 @@ type Item = {
   order: number;
   targetSets: number;
   targetReps: number;
-  exercices?: { id: string; name: string };
+  exercise?: { id: string; name: string };
 };
 type Routine = {
   id: string;
   userId: string;
   name: string;
   description: string | null;
-  routineItems: Item[];
+  items: Item[];
 };
 type ItemInput = {
   exerciseId: string;
@@ -30,7 +30,7 @@ type ItemInput = {
   targetReps: number;
 };
 
-describe('Routines e2e (caracterização)', () => {
+describe('Workouts e2e (caracterização)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
   let tokenA: string;
@@ -72,14 +72,14 @@ describe('Routines e2e (caracterização)', () => {
     body: Record<string, unknown> = {},
   ) => {
     const res = await request(http())
-      .post('/routine')
+      .post('/workouts')
       .set(auth(token))
       .send({ name: 'Ficha', items: [item(1)], ...body });
     return { status: res.status, body: res.body as Routine };
   };
 
   const getRoutine = async (token: string, id: string) => {
-    const res = await request(http()).get(`/routine/${id}`).set(auth(token));
+    const res = await request(http()).get(`/workouts/${id}`).set(auth(token));
     return { status: res.status, body: res.body as Routine };
   };
 
@@ -114,8 +114,10 @@ describe('Routines e2e (caracterização)', () => {
   });
 
   afterAll(async () => {
-    // Exercícios antes dos usuários: o exercício próprio prende o dono (FK Restrict).
-    // Os itens saem em cascata com o exercício; as fichas, com o usuário.
+    // FKs Restrict (C3): treinos (itens em cascata) → exercícios → usuários.
+    await prisma.workoutRoutine.deleteMany({
+      where: { userId: { in: userIds } },
+    });
     await prisma.exercise.deleteMany({ where: { id: { in: exerciseIds } } });
     await prisma.user.deleteMany({ where: { id: { in: userIds } } });
     await prisma.$disconnect();
@@ -126,10 +128,10 @@ describe('Routines e2e (caracterização)', () => {
     it('401 sem token em todas as rotas', async () => {
       const id = randomUUID();
       const calls = [
-        () => request(http()).post('/routine').send({ name: 'x', items: [] }),
-        () => request(http()).get('/routine'),
-        () => request(http()).get(`/routine/${id}`),
-        () => request(http()).put(`/routine/${id}`).send({ name: 'x' }),
+        () => request(http()).post('/workouts').send({ name: 'x', items: [] }),
+        () => request(http()).get('/workouts'),
+        () => request(http()).get(`/workouts/${id}`),
+        () => request(http()).put(`/workouts/${id}`).send({ name: 'x' }),
       ];
       for (const call of calls) {
         expect((await call()).status).toBe(401);
@@ -137,7 +139,7 @@ describe('Routines e2e (caracterização)', () => {
     });
   });
 
-  describe('POST /routine', () => {
+  describe('POST /workouts', () => {
     it('cria a ficha com itens e devolve 201 sem os dados do exercício', async () => {
       const { status, body } = await createRoutine(tokenA, {
         name: 'Treino A',
@@ -147,15 +149,15 @@ describe('Routines e2e (caracterização)', () => {
       expect(body.name).toBe('Treino A');
       expect(body.description).toBe('Foco em força');
       expect(body.userId).toBe(userIds[0]);
-      expect(body.routineItems).toHaveLength(1);
-      expect(body.routineItems[0].exerciseId).toBe(exerciseId);
-      expect(body.routineItems[0]).not.toHaveProperty('exercices');
+      expect(body.items).toHaveLength(1);
+      expect(body.items[0].exerciseId).toBe(exerciseId);
+      expect(body.items[0]).not.toHaveProperty('exercise');
     });
 
     it('aceita ficha sem itens (rascunho, F3)', async () => {
       const { status, body } = await createRoutine(tokenA, { items: [] });
       expect(status).toBe(201);
-      expect(body.routineItems).toEqual([]);
+      expect(body.items).toEqual([]);
     });
 
     it('aceita o mesmo exercício duas vezes com order diferente (F5)', async () => {
@@ -163,13 +165,13 @@ describe('Routines e2e (caracterização)', () => {
         items: [item(1), item(2)],
       });
       expect(status).toBe(201);
-      expect(body.routineItems).toHaveLength(2);
+      expect(body.items).toHaveLength(2);
     });
 
     it('400 sem name, com name vazio ou com mais de 100 caracteres (F2)', async () => {
       for (const name of [undefined, '', 'x'.repeat(101)]) {
         const res = await request(http())
-          .post('/routine')
+          .post('/workouts')
           .set(auth(tokenA))
           .send({ name, items: [] });
         expect(res.status).toBe(400);
@@ -185,7 +187,7 @@ describe('Routines e2e (caracterização)', () => {
 
     it('400 sem items, com campo desconhecido ou com exerciseId que não é UUID', async () => {
       const semItems = await request(http())
-        .post('/routine')
+        .post('/workouts')
         .set(auth(tokenA))
         .send({ name: 'x' });
       expect(semItems.status).toBe(400);
@@ -214,13 +216,13 @@ describe('Routines e2e (caracterização)', () => {
     });
   });
 
-  describe('GET /routine', () => {
+  describe('GET /workouts', () => {
     it('lista só as fichas do usuário autenticado', async () => {
       const a = await createRoutine(tokenA, { name: 'Lista A' });
       const b = await createRoutine(tokenB, { name: 'Lista B' });
 
-      const resA = await request(http()).get('/routine').set(auth(tokenA));
-      const resB = await request(http()).get('/routine').set(auth(tokenB));
+      const resA = await request(http()).get('/workouts').set(auth(tokenA));
+      const resB = await request(http()).get('/workouts').set(auth(tokenB));
       const idsA = (resA.body as Routine[]).map((r) => r.id);
       const idsB = (resB.body as Routine[]).map((r) => r.id);
 
@@ -235,15 +237,15 @@ describe('Routines e2e (caracterização)', () => {
       const { body } = await createRoutine(tokenA, {
         items: [item(3), item(1, { exerciseId: otherExerciseId }), item(2)],
       });
-      const res = await request(http()).get('/routine').set(auth(tokenA));
+      const res = await request(http()).get('/workouts').set(auth(tokenA));
       const found = (res.body as Routine[]).find((r) => r.id === body.id);
 
-      expect(found?.routineItems.map((i) => i.order)).toEqual([1, 2, 3]);
-      expect(found?.routineItems[0].exercices?.id).toBe(otherExerciseId);
+      expect(found?.items.map((i) => i.order)).toEqual([1, 2, 3]);
+      expect(found?.items[0].exercise?.id).toBe(otherExerciseId);
     });
   });
 
-  describe('GET /routine/:id', () => {
+  describe('GET /workouts/:id', () => {
     it('detalha a ficha própria com itens ordenados e exercício', async () => {
       const { body } = await createRoutine(tokenA, {
         items: [item(2), item(1)],
@@ -252,8 +254,8 @@ describe('Routines e2e (caracterização)', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.id).toBe(body.id);
-      expect(res.body.routineItems.map((i) => i.order)).toEqual([1, 2]);
-      expect(res.body.routineItems[0].exercices?.id).toBe(exerciseId);
+      expect(res.body.items.map((i) => i.order)).toEqual([1, 2]);
+      expect(res.body.items[0].exercise?.id).toBe(exerciseId);
     });
 
     it('404 para ficha de outro usuário (F1)', async () => {
@@ -268,11 +270,11 @@ describe('Routines e2e (caracterização)', () => {
     });
   });
 
-  describe('PUT /routine/:id', () => {
+  describe('PUT /workouts/:id', () => {
     it('atualiza name e description e mantém os itens quando items não vem (F8)', async () => {
       const created = await createRoutine(tokenA, { items: [item(1)] });
       const res = await request(http())
-        .put(`/routine/${created.body.id}`)
+        .put(`/workouts/${created.body.id}`)
         .set(auth(tokenA))
         .send({ name: 'Novo nome', description: 'Nova descrição' });
       const body = res.body as Routine;
@@ -280,15 +282,15 @@ describe('Routines e2e (caracterização)', () => {
       expect(res.status).toBe(200);
       expect(body.name).toBe('Novo nome');
       expect(body.description).toBe('Nova descrição');
-      expect(body.routineItems.map((i) => i.id)).toEqual(
-        created.body.routineItems.map((i) => i.id),
+      expect(body.items.map((i) => i.id)).toEqual(
+        created.body.items.map((i) => i.id),
       );
     });
 
     it('aceita body vazio e não altera nada', async () => {
       const created = await createRoutine(tokenA, { name: 'Intacta' });
       const res = await request(http())
-        .put(`/routine/${created.body.id}`)
+        .put(`/workouts/${created.body.id}`)
         .set(auth(tokenA))
         .send({});
       expect(res.status).toBe(200);
@@ -300,45 +302,45 @@ describe('Routines e2e (caracterização)', () => {
         items: [item(1), item(2)],
       });
       const res = await request(http())
-        .put(`/routine/${created.body.id}`)
+        .put(`/workouts/${created.body.id}`)
         .set(auth(tokenA))
         .send({ items: [item(1, { targetReps: 12 })] });
       const body = res.body as Routine;
-      const oldIds = created.body.routineItems.map((i) => i.id);
+      const oldIds = created.body.items.map((i) => i.id);
 
       expect(res.status).toBe(200);
-      expect(body.routineItems).toHaveLength(1);
-      expect(body.routineItems[0].targetReps).toBe(12);
-      expect(oldIds).not.toContain(body.routineItems[0].id);
+      expect(body.items).toHaveLength(1);
+      expect(body.items[0].targetReps).toBe(12);
+      expect(oldIds).not.toContain(body.items[0].id);
     });
 
     it('com items vazio, remove todos os itens', async () => {
       const created = await createRoutine(tokenA, { items: [item(1)] });
       const res = await request(http())
-        .put(`/routine/${created.body.id}`)
+        .put(`/workouts/${created.body.id}`)
         .set(auth(tokenA))
         .send({ items: [] });
       expect(res.status).toBe(200);
-      expect((res.body as Routine).routineItems).toEqual([]);
+      expect((res.body as Routine).items).toEqual([]);
     });
 
     it('404 para ficha de outro usuário e nada é alterado (F1)', async () => {
       const created = await createRoutine(tokenA, { name: 'Da A' });
       const res = await request(http())
-        .put(`/routine/${created.body.id}`)
+        .put(`/workouts/${created.body.id}`)
         .set(auth(tokenB))
         .send({ name: 'Invadida', items: [] });
       expect(res.status).toBe(404);
 
       const after = await getRoutine(tokenA, created.body.id);
       expect(after.body.name).toBe('Da A');
-      expect(after.body.routineItems).toHaveLength(1);
+      expect(after.body.items).toHaveLength(1);
     });
 
     it('404 para id inexistente e 400 para id que não é UUID', async () => {
       const put = (id: string) =>
         request(http())
-          .put(`/routine/${id}`)
+          .put(`/workouts/${id}`)
           .set(auth(tokenA))
           .send({ name: 'x' });
       expect((await put(randomUUID())).status).toBe(404);
@@ -349,7 +351,7 @@ describe('Routines e2e (caracterização)', () => {
       const created = await createRoutine(tokenA);
       const put = (body: Record<string, unknown>) =>
         request(http())
-          .put(`/routine/${created.body.id}`)
+          .put(`/workouts/${created.body.id}`)
           .set(auth(tokenA))
           .send(body);
       expect((await put({ name: '' })).status).toBe(400);
@@ -360,7 +362,7 @@ describe('Routines e2e (caracterização)', () => {
     it('caso 1: 400 com name null e o name da ficha não muda', async () => {
       const created = await createRoutine(tokenA, { name: 'Com nome' });
       const res = await request(http())
-        .put(`/routine/${created.body.id}`)
+        .put(`/workouts/${created.body.id}`)
         .set(auth(tokenA))
         .send({ name: null });
       expect(res.status).toBe(400);
@@ -372,7 +374,7 @@ describe('Routines e2e (caracterização)', () => {
     it('200 só com description (sem name) e o name é mantido', async () => {
       const created = await createRoutine(tokenA, { name: 'Com nome' });
       const res = await request(http())
-        .put(`/routine/${created.body.id}`)
+        .put(`/workouts/${created.body.id}`)
         .set(auth(tokenA))
         .send({ description: 'nova' });
       expect(res.status).toBe(200);
@@ -384,7 +386,7 @@ describe('Routines e2e (caracterização)', () => {
     it('400 com name de 101 caracteres', async () => {
       const created = await createRoutine(tokenA, { name: 'Com nome' });
       const res = await request(http())
-        .put(`/routine/${created.body.id}`)
+        .put(`/workouts/${created.body.id}`)
         .set(auth(tokenA))
         .send({ name: 'a'.repeat(101) });
       expect(res.status).toBe(400);
@@ -395,13 +397,79 @@ describe('Routines e2e (caracterização)', () => {
   });
 
   describe('rotas inexistentes', () => {
-    it('não há DELETE /routine/:id (a ficha não pode ser apagada pela API)', async () => {
+    it('não há DELETE /workouts/:id (a ficha não pode ser apagada pela API)', async () => {
       const created = await createRoutine(tokenA);
       const res = await request(http())
-        .delete(`/routine/${created.body.id}`)
+        .delete(`/workouts/${created.body.id}`)
         .set(auth(tokenA));
       expect(res.status).toBe(404);
       expect((await getRoutine(tokenA, created.body.id)).status).toBe(200);
+    });
+
+    // Tarefa 6 (C1): a rota antiga não fica viva depois da renomeação.
+    it('C1: POST, GET, GET /:id e PUT /:id em /routine dão 404', async () => {
+      const created = await createRoutine(tokenA);
+      expect(created.status).toBe(201);
+      const id = created.body.id;
+      const calls = [
+        () =>
+          request(http())
+            .post('/routine')
+            .set(auth(tokenA))
+            .send({ name: 'Ficha', items: [item(1)] }),
+        () => request(http()).get('/routine').set(auth(tokenA)),
+        () => request(http()).get(`/routine/${id}`).set(auth(tokenA)),
+        () =>
+          request(http())
+            .put(`/routine/${id}`)
+            .set(auth(tokenA))
+            .send({ name: 'x' }),
+      ];
+      for (const call of calls) {
+        expect((await call()).status).toBe(404);
+      }
+    });
+  });
+
+  // Tarefa 6 (C4, C5): as FKs que faltavam de C3 passam a RESTRICT.
+  // Em SQL, com os nomes novos de tabela, para não depender do client do Prisma.
+  describe('histórico', () => {
+    it('C4: usuário com treino não sai em cascata', async () => {
+      const email = `char-hist-${randomUUID()}@example.com`;
+      const reg = await request(http())
+        .post('/auth/register')
+        .send({ name: 'Hist', email, password: 'password123' })
+        .expect(201);
+      const userId = (reg.body as { id: string }).id;
+      userIds.push(userId);
+      const workoutId = randomUUID();
+      await prisma.$executeRaw`INSERT INTO workouts (id, user_id, name, created_at, updated_at)
+        VALUES (${workoutId}, ${userId}, 'C4', now(), now())`;
+
+      await expect(
+        prisma.user.delete({ where: { id: userId } }),
+      ).rejects.toMatchObject({ code: 'P2003' });
+      expect(await prisma.user.count({ where: { id: userId } })).toBe(1);
+    });
+
+    it('C5: exercício que está em item de treino não sai em cascata', async () => {
+      const exercise = await prisma.exercise.create({
+        data: { name: 'Caracterização C5', muscleGroup: 'chest' },
+      });
+      exerciseIds.push(exercise.id);
+      const workoutId = randomUUID();
+      const itemId = randomUUID();
+      await prisma.$executeRaw`INSERT INTO workouts (id, user_id, name, created_at, updated_at)
+        VALUES (${workoutId}, ${userIds[0]}, 'C5', now(), now())`;
+      await prisma.$executeRaw`INSERT INTO workout_items (id, workout_id, exercise_id, "order", target_sets, target_reps, created_at, updated_at)
+        VALUES (${itemId}, ${workoutId}, ${exercise.id}, 1, 3, 10, now(), now())`;
+
+      await expect(
+        prisma.exercise.delete({ where: { id: exercise.id } }),
+      ).rejects.toMatchObject({ code: 'P2003' });
+      const items = await prisma.$queryRaw<{ n: bigint }[]>`
+        SELECT count(*) AS n FROM workout_items WHERE id = ${itemId}`;
+      expect(Number(items[0].n)).toBe(1);
     });
   });
 
@@ -412,7 +480,7 @@ describe('Routines e2e (caracterização)', () => {
         items: [{ exerciseId, order: -1, targetSets: 0, targetReps: -5 }],
       });
       expect(status).toBe(201);
-      expect(body.routineItems[0]).toMatchObject({
+      expect(body.items[0]).toMatchObject({
         order: -1,
         targetSets: 0,
         targetReps: -5,
@@ -433,7 +501,7 @@ describe('Routines e2e (caracterização)', () => {
         items: [item(1), item(1, { exerciseId: otherExerciseId })],
       });
       expect(status).toBe(201);
-      expect(body.routineItems.map((i) => i.order)).toEqual([1, 1]);
+      expect(body.items.map((i) => i.order)).toEqual([1, 1]);
     });
 
     // F10: no máximo 50 itens por ficha e 10 fichas ativas por usuário. Hoje não há limite.
@@ -441,7 +509,7 @@ describe('Routines e2e (caracterização)', () => {
       const items = Array.from({ length: 51 }, (_, i) => item(i + 1));
       const { status, body } = await createRoutine(tokenA, { items });
       expect(status).toBe(201);
-      expect(body.routineItems).toHaveLength(51);
+      expect(body.items).toHaveLength(51);
     });
 
     it('F10: aceita mais de 10 fichas ativas para o mesmo usuário', async () => {
@@ -450,7 +518,7 @@ describe('Routines e2e (caracterização)', () => {
         const { status } = await createRoutine(token, { name: `Ficha ${i}` });
         expect(status).toBe(201);
       }
-      const res = await request(http()).get('/routine').set(auth(token));
+      const res = await request(http()).get('/workouts').set(auth(token));
       expect((res.body as Routine[]).length).toBe(11);
     });
 
@@ -465,14 +533,14 @@ describe('Routines e2e (caracterização)', () => {
     it('F6: PUT com exerciseId inexistente dá 400 e a ficha não muda', async () => {
       const created = await createRoutine(tokenA, { items: [item(1)] });
       const res = await request(http())
-        .put(`/routine/${created.body.id}`)
+        .put(`/workouts/${created.body.id}`)
         .set(auth(tokenA))
         .send({ items: [item(1, { exerciseId: randomUUID() })] });
       expect(res.status).toBe(400);
 
       const after = await getRoutine(tokenA, created.body.id);
-      expect(after.body.routineItems.map((i) => i.id)).toEqual(
-        created.body.routineItems.map((i) => i.id),
+      expect(after.body.items.map((i) => i.id)).toEqual(
+        created.body.items.map((i) => i.id),
       );
     });
 
