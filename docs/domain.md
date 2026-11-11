@@ -84,7 +84,19 @@ Ver [`produto.md`](produto.md), o [ADR 0011](adr/0011-app-generico-plano-e-dado.
   - **R6.** Sem regra cruzada entre `setType` e os demais campos.
   - **R7.** `rpe` volta como texto decimal (`"8.5"`, `"8"`). `rir` e `rpe` juntos dão 400.
   - **R8.** `null` em `setType` e `perSide` dá 400; nos demais campos opcionais equivale a omitir e grava `null` (R1 e R2 continuam valendo).
-- **Progressão** (`ProgressionRule`) por exercício: dupla, linear ou nenhuma, com passo percentual. Dupla: +2 a 5% quando o máximo da faixa foi feito em todas as séries. Ao abrir o exercício, o app mostra a carga anterior e a sugestão.
+- **Progressão no item** (`WorkoutItem`). **Implementado em 2026-11-11** (tarefa 8, plano `docs/plans/2026-11-11-progressao.md`). **Revisão em 2026-11-11.** Antes: "por exercício", com `ProgressionRule`; agora a regra fica no item, e o mesmo exercício pode progredir de formas diferentes em treinos diferentes. Ao abrir o exercício, o app mostra a carga anterior e a sugestão (`GET /exercises/:id/last-performance?workoutItemId=`). A sugestão é só calculada; o usuário decide.
+  - **P1.** `progressionType` (`NONE`, `DOUBLE` ou `LINEAR`, padrão `NONE`) e `progressionStepPercent` (1 a 10, de 0,5 em 0,5; volta como texto, ex.: `"2.5"`). O intervalo "2 a 5%" é só sugestão para os modelos.
+  - **P2.** `DOUBLE` e `LINEAR` exigem o passo e a faixa de repetições; `NONE` com passo dá 400; `null` em `progressionType` dá 400; `null` no passo equivale a omitir.
+  - **Base:** a maior carga da última sessão **encerrada** (`startedAt` mais recente) com série do exercício, em qualquer treino do usuário. Só contam as séries com essa carga; as mais leves são aquecimento. Carga 0 é tratada como sem carga (sem sugestão), assim como item sem faixa ou sem série com carga.
+  - **Dupla:** sobe se as séries que contam são pelo menos `targetSets`, todas no **máximo** da faixa e nenhuma com falha. **Linear:** o mesmo, com o **mínimo** da faixa (**P3**).
+  - **P4.** `repsCompleted` nulo em série que conta = não chegou à faixa.
+  - **Arredondamento:** o valor com o passo é arredondado para baixo em múltiplo de 0,5 kg; se ficar ≤ base, a sugestão é o próximo múltiplo de 0,5 acima da base (10 kg + 1% = 10,5). Teto de 9.999,99 kg (S7); se o teto ou a base impedem a subida, `increase` é `false`. Quando não sobe, a sugestão repete a base.
+  - **P5.** `workoutItemId` opcional; sem ele, `suggestion: null`. Exercício não visível: 404 "Exercício não encontrado"; item que não é de treino do usuário: 404 "Item não encontrado"; item de outro exercício: 400.
+  - **P6.** Resposta: `{ exerciseId, session | null, sets, suggestion: { weightKg, increase, rule } | null }`; sem sessão anterior, `session: null`, `sets: []`, `suggestion: null`.
+  - **P7.** Séries sem `weightKg` não contam; uma série mais leve com `failed` é aquecimento e não impede a subida.
+  - **P8.** Desempate da última sessão: `startedAt`, `finishedAt` e `id`, todos decrescentes.
+  - **P9.** `PUT /workouts` com `items` recria os itens com ids novos (F8): um `workoutItemId` antigo dá 404; o app recarrega o treino depois de editar.
+  - **P10.** Mesmo exercício em dois itens do treino (F5): as séries da sessão se misturam; a base é a maior carga e `targetSets` é o do item consultado.
 - **Fases** (`Phase`): blocos definidos pelo usuário e semana leve a cada N semanas (Fase 4 do `produto.md`).
 - `WorkoutRoutine` e `RoutineItem` foram **renomeados** para `Workout` e `WorkoutItem` (tarefa 6, [ADR 0014](adr/0014-ficha-vira-treino.md)); não são absorvidos por `Program`. As fichas existentes viram treinos fora de programa, e sessões e histórico apontam para os mesmos registros. **Revisão em 2026-11-11.** Antes: absorvidos por `Program`. As regras F valem para `Workout` e `WorkoutItem`.
 

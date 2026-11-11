@@ -48,6 +48,23 @@ export class WorkoutsService {
       if (item.rpe != null && !Number.isInteger(item.rpe * 2)) {
         throw new BadRequestException('rpe deve variar de 0,5 em 0,5');
       }
+      const type = item.progressionType ?? 'NONE';
+      const step = item.progressionStepPercent;
+      if (step != null && !Number.isInteger(step * 2)) {
+        throw new BadRequestException(
+          'progressionStepPercent deve variar de 0,5 em 0,5',
+        );
+      }
+      if (type === 'NONE' && step != null) {
+        throw new BadRequestException(
+          'progressionStepPercent exige progressionType DOUBLE ou LINEAR',
+        );
+      }
+      if (type !== 'NONE' && (step == null || !hasMin)) {
+        throw new BadRequestException(
+          'Progressão exige progressionStepPercent e a faixa de repetições',
+        );
+      }
       if (item.supersetGroup != null) {
         groups.set(
           item.supersetGroup,
@@ -86,6 +103,8 @@ export class WorkoutsService {
             supersetGroup: item.supersetGroup ?? null,
             rir: item.rir ?? null,
             rpe: item.rpe ?? null,
+            progressionType: item.progressionType,
+            progressionStepPercent: item.progressionStepPercent ?? null,
           })),
         },
       },
@@ -168,6 +187,8 @@ export class WorkoutsService {
                 supersetGroup: item.supersetGroup ?? null,
                 rir: item.rir ?? null,
                 rpe: item.rpe ?? null,
+                progressionType: item.progressionType,
+                progressionStepPercent: item.progressionStepPercent ?? null,
               })),
             },
           }),

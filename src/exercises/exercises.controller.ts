@@ -1,4 +1,14 @@
-import { Controller, Get, Post, Body, UseGuards, Req } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  ParseUUIDPipe,
+  Query,
+  UseGuards,
+  Req,
+} from '@nestjs/common';
 import type { Request } from 'express';
 import { ExercisesService } from './exercises.service';
 import { CreateExercisesDto } from './dto/create-exercises.dto';
@@ -20,5 +30,19 @@ export class ExercisesController {
   @Get()
   list(@Req() req: AuthenticatedRequest) {
     return this.exercisesService.list(req['user'].sub);
+  }
+
+  @Get(':id/last-performance')
+  lastPerformance(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('workoutItemId', new ParseUUIDPipe({ optional: true }))
+    workoutItemId?: string,
+  ) {
+    return this.exercisesService.lastPerformance(
+      req['user'].sub,
+      id,
+      workoutItemId,
+    );
   }
 }
