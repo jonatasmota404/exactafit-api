@@ -1,11 +1,11 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateRoutineDto } from './dto/create-routine.dto';
+import { CreateWorkoutDto } from './dto/create-workout.dto';
 import { NotFoundException } from '@nestjs/common';
-import { UpdateRoutineDto } from './dto/update-routine.dto';
+import { UpdateWorkoutDto } from './dto/update-workout.dto';
 
 @Injectable()
-export class RoutineService {
+export class WorkoutsService {
   constructor(private readonly prisma: PrismaService) {}
 
   private async assertExercisesVisible(
@@ -21,14 +21,14 @@ export class RoutineService {
     }
   }
 
-  async create(userId: string, dto: CreateRoutineDto) {
+  async create(userId: string, dto: CreateWorkoutDto) {
     await this.assertExercisesVisible(userId, dto.items);
-    return await this.prisma.workoutRoutine.create({
+    return await this.prisma.workout.create({
       data: {
         userId: userId,
         name: dto.name,
         description: dto.description,
-        routineItems: {
+        items: {
           create: dto.items.map((item) => ({
             exerciseId: item.exerciseId,
             order: item.order,
@@ -38,18 +38,18 @@ export class RoutineService {
         },
       },
       include: {
-        routineItems: true,
+        items: true,
       },
     });
   }
 
   async findAll(userId: string) {
-    return await this.prisma.workoutRoutine.findMany({
+    return await this.prisma.workout.findMany({
       where: { userId },
       include: {
-        routineItems: {
+        items: {
           include: {
-            exercices: true,
+            exercise: true,
           },
           orderBy: {
             order: 'asc',
@@ -60,15 +60,15 @@ export class RoutineService {
   }
 
   async findOne(userId: string, id: string) {
-    const routine = await this.prisma.workoutRoutine.findFirst({
+    const workout = await this.prisma.workout.findFirst({
       where: {
         id,
         userId,
       },
       include: {
-        routineItems: {
+        items: {
           include: {
-            exercices: true,
+            exercise: true,
           },
           orderBy: {
             order: 'asc',
@@ -77,31 +77,31 @@ export class RoutineService {
       },
     });
 
-    if (!routine) {
-      throw new NotFoundException('Ficha de treino não encontrada');
+    if (!workout) {
+      throw new NotFoundException('Treino não encontrado');
     }
 
-    return routine;
+    return workout;
   }
 
-  async update(userId: string, id: string, dto: UpdateRoutineDto) {
+  async update(userId: string, id: string, dto: UpdateWorkoutDto) {
     await this.findOne(userId, id);
     if (dto.items) await this.assertExercisesVisible(userId, dto.items);
 
     return await this.prisma.$transaction(async (tx) => {
       if (dto.items) {
-        await tx.routineItem.deleteMany({
-          where: { routineId: id },
+        await tx.workoutItem.deleteMany({
+          where: { workoutId: id },
         });
       }
 
-      return await tx.workoutRoutine.update({
+      return await tx.workout.update({
         where: { id },
         data: {
           name: dto.name,
           description: dto.description,
           ...(dto.items && {
-            routineItems: {
+            items: {
               create: dto.items.map((item) => ({
                 exerciseId: item.exerciseId,
                 order: item.order,
@@ -112,9 +112,9 @@ export class RoutineService {
           }),
         },
         include: {
-          routineItems: {
+          items: {
             include: {
-              exercices: true,
+              exercise: true,
             },
             orderBy: {
               order: 'asc',

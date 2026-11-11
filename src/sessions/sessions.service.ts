@@ -26,18 +26,18 @@ export class SessionsService {
     });
     if (existing) return this.reenvio(userId, existing);
 
-    const routine = await this.prisma.workoutRoutine.findFirst({
-      where: { id: dto.routineId, userId },
+    const workout = await this.prisma.workout.findFirst({
+      where: { id: dto.workoutId, userId },
     });
-    if (!routine) {
-      throw new NotFoundException('Ficha de treino não encontrada');
+    if (!workout) {
+      throw new NotFoundException('Treino não encontrado');
     }
 
-    const items = await this.prisma.routineItem.count({
-      where: { routineId: dto.routineId },
+    const items = await this.prisma.workoutItem.count({
+      where: { workoutId: dto.workoutId },
     });
     if (items === 0) {
-      throw new BadRequestException('Ficha de treino sem exercícios');
+      throw new BadRequestException('Treino sem exercícios');
     }
 
     const open = await this.prisma.workoutSession.findFirst({
@@ -50,7 +50,7 @@ export class SessionsService {
         data: {
           id: dto.id,
           userId,
-          routineId: dto.routineId,
+          workoutId: dto.workoutId,
           startedAt: new Date(dto.startedAt),
         },
       });

@@ -134,7 +134,7 @@ describe('AuthGuard e2e (caracterização)', () => {
         email: 'x@example.com',
       });
       const res = await request(http())
-        .get('/routine')
+        .get('/workouts')
         .set('Authorization', `Bearer ${token}`);
       expect(res.status).toBe(200);
       expect(res.body).toEqual([]);

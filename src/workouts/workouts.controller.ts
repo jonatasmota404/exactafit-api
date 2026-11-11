@@ -9,11 +9,11 @@ import {
   ParseUUIDPipe,
   Put,
 } from '@nestjs/common';
-import { CreateRoutineDto } from './dto/create-routine.dto';
+import { CreateWorkoutDto } from './dto/create-workout.dto';
 import { AuthGuard } from '../auth/auth.guard';
 import type { Request } from 'express';
-import { RoutineService } from './routine.service';
-import { UpdateRoutineDto } from './dto/update-routine.dto';
+import { WorkoutsService } from './workouts.service';
+import { UpdateWorkoutDto } from './dto/update-workout.dto';
 
 export interface AuthenticatedRequest extends Request {
   user: {
@@ -23,19 +23,19 @@ export interface AuthenticatedRequest extends Request {
 }
 
 @UseGuards(AuthGuard)
-@Controller('routine')
-export class RoutineController {
-  constructor(private readonly routineService: RoutineService) {}
+@Controller('workouts')
+export class WorkoutsController {
+  constructor(private readonly workoutsService: WorkoutsService) {}
   @Post()
-  create(@Req() req: AuthenticatedRequest, @Body() dto: CreateRoutineDto) {
+  create(@Req() req: AuthenticatedRequest, @Body() dto: CreateWorkoutDto) {
     const userId = req['user'].sub;
-    return this.routineService.create(userId, dto);
+    return this.workoutsService.create(userId, dto);
   }
 
   @Get()
   findAll(@Req() req: AuthenticatedRequest) {
     const userId = req['user'].sub;
-    return this.routineService.findAll(userId);
+    return this.workoutsService.findAll(userId);
   }
 
   @Get(':id')
@@ -44,16 +44,16 @@ export class RoutineController {
     @Param('id', new ParseUUIDPipe()) id: string,
   ) {
     const userId = req.user.sub;
-    return this.routineService.findOne(userId, id);
+    return this.workoutsService.findOne(userId, id);
   }
 
   @Put(':id')
   update(
     @Req() req: AuthenticatedRequest,
     @Param('id', new ParseUUIDPipe()) id: string,
-    @Body() dto: UpdateRoutineDto,
+    @Body() dto: UpdateWorkoutDto,
   ) {
     const userId = req.user.sub;
-    return this.routineService.update(userId, id, dto);
+    return this.workoutsService.update(userId, id, dto);
   }
 }

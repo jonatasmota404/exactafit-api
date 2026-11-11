@@ -28,10 +28,10 @@ Verificado em `jonatasmota404/exactafit-api`, branch `main`, commit `23a714b` (c
 | `GET /` | `src/app.controller.ts` | rota básica |
 | `POST /auth/register`, `POST /auth/login` | `src/auth/auth.controller.ts` | JWT de 7 dias |
 | `GET /exercises`, `POST /exercises` | `src/exercises/exercises.controller.ts` | lista tudo, sem filtro; qualquer usuário autenticado cria exercício |
-| `POST /routine`, `GET /routine`, `GET /routine/:id`, `PUT /routine/:id` | `src/routines/routine.controller.ts` | fichas do próprio usuário |
-| `POST /sessions` | `src/sessions/sessions.controller.ts` | só recebe `routineId`; `startedAt` é `now()` do servidor |
+| `POST /workouts`, `GET /workouts`, `GET /workouts/:id`, `PUT /workouts/:id` | `src/workouts/workouts.controller.ts` | treinos do próprio usuário (eram `/routine`, fichas, até a tarefa 6) |
+| `POST /sessions` | `src/sessions/sessions.controller.ts` | só recebe `workoutId` (era `routineId`); `startedAt` é `now()` do servidor |
 
-**Schema (`prisma/schema.prisma`), 6 modelos:** `Exercise` (name, muscleGroup, type), `User`, `WorkoutRoutine`, `RoutineItem` (targetSets e targetReps inteiros, sem faixa), `WorkoutSession` (só startedAt), `SetLog` (weightKg Float, repsCompleted, failed).
+**Schema (`prisma/schema.prisma`), 6 modelos (histórico, antes das tarefas 2 a 6; `WorkoutRoutine` e `RoutineItem` hoje são `Workout` e `WorkoutItem`):** `Exercise` (name, muscleGroup, type), `User`, `WorkoutRoutine`, `RoutineItem` (targetSets e targetReps inteiros, sem faixa), `WorkoutSession` (só startedAt), `SetLog` (weightKg Float, repsCompleted, failed).
 
 **Decidido em `docs/domain.md` mas não implementado:** `finishedAt` na sessão; duração para cardio; carga Decimal(6,2) e opcional; remover `Exercise.type`; `muscleGroup` restrito aos 10 valores do dataset; `order` único por ficha; arquivar fichas; usuário desativado com checagem no guard; normalizar e-mail; ids gerados no cliente e sincronismo (ADR 0004); carga do dataset de exercícios (ADR 0005). **Não há rota para gravar série nem para encerrar sessão.** O catálogo de exercícios está vazio: não há script de carga nem seed.
 
@@ -78,7 +78,7 @@ Esforço P/M/G. Risco B/M/A.
 
 **Acompanhamento e regras (novas):** `BodyMetric`, `ProgressPhoto`, `CycleLog`, `DayLog`, `ReviewRule` (tipos parametrizados com janela, limite e ação sobre a meta), `Suggestion` (aceita ou recusada), `PlanTemplate` (os PDFs e outros modelos), `Household`, `HouseholdMember` e `PushSubscription`.
 
-**Alteradas:** `User` (perfil e `householdId` opcional); `Exercise` (remover `type`, id do dataset, dono opcional para exercício do usuário); `WorkoutRoutine` e `RoutineItem` (absorvidos por `Program` e `WorkoutItem`); `WorkoutSession` (`finishedAt`, ids do cliente); `SetLog` (`weightKg` Decimal opcional, `durationSeconds`, tipo de série, ids do cliente).
+**Alteradas:** `User` (perfil e `householdId` opcional); `Exercise` (remover `type`, id do dataset, dono opcional para exercício do usuário); `WorkoutRoutine` e `RoutineItem` (renomeados para `Workout` e `WorkoutItem` na tarefa 6, [ADR 0014](adr/0014-ficha-vira-treino.md): as fichas viram treinos e o `Program` os organiza no ciclo); `WorkoutSession` (`finishedAt`, ids do cliente); `SetLog` (`weightKg` Decimal opcional, `durationSeconds`, tipo de série, ids do cliente).
 
 **Rotas novas:** CRUD de `/diet-plans` e `/programs`, `/templates` (usar e copiar um modelo), exportar e importar plano em JSON, `/me/profile`, `/foods`, `/meal-logs`, `GET /today`, `/metrics`, `PATCH /sessions/:id`, `/sessions/:id/sets`, `GET /exercises/:id/last-performance`, `POST /sync`, `/suggestions`, `/shopping-list`, `/kitchen` e `/households`.
 
@@ -144,8 +144,8 @@ Cada linha é uma tarefa, uma branch e um PR. O risco segue a tabela "Risco: que
 | 3 | Rotas de série e de encerramento: `/sessions/:id/sets`, `PATCH /sessions/:id`, correção sem exclusão | S3, S4, S9 | 5 | médio | 2 |
 | 4 | Exercício próprio e privado: dono em `Exercise`, `GET` com catálogo + próprios, `POST` cria próprio | E1, E2, F6 | 2 | alto | — |
 | 5 | Carga do catálogo inicial curado | (b) | 2 | médio | 4, **P1** |
-| 6 | Programa: schema `Program`, `ProgramDay`, `Workout`, `WorkoutItem` e migração das fichas atuais | (d), F | 2, 4 | alto | 4 |
-| 7 | CRUD `/programs` (ciclo semanal ou rotativo, superssérie, tipos de série, faixa de repetições) | (d) | 2, 4 | médio | 6 |
+| 6 | A ficha vira treino: renomear `WorkoutRoutine`/`RoutineItem` para `Workout`/`WorkoutItem` (banco, código e rotas `/workouts`), FKs `Workout.userId` e `WorkoutItem.exerciseId` em `RESTRICT`, e schema `Program` e `ProgramDay` (sem rota) | (d), F, C3 | 2, 4 | alto | 4 |
+| 7 | CRUD `/programs` (ciclo semanal ou rotativo, ativação com um programa ativo por usuário, dia só com treino do dono, limites do ciclo) e campos novos do item do treino (tipo de série, faixa de repetições, tempo ou por lado, descanso, superssérie, RIR/RPE), com migration | (d) | 2, 4 | alto | 6 |
 | 8 | Progressão: `ProgressionRule` e `GET /exercises/:id/last-performance` com a sugestão | (d) | 6 | médio | 3, 7 |
 | 9 | Perfil do usuário (`/me/profile`: sexo, nascimento, altura, fuso) e usuário ativo no guard | C1, (e) | — | alto | — |
 | 10 | Alimentos: `Food`, `FoodYield`, `/foods` e importação por CSV | (c) | 2, 3 | alto | — |

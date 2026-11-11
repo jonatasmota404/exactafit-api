@@ -12,7 +12,7 @@ import type { Server } from 'http';
 type Session = {
   id: string;
   userId: string;
-  routineId: string;
+  workoutId: string;
   startedAt: string;
   finishedAt: string | null;
 };
@@ -60,7 +60,7 @@ describe('Sessions e2e (caracterização)', () => {
 
   const createRoutine = async (token: string, items?: unknown[]) => {
     const res = await request(http())
-      .post('/routine')
+      .post('/workouts')
       .set(auth(token))
       .send({
         name: 'Ficha',
@@ -73,9 +73,9 @@ describe('Sessions e2e (caracterização)', () => {
   };
 
   // Corpo válido do POST /sessions: id e startedAt vêm do aparelho.
-  const body = (routineId: string, extra: Record<string, unknown> = {}) => ({
+  const body = (workoutId: string, extra: Record<string, unknown> = {}) => ({
     id: randomUUID(),
-    routineId,
+    workoutId,
     startedAt: STARTED_AT,
     ...extra,
   });
@@ -91,8 +91,8 @@ describe('Sessions e2e (caracterização)', () => {
     return { status: res.status, body: res.body as Session };
   };
 
-  const sessionsOf = (routineId: string) =>
-    prisma.workoutSession.count({ where: { routineId } });
+  const sessionsOf = (workoutId: string) =>
+    prisma.workoutSession.count({ where: { workoutId: workoutId } });
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -139,6 +139,10 @@ describe('Sessions e2e (caracterização)', () => {
     await prisma.workoutSession.deleteMany({
       where: { userId: { in: userIds } },
     });
+    // Treinos antes de exercícios e usuários: as FKs não apagam mais em cascata (C3).
+    await prisma.workout.deleteMany({
+      where: { userId: { in: userIds } },
+    });
     await prisma.exercise.deleteMany({ where: { id: { in: exerciseIds } } });
     await prisma.user.deleteMany({ where: { id: { in: userIds } } });
     await prisma.$disconnect();
@@ -156,11 +160,11 @@ describe('Sessions e2e (caracterização)', () => {
       const { status, body: res } = await startSession(tokenA, payload);
       expect(status).toBe(201);
       expect(Object.keys(res).sort()).toEqual(
-        ['finishedAt', 'id', 'routineId', 'startedAt', 'userId'].sort(),
+        ['finishedAt', 'id', 'workoutId', 'startedAt', 'userId'].sort(),
       );
       expect(res.id).toBe(payload.id);
       expect(res.userId).toBe(userA);
-      expect(res.routineId).toBe(routineA);
+      expect(res.workoutId).toBe(routineA);
       expect(res.startedAt).toBe(STARTED_AT);
       expect(res.finishedAt).toBeNull();
       expect(
@@ -182,10 +186,10 @@ describe('Sessions e2e (caracterização)', () => {
       expect(again.status).toBe(200);
       expect(again.body).toEqual(first.body);
 
-      // (b) routineId de outra ficha própria
+      // (b) workoutId de outra ficha própria
       const otherBody = await startSession(tokenA, {
         ...payload,
-        routineId: otherRoutine,
+        workoutId: otherRoutine,
       });
       expect(otherBody.status).toBe(200);
       expect(otherBody.body).toEqual(first.body);
@@ -203,13 +207,13 @@ describe('Sessions e2e (caracterização)', () => {
         where: { id: payload.id },
       });
 
-      for (const routineId of [routineB, routineA]) {
+      for (const workoutId of [routineB, routineA]) {
         const res = await request(http())
           .post('/sessions')
           .set(auth(tokenB))
           .send({
             id: payload.id,
-            routineId,
+            workoutId,
             startedAt: '2026-11-09T12:00:00.000Z',
           });
         expect(res.status).toBe(409);
@@ -263,8 +267,8 @@ describe('Sessions e2e (caracterização)', () => {
     });
 
     it('C5: formato de id e startedAt', async () => {
-      const noId = { routineId: routineA, startedAt: STARTED_AT };
-      const noStartedAt = { id: randomUUID(), routineId: routineA };
+      const noId = { workoutId: routineA, startedAt: STARTED_AT };
+      const noStartedAt = { id: randomUUID(), workoutId: routineA };
       const invalid: Record<string, unknown>[] = [
         noId,
         body(routineA, { id: 'abc' }),
@@ -327,11 +331,11 @@ describe('Sessions e2e (caracterização)', () => {
       ).toBe(0);
     });
 
-    it('C7: routineId ausente ou inválido dá 400', async () => {
+    it('C7: workoutId ausente ou inválido dá 400', async () => {
       const noRoutine = { id: randomUUID(), startedAt: STARTED_AT };
       expect((await startSession(tokenA, noRoutine)).status).toBe(400);
       expect(
-        (await startSession(tokenA, body(routineA, { routineId: 'abc' })))
+        (await startSession(tokenA, body(routineA, { workoutId: 'abc' })))
           .status,
       ).toBe(400);
     });
@@ -410,12 +414,12 @@ describe('Sessions e2e (caracterização)', () => {
 
   describe('schema do log', () => {
     // Ainda não há rota de série: o schema é exercitado direto pelo Prisma.
-    const newSession = (userId: string, routineId: string) =>
+    const newSession = (userId: string, workoutId: string) =>
       prisma.workoutSession.create({
         data: {
           id: randomUUID(),
           userId,
-          routineId,
+          workoutId: workoutId,
           startedAt: new Date(STARTED_AT),
         },
       });
@@ -510,7 +514,7 @@ describe('Sessions e2e (caracterização)', () => {
       const deletes = [
         () => prisma.workoutSession.delete({ where: { id: session.id } }),
         () => prisma.user.delete({ where: { id: c.id } }),
-        () => prisma.workoutRoutine.delete({ where: { id: routineC } }),
+        () => prisma.workout.delete({ where: { id: routineC } }),
         () => prisma.exercise.delete({ where: { id: exerciseC } }),
       ];
       for (const del of deletes) {
@@ -522,9 +526,7 @@ describe('Sessions e2e (caracterização)', () => {
         await prisma.workoutSession.count({ where: { id: session.id } }),
       ).toBe(1);
       expect(await prisma.user.count({ where: { id: c.id } })).toBe(1);
-      expect(
-        await prisma.workoutRoutine.count({ where: { id: routineC } }),
-      ).toBe(1);
+      expect(await prisma.workout.count({ where: { id: routineC } })).toBe(1);
       expect(await prisma.exercise.count({ where: { id: exerciseC } })).toBe(1);
     });
   });

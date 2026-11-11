@@ -20,7 +20,7 @@ model Exercise {
   userId String? @map("user_id")
   user   User?   @relation(fields: [userId], references: [id], onDelete: Restrict)
 
-  routineItems RoutineItem[]
+  workoutItems WorkoutItem[]
   setLogs      SetLog[]
 
   createdAt DateTime @default(now()) @map("created_at")
@@ -36,9 +36,10 @@ model User {
   email String @unique @db.VarChar(255)
   password String @db.VarChar(255)
 
-  workoutRoutines WorkoutRoutine[]
+  workouts        Workout[]
   workoutSessions WorkoutSession[]
   exercises       Exercise[]
+  programs        Program[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -46,46 +47,91 @@ model User {
   @@map("users")
 }
 
-model WorkoutRoutine {
+// Treino (antes "ficha", ADR 0014): um conjunto de itens que o usuário executa numa sessão.
+model Workout {
   id String @id @default(uuid())
   userId String @map("user_id")
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
   name String @db.VarChar(100)
   description String? @db.VarChar(255)
 
-  routineItems RoutineItem[]
+  items WorkoutItem[]
   workoutSessions WorkoutSession[]
+  programDays ProgramDay[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  @@map("workout_routines")
+  @@map("workouts")
 }
 
-model RoutineItem {
+model WorkoutItem {
   id String @id @default(uuid())
-  routineId String @map("routine_id")
-  workoutRoutine WorkoutRoutine @relation(fields: [routineId], references:[id], onDelete:Cascade)
+  workoutId String @map("workout_id")
+  workout Workout @relation(fields: [workoutId], references:[id], onDelete:Cascade)
   exerciseId String @map("exercise_id")
-  exercices Exercise @relation(fields: [exerciseId], references:[id], onDelete:Cascade)
+  exercise Exercise @relation(fields: [exerciseId], references:[id], onDelete:Restrict)
   order Int
   targetSets Int @map("target_sets")
   targetReps Int @map("target_reps")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  @@map("routine_items")
+  @@map("workout_items")
+}
+
+enum CycleType {
+  WEEKLY
+  ROTATING
+}
+
+// Programa: organiza os treinos num ciclo semanal (com alternância por semana) ou rotativo de N dias.
+// Um ativo por usuário (garantido no service, tarefa 7).
+model Program {
+  id String @id @default(uuid())
+  userId String @map("user_id")
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  name String @db.VarChar(100)
+  cycleType CycleType @map("cycle_type")
+  cycleDays Int @map("cycle_days")
+  weeks Int @default(1)
+  startDate DateTime @db.Date @map("start_date")
+  active Boolean @default(false)
+
+  days ProgramDay[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("programs")
+}
+
+// Dia do programa: semana (1..weeks), dia (1..7 ou 1..N) e treino. Dia sem linha = sem treino.
+model ProgramDay {
+  id String @id @default(uuid())
+  programId String @map("program_id")
+  program Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+  week Int
+  day Int
+  workoutId String @map("workout_id")
+  workout Workout @relation(fields: [workoutId], references: [id], onDelete: Restrict)
+  order Int
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("program_days")
 }
 
 model WorkoutSession {
   id String @id @default(uuid())
   userId String @map("user_id")
-  routineId String @map("routine_id")
+  workoutId String @map("workout_id")
   startedAt DateTime @map("started_at")
   finishedAt DateTime? @map("finished_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Restrict)
-  workoutRoutine WorkoutRoutine @relation(fields: [routineId], references:[id], onDelete: Restrict)
+  workout Workout @relation(fields: [workoutId], references:[id], onDelete: Restrict)
 
   setLogs SetLog[]
 

@@ -4,7 +4,7 @@ import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
 import { ExercisesModule } from './exercises/exercises.module';
 import { AuthModule } from './auth/auth.module';
-import { RoutineModule } from './routines/routine.module';
+import { WorkoutsModule } from './workouts/workouts.module';
 import { SessionsModule } from './sessions/sessions.module';
 
 @Module({
@@ -12,7 +12,7 @@ import { SessionsModule } from './sessions/sessions.module';
     PrismaModule,
     ExercisesModule,
     AuthModule,
-    RoutineModule,
+    WorkoutsModule,
     SessionsModule,
   ],
   controllers: [AppController],

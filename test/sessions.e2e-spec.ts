@@ -11,7 +11,7 @@ import type { Server } from 'http';
 type Session = {
   id: string;
   userId: string;
-  routineId: string;
+  workoutId: string;
   startedAt: string;
   finishedAt: string | null;
 };
@@ -66,7 +66,7 @@ describe('Sessions e2e (séries e encerramento)', () => {
 
   const createRoutine = async (token: string, items?: unknown[]) => {
     const res = await request(http())
-      .post('/routine')
+      .post('/workouts')
       .set(auth(token))
       .send({
         name: 'Ficha',
@@ -80,13 +80,13 @@ describe('Sessions e2e (séries e encerramento)', () => {
 
   const startSession = async (
     token: string,
-    routineId: string,
+    workoutId: string,
     id: string = randomUUID(),
   ) => {
     const res = await request(http())
       .post('/sessions')
       .set(auth(token))
-      .send({ id, routineId, startedAt: STARTED_AT });
+      .send({ id, workoutId, startedAt: STARTED_AT });
     return { status: res.status, body: res.body as Session, id };
   };
 
@@ -123,10 +123,10 @@ describe('Sessions e2e (séries e encerramento)', () => {
   // Usuário novo com ficha e uma sessão aberta.
   const userWithSession = async () => {
     const user = await signUp();
-    const routineId = await createRoutine(user.token);
-    const session = await startSession(user.token, routineId);
+    const workoutId = await createRoutine(user.token);
+    const session = await startSession(user.token, workoutId);
     expect(session.status).toBe(201);
-    return { ...user, routineId, sessionId: session.id };
+    return { ...user, workoutId, sessionId: session.id };
   };
 
   beforeAll(async () => {
@@ -156,6 +156,10 @@ describe('Sessions e2e (séries e encerramento)', () => {
     await prisma.workoutSession.deleteMany({
       where: { userId: { in: userIds } },
     });
+    // Treinos antes de exercícios e usuários: as FKs não apagam mais em cascata (C3).
+    await prisma.workout.deleteMany({
+      where: { userId: { in: userIds } },
+    });
     await prisma.exercise.deleteMany({ where: { id: { in: exerciseIds } } });
     await prisma.user.deleteMany({ where: { id: { in: userIds } } });
     await prisma.$disconnect();
@@ -165,7 +169,7 @@ describe('Sessions e2e (séries e encerramento)', () => {
   describe('POST /sessions: S3 e S4', () => {
     it('C1: segunda sessão aberta dá 409 e nada é gravado', async () => {
       const u = await userWithSession();
-      const second = await startSession(u.token, u.routineId);
+      const second = await startSession(u.token, u.workoutId);
       expect(second.status).toBe(409);
       expect(
         await prisma.workoutSession.count({ where: { id: second.id } }),
@@ -179,7 +183,7 @@ describe('Sessions e2e (séries e encerramento)', () => {
 
     it('C2: reenvio da aberta dá 200; depois de encerrar, id novo dá 201', async () => {
       const u = await userWithSession();
-      const again = await startSession(u.token, u.routineId, u.sessionId);
+      const again = await startSession(u.token, u.workoutId, u.sessionId);
       expect(again.status).toBe(200);
       expect(again.body.id).toBe(u.sessionId);
 
@@ -188,7 +192,7 @@ describe('Sessions e2e (séries e encerramento)', () => {
       });
       expect(closed.status).toBe(200);
 
-      const next = await startSession(u.token, u.routineId);
+      const next = await startSession(u.token, u.workoutId);
       expect(next.status).toBe(201);
     });
 
@@ -208,11 +212,11 @@ describe('Sessions e2e (séries e encerramento)', () => {
         data: {
           id,
           userId: user.id,
-          routineId: routine,
+          workoutId: routine,
           startedAt: new Date(STARTED_AT),
         },
       });
-      await prisma.routineItem.deleteMany({ where: { routineId: routine } });
+      await prisma.workoutItem.deleteMany({ where: { workoutId: routine } });
       const again = await startSession(user.token, routine, id);
       expect(again.status).toBe(200);
       expect(again.body.id).toBe(id);
@@ -255,7 +259,7 @@ describe('Sessions e2e (séries e encerramento)', () => {
         { finishedAt: null },
         { finishedAt: '2026-11-09T11:00:00' },
         { startedAt: '2026-11-09' },
-        { routineId: u.routineId },
+        { workoutId: u.workoutId },
         { userId: randomUUID() },
         {},
       ];
@@ -540,7 +544,7 @@ describe('Sessions e2e (séries e encerramento)', () => {
         (await patchSession(u.token, u.sessionId, { finishedAt: FINISHED_AT }))
           .status,
       ).toBe(200);
-      const other = await startSession(u.token, u.routineId);
+      const other = await startSession(u.token, u.workoutId);
       expect(other.status).toBe(201);
 
       const res = await postSet(u.token, other.id, set);
@@ -553,12 +557,12 @@ describe('Sessions e2e (séries e encerramento)', () => {
       const u = await userWithSession();
       const late = '9999-12-31T23:59:59-01:00';
 
-      const start = await startSession(u.token, u.routineId);
+      const start = await startSession(u.token, u.workoutId);
       expect(start.status).toBe(409); // sessão aberta: confirma que o 400 abaixo vem da data
       const post = await request(http())
         .post('/sessions')
         .set(auth(u.token))
-        .send({ id: randomUUID(), routineId: u.routineId, startedAt: late });
+        .send({ id: randomUUID(), workoutId: u.workoutId, startedAt: late });
       expect(post.status).toBe(400);
 
       expect(
@@ -591,6 +595,19 @@ describe('Sessions e2e (séries e encerramento)', () => {
         400,
       );
     });
+  });
+
+  // Tarefa 6 (C2): o campo antigo não é mais aceito.
+  it('C2 (tarefa 6): routineId no body dá 400 e nada é gravado', async () => {
+    const user = await signUp();
+    const workoutId = await createRoutine(user.token);
+    const id = randomUUID();
+    const res = await request(http())
+      .post('/sessions')
+      .set(auth(user.token))
+      .send({ id, routineId: workoutId, startedAt: STARTED_AT });
+    expect(res.status).toBe(400);
+    expect(await prisma.workoutSession.count({ where: { id } })).toBe(0);
   });
 
   // Tarefa 4: S8 — a série só aceita exercício do catálogo ou do próprio usuário.
