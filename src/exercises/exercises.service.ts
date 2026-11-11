@@ -6,13 +6,15 @@ import { CreateExercisesDto } from './dto/create-exercises.dto';
 export class ExercisesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(dataDto: CreateExercisesDto) {
+  async create(userId: string, dataDto: CreateExercisesDto) {
     return this.prisma.exercise.create({
-      data: dataDto,
+      data: { ...dataDto, userId },
     });
   }
 
-  async list() {
-    return this.prisma.exercise.findMany();
+  async list(userId: string) {
+    return this.prisma.exercise.findMany({
+      where: { OR: [{ userId: null }, { userId }] },
+    });
   }
 }

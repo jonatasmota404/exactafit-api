@@ -149,15 +149,15 @@ describe('Sessions e2e (séries e encerramento)', () => {
   });
 
   afterAll(async () => {
-    // FKs do log são Restrict: séries → sessões → usuários (fichas em cascata) → exercícios.
+    // FKs Restrict: séries → sessões → exercícios (o próprio prende o dono) → usuários (fichas em cascata).
     await prisma.setLog.deleteMany({
       where: { workoutSession: { userId: { in: userIds } } },
     });
     await prisma.workoutSession.deleteMany({
       where: { userId: { in: userIds } },
     });
-    await prisma.user.deleteMany({ where: { id: { in: userIds } } });
     await prisma.exercise.deleteMany({ where: { id: { in: exerciseIds } } });
+    await prisma.user.deleteMany({ where: { id: { in: userIds } } });
     await prisma.$disconnect();
     await app.close();
   });
@@ -591,5 +591,39 @@ describe('Sessions e2e (séries e encerramento)', () => {
         400,
       );
     });
+  });
+
+  // Tarefa 4: S8 — a série só aceita exercício do catálogo ou do próprio usuário.
+  it('C5 (tarefa 4): série com exercício de outro usuário dá 404 e nada é gravado', async () => {
+    const a = await userWithSession();
+    const b = await signUp();
+    const createOwn = async (token: string, name: string) => {
+      const res = await request(http())
+        .post('/exercises')
+        .set(auth(token))
+        .send({ name, muscleGroup: 'chest' })
+        .expect(201);
+      const id = (res.body as { id: string }).id;
+      exerciseIds.push(id);
+      return id;
+    };
+    const ofB = await createOwn(b.token, 'Sessões e2e próprio de B');
+    const ofA = await createOwn(a.token, 'Sessões e2e próprio de A');
+
+    const foreign = setBody({ exerciseId: ofB });
+    const res = await postSet(a.token, a.sessionId, foreign);
+    expect(res.status).toBe(404);
+    expect((res.body as { message: string }).message).toBe(
+      'Exercício não encontrado',
+    );
+    expect(await prisma.setLog.count({ where: { id: foreign.id } })).toBe(0);
+
+    expect(
+      (await postSet(a.token, a.sessionId, setBody({ exerciseId: ofA })))
+        .status,
+    ).toBe(201);
+    expect(
+      (await postSet(a.token, a.sessionId, setBody({ setNumber: 2 }))).status,
+    ).toBe(201);
   });
 });

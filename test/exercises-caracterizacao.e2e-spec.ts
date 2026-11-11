@@ -202,17 +202,17 @@ describe('Exercises e2e (caracterização)', () => {
   });
 
   describe('comportamento atual (diverge de domain.md)', () => {
-    // E1/E2: exercício criado por usuário pertence só a ele. Hoje não há dono e todos veem todos.
-    it('E1/E2: exercício criado pelo usuário A aparece na listagem do usuário B', async () => {
+    // E1/E2 (corrigido na tarefa 4): exercício criado por usuário pertence só a ele.
+    it('E1/E2: exercício criado pelo usuário A tem dono A e não aparece na listagem do usuário B', async () => {
       const { body } = await create(tokenA, {
-        name: `${tag} sem-dono`,
+        name: `${tag} com-dono`,
         muscleGroup: 'chest',
       });
       const res = await request(http()).get('/exercises').set(auth(tokenB));
       const ids = (res.body as Exercise[]).map((e) => e.id);
 
-      expect(body).not.toHaveProperty('userId');
-      expect(ids).toContain(body.id);
+      expect(body).toHaveProperty('userId', userIds[0]);
+      expect(ids).not.toContain(body.id);
     });
 
     // E4: muscleGroup aceita só os 10 valores de body_part e type sai. Hoje é texto livre.

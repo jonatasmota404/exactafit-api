@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
+import { randomUUID } from 'crypto';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { Server } from 'http';
@@ -201,5 +202,134 @@ describe('Routines e2e', () => {
     expect(body).toHaveProperty('id');
     expect(body.name).toBe('Treino A - Peito e Tríceps');
     expect(body.routineItems[0].targetReps).toBe(12);
+  });
+
+  // Tarefa 4: F6 — o item só aceita exercício do catálogo ou do próprio usuário.
+  describe('F6: exercício visível ao usuário', () => {
+    const userIds: string[] = [];
+    const ownExerciseIds: string[] = [];
+    let tokenA: string;
+    let tokenB: string;
+    let userB: string;
+    let ownOfA: string;
+    let ownOfB: string;
+
+    const http = () => app.getHttpServer() as Server;
+    const auth = (t: string) => ({ Authorization: `Bearer ${t}` });
+    const item = (exId: string, order: number) => ({
+      exerciseId: exId,
+      order,
+      targetSets: 3,
+      targetReps: 10,
+    });
+
+    const signUp = async () => {
+      const email = `f6-${Date.now()}-${Math.random()}@example.com`;
+      const reg = await request(http())
+        .post('/auth/register')
+        .send({ name: 'F6', email, password: 'password123' })
+        .expect(201);
+      const id = (reg.body as { id: string }).id;
+      userIds.push(id);
+      const login = await request(http())
+        .post('/auth/login')
+        .send({ email, password: 'password123' })
+        .expect(201);
+      return { id, token: (login.body as { accessToken: string }).accessToken };
+    };
+
+    const createOwn = async (t: string, name: string) => {
+      const res = await request(http())
+        .post('/exercises')
+        .set(auth(t))
+        .send({ name, muscleGroup: 'chest' })
+        .expect(201);
+      const id = (res.body as { id: string }).id;
+      ownExerciseIds.push(id);
+      return id;
+    };
+
+    const postRoutine = (t: string, name: string, items: unknown[]) =>
+      request(http()).post('/routine').set(auth(t)).send({ name, items });
+
+    beforeAll(async () => {
+      const a = await signUp();
+      const b = await signUp();
+      tokenA = a.token;
+      tokenB = b.token;
+      userB = b.id;
+      ownOfA = await createOwn(tokenA, 'F6 próprio de A');
+      ownOfB = await createOwn(tokenB, 'F6 próprio de B');
+    });
+
+    afterAll(async () => {
+      // Exercício próprio prende o usuário (FK Restrict): exercícios antes dos usuários.
+      await prisma.exercise.deleteMany({
+        where: { id: { in: ownExerciseIds } },
+      });
+      await prisma.user.deleteMany({ where: { id: { in: userIds } } });
+    });
+
+    it('C3: F6 no POST /routine', async () => {
+      const foreign = await postRoutine(tokenB, 'F6 alheio', [item(ownOfA, 1)]);
+      expect(foreign.status).toBe(400);
+      expect((foreign.body as { message: string }).message).toBe(
+        'Exercício não encontrado',
+      );
+      expect(
+        await prisma.workoutRoutine.count({
+          where: { userId: userB, name: 'F6 alheio' },
+        }),
+      ).toBe(0);
+
+      const missing = await postRoutine(tokenB, 'F6 inexistente', [
+        item(randomUUID(), 1),
+      ]);
+      expect(missing.status).toBe(400);
+      expect((missing.body as { message: string }).message).toBe(
+        'Exercício não encontrado',
+      );
+
+      // Catálogo, próprio e o mesmo exercício repetido (F5).
+      const ok = await postRoutine(tokenB, 'F6 ok', [
+        item(exerciseId, 1),
+        item(ownOfB, 2),
+        item(ownOfB, 3),
+        item(exerciseId, 4),
+      ]);
+      expect(ok.status).toBe(201);
+    });
+
+    it('C4: F6 no PUT /routine', async () => {
+      const created = await postRoutine(tokenB, 'F6 put', [
+        item(exerciseId, 1),
+      ]);
+      expect(created.status).toBe(201);
+      const routine = created.body as RoutineResponse;
+      const before = routine.routineItems.map((i) => i.id);
+
+      for (const exId of [ownOfA, randomUUID()]) {
+        const res = await request(http())
+          .put(`/routine/${routine.id}`)
+          .set(auth(tokenB))
+          .send({ items: [item(exId, 1)] });
+        expect({ exId, status: res.status }).toEqual({ exId, status: 400 });
+        expect((res.body as { message: string }).message).toBe(
+          'Exercício não encontrado',
+        );
+        const items = await prisma.routineItem.findMany({
+          where: { routineId: routine.id },
+        });
+        expect(items.map((i) => i.id).sort()).toEqual([...before].sort());
+      }
+
+      const ok = await request(http())
+        .put(`/routine/${routine.id}`)
+        .set(auth(tokenB))
+        .send({
+          items: [item(ownOfB, 1), item(ownOfB, 2), item(exerciseId, 3)],
+        });
+      expect(ok.status).toBe(200);
+    });
   });
 });
