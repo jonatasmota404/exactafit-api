@@ -114,9 +114,10 @@ describe('Routines e2e (caracterização)', () => {
   });
 
   afterAll(async () => {
-    // Usuários levam fichas e itens em cascata; exercícios criados aqui saem por id.
-    await prisma.user.deleteMany({ where: { id: { in: userIds } } });
+    // Exercícios antes dos usuários: o exercício próprio prende o dono (FK Restrict).
+    // Os itens saem em cascata com o exercício; as fichas, com o usuário.
     await prisma.exercise.deleteMany({ where: { id: { in: exerciseIds } } });
+    await prisma.user.deleteMany({ where: { id: { in: userIds } } });
     await prisma.$disconnect();
     await app.close();
   });
@@ -453,21 +454,21 @@ describe('Routines e2e (caracterização)', () => {
       expect((res.body as Routine[]).length).toBe(11);
     });
 
-    // F6: exerciseId inexistente deve dar 400. Hoje a FK do banco recusa e o erro não é tratado.
-    it('F6: POST com exerciseId inexistente falha com 500 (FK não tratada)', async () => {
+    // F6 (corrigido na tarefa 4): exerciseId inexistente dá 400. Antes, a FK recusava e virava 500.
+    it('F6: POST com exerciseId inexistente dá 400', async () => {
       const { status } = await createRoutine(tokenA, {
         items: [item(1, { exerciseId: randomUUID() })],
       });
-      expect(status).toBe(500);
+      expect(status).toBe(400);
     });
 
-    it('F6: PUT com exerciseId inexistente falha com 500 e a ficha não muda', async () => {
+    it('F6: PUT com exerciseId inexistente dá 400 e a ficha não muda', async () => {
       const created = await createRoutine(tokenA, { items: [item(1)] });
       const res = await request(http())
         .put(`/routine/${created.body.id}`)
         .set(auth(tokenA))
         .send({ items: [item(1, { exerciseId: randomUUID() })] });
-      expect(res.status).toBe(500);
+      expect(res.status).toBe(400);
 
       const after = await getRoutine(tokenA, created.body.id);
       expect(after.body.routineItems.map((i) => i.id)).toEqual(
@@ -475,10 +476,23 @@ describe('Routines e2e (caracterização)', () => {
       );
     });
 
-    // F6: exercício de outro usuário. Hoje exercício não tem dono (E1), então qualquer um serve.
-    it('F6/E1: aceita item com exercício criado por outro usuário (sem dono)', async () => {
-      const { status } = await createRoutine(tokenB, { items: [item(1)] });
-      expect(status).toBe(201);
+    // F6/E1 (corrigido na tarefa 4): exercício próprio de outro usuário dá 400; o de catálogo (sem dono) continua aceito.
+    it('F6/E1: recusa item com exercício próprio de outro usuário (400) e aceita o de catálogo', async () => {
+      const own = await request(http())
+        .post('/exercises')
+        .set(auth(tokenA))
+        .send({ name: 'Caracterização próprio de A', muscleGroup: 'chest' })
+        .expect(201);
+      const ownId = (own.body as { id: string }).id;
+      exerciseIds.push(ownId);
+
+      const { status } = await createRoutine(tokenB, {
+        items: [item(1, { exerciseId: ownId })],
+      });
+      expect(status).toBe(400);
+
+      const catalog = await createRoutine(tokenB, { items: [item(1)] });
+      expect(catalog.status).toBe(201);
     });
   });
 

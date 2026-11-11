@@ -132,15 +132,15 @@ describe('Sessions e2e (caracterização)', () => {
   });
 
   afterAll(async () => {
-    // FKs do log são Restrict: séries → sessões → usuários (fichas em cascata) → exercícios.
+    // FKs Restrict: séries → sessões → exercícios (o próprio prende o dono) → usuários (fichas em cascata).
     await prisma.setLog.deleteMany({
       where: { workoutSession: { userId: { in: userIds } } },
     });
     await prisma.workoutSession.deleteMany({
       where: { userId: { in: userIds } },
     });
-    await prisma.user.deleteMany({ where: { id: { in: userIds } } });
     await prisma.exercise.deleteMany({ where: { id: { in: exerciseIds } } });
+    await prisma.user.deleteMany({ where: { id: { in: userIds } } });
     await prisma.$disconnect();
     await app.close();
   });
