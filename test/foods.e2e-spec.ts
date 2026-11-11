@@ -1,4 +1,4 @@
-// Tarefa 10a (docs/plans/2026-11-11-alimentos.md): alimentos e /foods.
+// Tarefa 10a: alimentos e /foods.
 // O catálogo é inserido por SQL (não há rota que crie alimento do catálogo).
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
