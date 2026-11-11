@@ -16,7 +16,8 @@ type RoutineItemResponse = {
   id: string;
   order: number;
   targetSets: number;
-  targetReps: number;
+  targetRepsMin: number;
+  targetRepsMax: number;
   exerciseId: string;
 };
 
@@ -28,7 +29,8 @@ type RoutineListItem = {
     id: string;
     order: number;
     targetSets: number;
-    targetReps: number;
+    targetRepsMin: number;
+    targetRepsMax: number;
     exercise: {
       id: string;
       name: string;
@@ -115,7 +117,8 @@ describe('Workouts e2e', () => {
             exerciseId,
             order: 1,
             targetSets: 4,
-            targetReps: 10,
+            targetRepsMin: 10,
+            targetRepsMax: 10,
           },
         ],
       });
@@ -190,7 +193,8 @@ describe('Workouts e2e', () => {
             exerciseId,
             order: 1,
             targetSets: 4,
-            targetReps: 12,
+            targetRepsMin: 12,
+            targetRepsMax: 12,
           },
         ],
       });
@@ -201,7 +205,8 @@ describe('Workouts e2e', () => {
     expect(response.status).toBe(200);
     expect(body).toHaveProperty('id');
     expect(body.name).toBe('Treino A - Peito e Tríceps');
-    expect(body.items[0].targetReps).toBe(12);
+    expect(body.items[0].targetRepsMin).toBe(12);
+    expect(body.items[0].targetRepsMax).toBe(12);
   });
 
   // Tarefa 4: F6 — o item só aceita exercício do catálogo ou do próprio usuário.
@@ -220,7 +225,8 @@ describe('Workouts e2e', () => {
       exerciseId: exId,
       order,
       targetSets: 3,
-      targetReps: 10,
+      targetRepsMin: 10,
+      targetRepsMax: 10,
     });
 
     const signUp = async () => {

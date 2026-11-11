@@ -13,7 +13,8 @@ type Item = {
   exerciseId: string;
   order: number;
   targetSets: number;
-  targetReps: number;
+  targetRepsMin: number;
+  targetRepsMax: number;
   exercise?: { id: string; name: string };
 };
 type Routine = {
@@ -27,7 +28,8 @@ type ItemInput = {
   exerciseId: string;
   order: number;
   targetSets: number;
-  targetReps: number;
+  targetRepsMin: number;
+  targetRepsMax: number;
 };
 
 describe('Workouts e2e (caracterização)', () => {
@@ -49,7 +51,8 @@ describe('Workouts e2e (caracterização)', () => {
     exerciseId,
     order,
     targetSets: 3,
-    targetReps: 10,
+    targetRepsMin: 10,
+    targetRepsMax: 10,
     ...overrides,
   });
 
@@ -201,8 +204,13 @@ describe('Workouts e2e (caracterização)', () => {
       expect(naoUuid.status).toBe(400);
     });
 
-    it('400 com order, targetSets ou targetReps não inteiros', async () => {
-      for (const field of ['order', 'targetSets', 'targetReps'] as const) {
+    it('400 com order, targetSets, targetRepsMin ou targetRepsMax não inteiros', async () => {
+      for (const field of [
+        'order',
+        'targetSets',
+        'targetRepsMin',
+        'targetRepsMax',
+      ] as const) {
         const { status } = await createRoutine(tokenA, {
           items: [{ ...item(1), [field]: 1.5 }],
         });
@@ -304,13 +312,14 @@ describe('Workouts e2e (caracterização)', () => {
       const res = await request(http())
         .put(`/workouts/${created.body.id}`)
         .set(auth(tokenA))
-        .send({ items: [item(1, { targetReps: 12 })] });
+        .send({ items: [item(1, { targetRepsMin: 12, targetRepsMax: 12 })] });
       const body = res.body as Routine;
       const oldIds = created.body.items.map((i) => i.id);
 
       expect(res.status).toBe(200);
       expect(body.items).toHaveLength(1);
-      expect(body.items[0].targetReps).toBe(12);
+      expect(body.items[0].targetRepsMin).toBe(12);
+      expect(body.items[0].targetRepsMax).toBe(12);
       expect(oldIds).not.toContain(body.items[0].id);
     });
 
@@ -461,8 +470,8 @@ describe('Workouts e2e (caracterização)', () => {
       const itemId = randomUUID();
       await prisma.$executeRaw`INSERT INTO workouts (id, user_id, name, created_at, updated_at)
         VALUES (${workoutId}, ${userIds[0]}, 'C5', now(), now())`;
-      await prisma.$executeRaw`INSERT INTO workout_items (id, workout_id, exercise_id, "order", target_sets, target_reps, created_at, updated_at)
-        VALUES (${itemId}, ${workoutId}, ${exercise.id}, 1, 3, 10, now(), now())`;
+      await prisma.$executeRaw`INSERT INTO workout_items (id, workout_id, exercise_id, "order", target_sets, target_reps_min, target_reps_max, created_at, updated_at)
+        VALUES (${itemId}, ${workoutId}, ${exercise.id}, 1, 3, 10, 10, now(), now())`;
 
       await expect(
         prisma.exercise.delete({ where: { id: exercise.id } }),
@@ -474,27 +483,6 @@ describe('Workouts e2e (caracterização)', () => {
   });
 
   describe('comportamento atual (diverge de domain.md)', () => {
-    // F4: targetSets 1–20, targetReps 1–100, order ≥ 0. Hoje só exige inteiro.
-    it('F4: aceita targetSets, targetReps e order zero ou negativos (201)', async () => {
-      const { status, body } = await createRoutine(tokenA, {
-        items: [{ exerciseId, order: -1, targetSets: 0, targetReps: -5 }],
-      });
-      expect(status).toBe(201);
-      expect(body.items[0]).toMatchObject({
-        order: -1,
-        targetSets: 0,
-        targetReps: -5,
-      });
-    });
-
-    // F4: targetSets até 20 e targetReps até 100. Hoje não há teto.
-    it('F4: aceita targetSets e targetReps acima do teto (201)', async () => {
-      const { status } = await createRoutine(tokenA, {
-        items: [item(1, { targetSets: 21, targetReps: 101 })],
-      });
-      expect(status).toBe(201);
-    });
-
     // F11: order único dentro da ficha. Hoje pode repetir.
     it('F11: aceita order repetido na mesma ficha (201)', async () => {
       const { status, body } = await createRoutine(tokenA, {

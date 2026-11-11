@@ -56,7 +56,15 @@ describe('Programas (/programs)', () => {
         .set('Authorization', `Bearer ${token}`)
         .send({
           name,
-          items: [{ exerciseId, order: 1, targetSets: 3, targetReps: 10 }],
+          items: [
+            {
+              exerciseId,
+              order: 1,
+              targetSets: 3,
+              targetRepsMin: 10,
+              targetRepsMax: 10,
+            },
+          ],
         })
         .expect(201);
       return (res.body as { id: string }).id;

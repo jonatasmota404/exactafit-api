@@ -73,11 +73,26 @@ model WorkoutItem {
   exercise Exercise @relation(fields: [exerciseId], references:[id], onDelete:Restrict)
   order Int
   targetSets Int @map("target_sets")
-  targetReps Int @map("target_reps")
+  setType SetType @default(NORMAL) @map("set_type")
+  targetRepsMin Int? @map("target_reps_min")
+  targetRepsMax Int? @map("target_reps_max")
+  targetDurationSeconds Int? @map("target_duration_seconds")
+  perSide Boolean @default(false) @map("per_side")
+  restSeconds Int? @map("rest_seconds")
+  supersetGroup Int? @map("superset_group")
+  rir Int?
+  rpe Decimal? @db.Decimal(3, 1)
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("workout_items")
+}
+
+enum SetType {
+  NORMAL
+  WARMUP
+  FAILURE
+  DROP
 }
 
 enum CycleType {

@@ -11,7 +11,7 @@ O produto inclui cardio e exercícios em casa no V1. Hoje `Exercise.type` é tex
 - O campo `type` **sai** de `Exercise`. O cardio é decidido por `muscleGroup = cardio`.
 - A série registra cardio só pelo **tempo** (duração em segundos, opcional); distância fica fora do V1.
 - `SetLog.repsCompleted` e `SetLog.weightKg` passam a opcionais; carga vazia significa sem carga. A API não valida o que cada série precisa ter.
-- `RoutineItem.targetReps` passa a opcional e o item ganha a duração-alvo em segundos (opcional); pelo menos um dos dois é obrigatório.
+- `RoutineItem.targetReps` passa a opcional e o item ganha a duração-alvo em segundos (opcional); pelo menos um dos dois é obrigatório. **Alterado pela tarefa 7b:** `targetReps` vira a faixa `targetRepsMin`/`targetRepsMax` (ambos opcionais, juntos) e a faixa da duração-alvo foi decidida: 1 s a 4 h (14.400 s). Ver `docs/domain.md` F4 e decisão (d).
 
 ## Alternativas descartadas
 - **Manter `type` com `strength` e `cardio`:** duas colunas podem discordar (`muscleGroup = chest` e `type = cardio`).
@@ -23,5 +23,4 @@ O produto inclui cardio e exercícios em casa no V1. Hoje `Exercise.type` é tex
 - **Positivas:** uma única fonte para "é cardio"; sem lista inventada que o dataset não tem.
 - **Negativas / custos:** a migration apaga a coluna `type` (zona de risco) e quem ainda enviar `type` no `POST /exercises` recebe 400; um exercício não pode ser cardio sem estar no grupo cardio; se houver mais tipos no futuro (mobilidade, alongamento), a coluna precisa voltar; relatórios precisam tolerar série sem repetições, sem carga e sem duração.
 - **O que passa a ser obrigatório:** nenhum código pode ler `Exercise.type`.
-- **Em aberto (`TODO(humano)`):** faixa da duração-alvo.
 - Regras: `docs/domain.md` E4, F4, S5, S7.
