@@ -1,6 +1,6 @@
 // Testes de caracterização do AuthGuard: travam o comportamento ATUAL, sem corrigir nada.
 // O guard é exercitado pela rota GET /exercises (só leitura, não grava nada).
-// O que contradiz docs/domain.md fica no bloco "comportamento atual (diverge de domain.md)".
+// A tarefa 9 alinhou o guard ao C1 de docs/domain.md: não há mais bloco de divergência.
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -128,9 +128,9 @@ describe('AuthGuard e2e (caracterização)', () => {
       expect(payload.exp - payload.iat).toBe(7 * 24 * 60 * 60);
     });
 
-    it('um token com sub aplica-se como userId nas rotas (sub aleatório lista 0 fichas)', async () => {
+    it('um token com sub de usuário existente aplica-se como userId nas rotas (lista 0 treinos)', async () => {
       const token = await jwt.signAsync({
-        sub: randomUUID(),
+        sub: userId,
         email: 'x@example.com',
       });
       const res = await request(http())
@@ -141,19 +141,29 @@ describe('AuthGuard e2e (caracterização)', () => {
     });
   });
 
-  describe('comportamento atual (diverge de domain.md)', () => {
-    // C1: o AuthGuard deve consultar o usuário a cada pedido e recusar o desativado (401).
-    // Hoje o guard só verifica a assinatura e não consulta o banco.
-    it('C1: aceita token assinado cujo usuário não existe no banco (200)', async () => {
+  // C1 (tarefa 9): o guard consulta o usuário a cada pedido.
+  describe('C1: usuário inexistente', () => {
+    const expect401 = async (token: string) => {
+      for (const path of ['/exercises', '/me/profile']) {
+        const res = await request(http())
+          .get(path)
+          .set('Authorization', `Bearer ${token}`);
+        expect(res.status).toBe(401);
+        expect((res.body as { message: string }).message).toBe(
+          'Token inválido',
+        );
+      }
+    };
+
+    it('token assinado cujo usuário não existe no banco → 401', async () => {
       const ghost = await jwt.signAsync({
         sub: randomUUID(),
         email: 'fantasma@example.com',
       });
-      const res = await get(`Bearer ${ghost}`);
-      expect(res.status).toBe(200);
+      await expect401(ghost);
     });
 
-    it('C1: continua aceitando o token depois de o usuário ser removido do banco', async () => {
+    it('token do login depois de o usuário ser removido do banco → 401', async () => {
       const email = `char-guard-${randomUUID()}@example.com`;
       const reg = await request(http())
         .post('/auth/register')
@@ -168,8 +178,54 @@ describe('AuthGuard e2e (caracterização)', () => {
 
       await prisma.user.delete({ where: { id } });
 
-      const res = await get(`Bearer ${token}`);
-      expect(res.status).toBe(200);
+      await expect401(token);
+    });
+
+    it('token assinado sem sub → 401 (não 500)', async () => {
+      await expect401(await jwt.signAsync({ email: 'x@example.com' }));
+    });
+
+    it('token assinado com sub numérico → 401 (não 500)', async () => {
+      await expect401(
+        await jwt.signAsync({ sub: 123, email: 'x@example.com' }),
+      );
+    });
+  });
+
+  describe('C1: usuário desativado', () => {
+    it('token válido de usuário desativado → 401; reativado, o mesmo token volta a valer', async () => {
+      const email = `char-guard-${randomUUID()}@example.com`;
+      const reg = await request(http())
+        .post('/auth/register')
+        .send({ name: 'Char desativado', email, password: 'password123' })
+        .expect(201);
+      const id = (reg.body as { id: string }).id;
+      const login = await request(http())
+        .post('/auth/login')
+        .send({ email, password: 'password123' })
+        .expect(201);
+      const token = (login.body as { accessToken: string }).accessToken;
+      const call = (path: string) =>
+        request(http()).get(path).set('Authorization', `Bearer ${token}`);
+
+      try {
+        expect((await call('/exercises')).status).toBe(200);
+
+        await prisma.$executeRaw`UPDATE users SET deactivated_at = now() WHERE id = ${id}`;
+        for (const path of ['/exercises', '/me/profile']) {
+          const res = await call(path);
+          expect(res.status).toBe(401);
+          expect((res.body as { message: string }).message).toBe(
+            'Token inválido',
+          );
+        }
+
+        await prisma.$executeRaw`UPDATE users SET deactivated_at = NULL WHERE id = ${id}`;
+        expect((await call('/exercises')).status).toBe(200);
+        expect((await call('/me/profile')).status).toBe(200);
+      } finally {
+        await prisma.user.deleteMany({ where: { id } });
+      }
     });
   });
 });
