@@ -56,12 +56,34 @@ model Food {
   fatG Decimal @map("fat_g") @db.Decimal(4, 1)
   fiberG Decimal? @map("fiber_g") @db.Decimal(4, 1)
   tags FoodTag[] @default([])
+  rawYields    FoodYield[] @relation("RawFood")
+  cookedYields FoodYield[] @relation("CookedFood")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([userId])
   @@map("foods")
+}
+
+// Rendimento (A7): fator = peso pronto ÷ peso cru, próprio e privado do usuário.
+model FoodYield {
+  id String @id @default(uuid())
+  userId String @map("user_id")
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  rawFoodId String @map("raw_food_id")
+  rawFood Food @relation("RawFood", fields: [rawFoodId], references: [id], onDelete: Restrict)
+  cookedFoodId String @map("cooked_food_id")
+  cookedFood Food @relation("CookedFood", fields: [cookedFoodId], references: [id], onDelete: Restrict)
+  factor Decimal @db.Decimal(6, 2)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, rawFoodId, cookedFoodId])
+  @@index([rawFoodId])
+  @@index([cookedFoodId])
+  @@map("food_yields")
 }
 
 enum Sex {
@@ -85,6 +107,7 @@ model User {
   exercises       Exercise[]
   programs        Program[]
   foods           Food[]
+  foodYields      FoodYield[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")

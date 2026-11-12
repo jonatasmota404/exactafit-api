@@ -9,6 +9,7 @@ import { SessionsModule } from './sessions/sessions.module';
 import { ProgramsModule } from './programs/programs.module';
 import { MeModule } from './me/me.module';
 import { FoodsModule } from './foods/foods.module';
+import { FoodYieldsModule } from './food-yields/food-yields.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { FoodsModule } from './foods/foods.module';
     ProgramsModule,
     MeModule,
     FoodsModule,
+    FoodYieldsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

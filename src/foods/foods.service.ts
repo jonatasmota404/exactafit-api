@@ -1,16 +1,18 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { FoodState, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateFoodDto } from './dto/create-food.dto';
 import { ListFoodsQueryDto } from './dto/list-foods-query.dto';
 import { UpdateFoodDto } from './dto/update-food.dto';
 
 const NOT_FOUND = 'Alimento não encontrado';
+const IN_USE = 'Alimento em uso em rendimento';
 const CATALOG_LOCKED = 'Alimento do catálogo não pode ser alterado';
 
 // Sem userId: o dono nunca sai na resposta.
@@ -95,15 +97,19 @@ export class FoodsService {
       const rows = await tx.$queryRaw<
         {
           user_id: string | null;
+          state: FoodState;
           protein_g: Prisma.Decimal;
           carbs_g: Prisma.Decimal;
           fat_g: Prisma.Decimal;
           fiber_g: Prisma.Decimal | null;
         }[]
-      >`SELECT user_id, protein_g, carbs_g, fat_g, fiber_g FROM foods WHERE id = ${id} AND (user_id = ${userId} OR user_id IS NULL) FOR UPDATE`;
+      >`SELECT user_id, state, protein_g, carbs_g, fat_g, fiber_g FROM foods WHERE id = ${id} AND (user_id = ${userId} OR user_id IS NULL) FOR UPDATE`;
       if (rows.length === 0) throw new NotFoundException(NOT_FOUND);
       const row = rows[0];
       if (row.user_id === null) throw new ForbiddenException(CATALOG_LOCKED);
+      if (dto.state !== undefined && dto.state !== row.state) {
+        await this.assertNotInYield(tx, id);
+      }
       assertSum(
         dto.proteinG ?? Number(row.protein_g),
         dto.carbsG ?? Number(row.carbs_g),
@@ -131,13 +137,37 @@ export class FoodsService {
     });
   }
 
-  async remove(userId: string, id: string) {
-    const food = await this.prisma.food.findFirst({
-      where: { id, OR: [{ userId: null }, { userId }] },
-      select: { userId: true },
+  private async assertNotInYield(tx: Prisma.TransactionClient, id: string) {
+    const used = await tx.foodYield.findFirst({
+      where: { OR: [{ rawFoodId: id }, { cookedFoodId: id }] },
+      select: { id: true },
     });
-    if (!food) throw new NotFoundException(NOT_FOUND);
-    if (food.userId === null) throw new ForbiddenException(CATALOG_LOCKED);
-    await this.prisma.food.deleteMany({ where: { id, userId } });
+    if (used) throw new ConflictException(IN_USE);
+  }
+
+  async remove(userId: string, id: string) {
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        const rows = await tx.$queryRaw<{ user_id: string | null }[]>`
+          SELECT user_id FROM foods
+          WHERE id = ${id} AND (user_id = ${userId} OR user_id IS NULL)
+          FOR UPDATE`;
+        if (rows.length === 0) throw new NotFoundException(NOT_FOUND);
+        if (rows[0].user_id === null) {
+          throw new ForbiddenException(CATALOG_LOCKED);
+        }
+        await this.assertNotInYield(tx, id);
+        await tx.food.deleteMany({ where: { id, userId } });
+      });
+    } catch (e) {
+      // Rede de segurança: a FK RESTRICT barrou um rendimento que escapou da checagem.
+      if (
+        e instanceof Prisma.PrismaClientKnownRequestError &&
+        e.code === 'P2003'
+      ) {
+        throw new ConflictException(IN_USE);
+      }
+      throw e;
+    }
   }
 }
