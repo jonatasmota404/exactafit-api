@@ -10,8 +10,11 @@ import {
   Post,
   Query,
   Req,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import type { Request } from 'express';
 import { AuthGuard } from '../auth/auth.guard';
 import { CreateFoodDto } from './dto/create-food.dto';
@@ -31,6 +34,17 @@ export class FoodsController {
   @Post()
   create(@Req() req: AuthenticatedRequest, @Body() dto: CreateFoodDto) {
     return this.foodsService.create(req.user.sub, dto);
+  }
+
+  @Post('import')
+  @UseInterceptors(
+    FileInterceptor('file', { limits: { fileSize: 262144, files: 1 } }),
+  )
+  importCsv(
+    @Req() req: AuthenticatedRequest,
+    @UploadedFile() file: { buffer: Buffer; size: number } | undefined,
+  ) {
+    return this.foodsService.importCsv(req.user.sub, file);
   }
 
   @Get()

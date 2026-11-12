@@ -6,7 +6,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { FoodState, Prisma } from '@prisma/client';
+import { plainToInstance } from 'class-transformer';
+import { validateSync } from 'class-validator';
 import { PrismaService } from '../prisma/prisma.service';
+import { CsvSyntaxError, parseCsv, parseDecimal } from './csv';
 import { CreateFoodDto } from './dto/create-food.dto';
 import { ListFoodsQueryDto } from './dto/list-foods-query.dto';
 import { UpdateFoodDto } from './dto/update-food.dto';
@@ -42,6 +45,18 @@ function assertSum(p: number, c: number, f: number, fiber: number | null) {
   }
 }
 
+const REQUIRED_COLUMNS = [
+  'name',
+  'state',
+  'kcal',
+  'proteinG',
+  'carbsG',
+  'fatG',
+];
+const OPTIONAL_COLUMNS = ['fiberG', 'tags'];
+const NUMERIC_COLUMNS = ['kcal', 'proteinG', 'carbsG', 'fatG', 'fiberG'];
+const MAX_IMPORT = 500;
+
 @Injectable()
 export class FoodsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -62,6 +77,129 @@ export class FoodsService {
       },
       select: publicFields,
     });
+  }
+
+  // A9: importação por CSV, tudo ou nada.
+  async importCsv(
+    userId: string,
+    file: { buffer: Buffer; size: number } | undefined,
+  ) {
+    if (!file || file.size === 0) {
+      throw new BadRequestException('Arquivo CSV ausente ou vazio');
+    }
+    let text: string;
+    try {
+      text = new TextDecoder('utf-8', { fatal: true }).decode(file.buffer);
+    } catch {
+      throw new BadRequestException(
+        'Arquivo precisa estar em UTF-8 (no Excel: salvar como CSV UTF-8)',
+      );
+    }
+    if (text.charCodeAt(0) === 0xfeff) text = text.slice(1);
+
+    let records: ReturnType<typeof parseCsv>;
+    try {
+      records = parseCsv(text);
+    } catch (e) {
+      if (e instanceof CsvSyntaxError) {
+        throw new BadRequestException({
+          message: e.message,
+          errors: [{ line: e.line, message: e.message }],
+        });
+      }
+      throw e;
+    }
+    if (records.length < 2) {
+      throw new BadRequestException('Arquivo sem alimentos');
+    }
+    if (records.length - 1 > MAX_IMPORT) {
+      throw new BadRequestException(
+        `Máximo de ${MAX_IMPORT} alimentos por arquivo`,
+      );
+    }
+
+    const [{ fields: header }, ...rows] = records;
+    const known = [...REQUIRED_COLUMNS, ...OPTIONAL_COLUMNS];
+    for (const col of header) {
+      if (!known.includes(col)) {
+        throw new BadRequestException(`Coluna desconhecida: ${col}`);
+      }
+      if (header.indexOf(col) !== header.lastIndexOf(col)) {
+        throw new BadRequestException(`Coluna repetida: ${col}`);
+      }
+    }
+    for (const col of REQUIRED_COLUMNS) {
+      if (!header.includes(col)) {
+        throw new BadRequestException(`Coluna obrigatória ausente: ${col}`);
+      }
+    }
+
+    const errors: { line: number; message: string }[] = [];
+    const data: Prisma.FoodCreateManyInput[] = [];
+    for (const { line, fields } of rows) {
+      if (fields.length !== header.length) {
+        errors.push({
+          line,
+          message: `Esperado ${header.length} campos, encontrado ${fields.length}`,
+        });
+        continue;
+      }
+      const cell = (col: string) => fields[header.indexOf(col)];
+      const raw: Record<string, unknown> = {
+        name: cell('name'),
+        state: cell('state'),
+      };
+      const problems: string[] = [];
+      for (const col of NUMERIC_COLUMNS) {
+        if (!header.includes(col)) continue;
+        const text = cell(col);
+        if (text === '' && col === 'fiberG') {
+          raw[col] = null;
+        } else if (text === '') {
+          problems.push(`${col} é obrigatório`);
+        } else {
+          const n = parseDecimal(text);
+          if (n === undefined) problems.push(`${col} não é um número válido`);
+          raw[col] = n;
+        }
+      }
+      if (header.includes('tags')) {
+        raw.tags = cell('tags') === '' ? [] : cell('tags').split('|');
+      }
+      if (problems.length === 0) {
+        const dto = plainToInstance(CreateFoodDto, raw);
+        for (const err of validateSync(dto, { whitelist: true })) {
+          problems.push(...Object.values(err.constraints ?? {}));
+        }
+        if (problems.length === 0) {
+          try {
+            assertSum(dto.proteinG, dto.carbsG, dto.fatG, dto.fiberG ?? null);
+          } catch (e) {
+            problems.push((e as BadRequestException).message);
+          }
+          data.push({
+            userId,
+            name: dto.name,
+            state: dto.state,
+            kcal: dto.kcal,
+            proteinG: dto.proteinG,
+            carbsG: dto.carbsG,
+            fatG: dto.fatG,
+            fiberG: dto.fiberG ?? null,
+            tags: dto.tags ?? [],
+          });
+        }
+      }
+      for (const message of problems) errors.push({ line, message });
+    }
+    if (errors.length > 0) {
+      throw new BadRequestException({
+        message: 'Arquivo com linhas inválidas',
+        errors,
+      });
+    }
+    const { count } = await this.prisma.food.createMany({ data });
+    return { imported: count };
   }
 
   findAll(userId: string, query: ListFoodsQueryDto) {
