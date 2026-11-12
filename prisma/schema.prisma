@@ -108,6 +108,7 @@ model User {
   programs        Program[]
   foods           Food[]
   foodYields      FoodYield[]
+  dietPlans       DietPlan[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -246,4 +247,77 @@ model SetLog{
 
   @@unique([sessionId, exerciseId, setNumber])
   @@map("set_logs")
+}
+// Plano de dieta (tarefa 11a). Um ativo por usuário, garantido no service.
+model DietPlan {
+  id String @id @default(uuid())
+  userId String @map("user_id")
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  name String @db.VarChar(100)
+  active Boolean @default(false)
+
+  mealSlots MealSlot[]
+  dayTypes  DayType[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("diet_plans")
+}
+
+model MealSlot {
+  id String @id @default(uuid())
+  dietPlanId String @map("diet_plan_id")
+  dietPlan DietPlan @relation(fields: [dietPlanId], references: [id], onDelete: Cascade)
+  name String @db.VarChar(100)
+  order Int
+
+  targets MealTarget[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("meal_slots")
+}
+
+// Tipo de dia: guarda a meta do dia; trainingDay/restDay dizem qual vale com e sem treino.
+model DayType {
+  id String @id @default(uuid())
+  dietPlanId String @map("diet_plan_id")
+  dietPlan DietPlan @relation(fields: [dietPlanId], references: [id], onDelete: Cascade)
+  name String @db.VarChar(100)
+  order Int
+  trainingDay Boolean @default(false) @map("training_day")
+  restDay Boolean @default(false) @map("rest_day")
+  kcal Decimal? @db.Decimal(6, 1)
+  proteinG Decimal? @map("protein_g") @db.Decimal(6, 1)
+  carbsG Decimal? @map("carbs_g") @db.Decimal(6, 1)
+  fatG Decimal? @map("fat_g") @db.Decimal(6, 1)
+  fiberG Decimal? @map("fiber_g") @db.Decimal(6, 1)
+
+  mealTargets MealTarget[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("day_types")
+}
+
+model MealTarget {
+  id String @id @default(uuid())
+  dayTypeId String @map("day_type_id")
+  dayType DayType @relation(fields: [dayTypeId], references: [id], onDelete: Cascade)
+  mealSlotId String @map("meal_slot_id")
+  mealSlot MealSlot @relation(fields: [mealSlotId], references: [id], onDelete: Cascade)
+  kcal Decimal? @db.Decimal(6, 1)
+  proteinG Decimal? @map("protein_g") @db.Decimal(6, 1)
+  carbsG Decimal? @map("carbs_g") @db.Decimal(6, 1)
+  fatG Decimal? @map("fat_g") @db.Decimal(6, 1)
+  fiberG Decimal? @map("fiber_g") @db.Decimal(6, 1)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([dayTypeId, mealSlotId])
+  @@map("meal_targets")
 }

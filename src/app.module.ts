@@ -10,6 +10,7 @@ import { ProgramsModule } from './programs/programs.module';
 import { MeModule } from './me/me.module';
 import { FoodsModule } from './foods/foods.module';
 import { FoodYieldsModule } from './food-yields/food-yields.module';
+import { DietPlansModule } from './diet-plans/diet-plans.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { FoodYieldsModule } from './food-yields/food-yields.module';
     MeModule,
     FoodsModule,
     FoodYieldsModule,
+    DietPlansModule,
   ],
   controllers: [AppController],
   providers: [AppService],
