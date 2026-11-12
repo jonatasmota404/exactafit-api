@@ -358,15 +358,18 @@ describe('Rendimento (tarefa 10b-1)', () => {
       .get(`/food-yields/${y.id}`)
       .set(auth(other));
     expect((still.body as Yield).factor).toBe('2.5');
+    // Cada pedido é criado só na hora do await: o supertest fecha a porta
+    // do servidor quando o primeiro termina.
     for (const req of [
-      request(http()).get('/food-yields/nao-e-uuid').set(auth(u)),
-      request(http())
-        .patch('/food-yields/nao-e-uuid')
-        .set(auth(u))
-        .send({ factor: 2 }),
-      request(http()).delete('/food-yields/nao-e-uuid').set(auth(u)),
+      () => request(http()).get('/food-yields/nao-e-uuid').set(auth(u)),
+      () =>
+        request(http())
+          .patch('/food-yields/nao-e-uuid')
+          .set(auth(u))
+          .send({ factor: 2 }),
+      () => request(http()).delete('/food-yields/nao-e-uuid').set(auth(u)),
     ]) {
-      expect((await req).status).toBe(400);
+      expect((await req()).status).toBe(400);
     }
   });
 
