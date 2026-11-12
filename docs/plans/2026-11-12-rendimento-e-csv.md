@@ -5,7 +5,7 @@ Revisão do plano: APROVADO em 2026-11-12 (2ª rodada; a 1ª pediu 9 ajustes, to
 
 Entrega em **dois PRs** (regra 6: estimativa de ~380 linhas de produção somando as duas partes): **10b-1** rendimento (C1–C12) e **10b-2** CSV (C13–C24). Este arquivo fica até o PR da 10b-2, que o remove.
 
-Decisões do humano (2026-11-11 e 2026-11-12), a gravar em `docs/domain.md` como A7–A10 no PR da 10b-1 (A7–A9) e da 10b-2 (A10):
+Decisões do humano (2026-11-11 e 2026-11-12), a gravar em `docs/domain.md` como A7–A9: no PR da 10b-1, A7 (rendimento, com fator, par único e rotas) e A8 (409 e travas); no PR da 10b-2, A9 (CSV):
 - rendimento liga um alimento cru a um pronto, com fator = peso pronto ÷ peso cru;
 - o rendimento é **próprio e privado** do usuário e pode ligar alimentos do catálogo e próprios;
 - fator **> 0, até 2 casas decimais, sem teto de domínio**;
