@@ -252,6 +252,19 @@ describe('Importação de alimentos por CSV (tarefa 10b-2)', () => {
     }
   });
 
+  it('C18: coluna desconhecida enorme sai cortada na mensagem (sem eco do arquivo; achado do revisor)', async () => {
+    const u = await signUp();
+    const huge = 'z'.repeat(5000);
+    const res = await upload(
+      u,
+      `name,state,kcal,proteinG,carbsG,fatG,${huge}\nA,COOKED,1,1,1,1,1\n`,
+    );
+    expect(res.status).toBe(400);
+    const message = (res.body as ImportError).message;
+    expect(message.startsWith('Coluna desconhecida: zzz')).toBe(true);
+    expect(message.length).toBeLessThanOrEqual(80);
+  });
+
   it('C19: número de campos diferente do cabeçalho → 400 com a linha', async () => {
     const u = await signUp();
     const csv = [
