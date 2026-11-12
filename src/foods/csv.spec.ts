@@ -67,6 +67,27 @@ describe('parseCsv', () => {
     expect((error as CsvSyntaxError).line).toBe(3);
   });
 
+  it('texto depois das aspas de fechamento dá CsvSyntaxError na linha (achado do revisor)', () => {
+    for (const text of ['a,b\n"x"y,2', 'a,b\n1,"x" \n']) {
+      let error: unknown;
+      try {
+        parseCsv(text);
+      } catch (e) {
+        error = e;
+      }
+      expect(error).toBeInstanceOf(CsvSyntaxError);
+      expect((error as CsvSyntaxError).line).toBe(2);
+    }
+  });
+
+  it('aspas de fechamento seguidas de separador, \\r\\n ou fim do texto continuam válidas', () => {
+    expect(parseCsv('a,b\n"x","y"\r\n"z",w').map((r) => r.fields)).toEqual([
+      ['a', 'b'],
+      ['x', 'y'],
+      ['z', 'w'],
+    ]);
+  });
+
   it('texto vazio dá lista vazia', () => {
     expect(parseCsv('')).toEqual([]);
     expect(parseCsv('\n\n')).toEqual([]);
