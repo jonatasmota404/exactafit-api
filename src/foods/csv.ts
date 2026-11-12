@@ -22,6 +22,7 @@ export function parseCsv(text: string): CsvRecord[] {
   let fields: string[] = [];
   let field = '';
   let quoted = false; // dentro de aspas
+  let closed = false; // acabou de fechar aspas: só separador ou fim de linha
   let touched = false; // o registro atual tem algo além de espaço de quebra
 
   const endRecord = () => {
@@ -41,13 +42,22 @@ export function parseCsv(text: string): CsvRecord[] {
         if (text[i + 1] === '"') {
           field += '"';
           i++;
-        } else quoted = false;
+        } else {
+          quoted = false;
+          closed = true;
+        }
       } else {
         if (c === '\n') line++;
         field += c;
       }
       continue;
     }
+    const ends =
+      c === sep || c === '\n' || (c === '\r' && text[i + 1] === '\n');
+    if (closed && !ends) {
+      throw new CsvSyntaxError('Texto depois das aspas', startLine);
+    }
+    closed = false;
     if (c === '\n') {
       endRecord();
       line++;

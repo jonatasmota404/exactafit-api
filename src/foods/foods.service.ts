@@ -122,7 +122,9 @@ export class FoodsService {
     const known = [...REQUIRED_COLUMNS, ...OPTIONAL_COLUMNS];
     for (const col of header) {
       if (!known.includes(col)) {
-        throw new BadRequestException(`Coluna desconhecida: ${col}`);
+        // Sem eco do arquivo: o nome vem do usuário e pode ter até 256 KB.
+        const name = col.length > 50 ? `${col.slice(0, 50)}…` : col;
+        throw new BadRequestException(`Coluna desconhecida: ${name}`);
       }
       if (header.indexOf(col) !== header.lastIndexOf(col)) {
         throw new BadRequestException(`Coluna repetida: ${col}`);
