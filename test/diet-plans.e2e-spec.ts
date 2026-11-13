@@ -682,6 +682,72 @@ describe('Plano de dieta (tarefa 11a-1)', () => {
     expect(await countPlans(u.id)).toBe(0);
   });
 
+  // Bug: POST de plano grande (D4 não tem teto; cabe em 100 KB) estourava o timeout da transação → 500.
+  describe('POST de plano grande dá 201 bem antes do timeout', () => {
+    const timed = async (u: User, body: Record<string, unknown>) => {
+      expect(JSON.stringify(body).length).toBeLessThan(100 * 1024);
+      const t = Date.now();
+      const res = await post(u, body);
+      expect(res.status).toBe(201);
+      expect(Date.now() - t).toBeLessThan(1500);
+      return res.body as Plan;
+    };
+
+    it('2900 tipos de dia', async () => {
+      const u = await signUp();
+      const plan = await timed(u, {
+        name: 'Muitos tipos',
+        dayTypes: Array.from({ length: 2900 }, (_, i) => ({
+          name: 'a',
+          order: i,
+          kcal: 1,
+        })),
+        trainingDayTypeOrder: 1,
+        restDayTypeOrder: 2,
+      });
+      expect(plan.dayTypes).toHaveLength(2900);
+      expect(plan.trainingDayTypeId).toBe(plan.dayTypes[1].id);
+      expect(plan.restDayTypeId).toBe(plan.dayTypes[2].id);
+    }, 60000);
+
+    it('3300 refeições', async () => {
+      const u = await signUp();
+      const plan = await timed(u, {
+        ...minimal(),
+        mealSlots: Array.from({ length: 3300 }, (_, i) => ({
+          name: `R${i}`,
+          order: i,
+        })),
+      });
+      expect(plan.mealSlots).toHaveLength(3300);
+    }, 60000);
+
+    it('1200 tipos com uma meta de refeição cada', async () => {
+      const u = await signUp();
+      const plan = await timed(u, {
+        name: 'Muitas metas',
+        mealSlots: [{ name: 'Café', order: 0 }],
+        dayTypes: Array.from({ length: 1200 }, (_, i) => ({
+          name: 'a',
+          order: i,
+          kcal: 1,
+          mealTargets: [{ mealSlotOrder: 0, kcal: 1.5 }],
+        })),
+        trainingDayTypeOrder: 0,
+        restDayTypeOrder: 0,
+      });
+      expect(plan.dayTypes).toHaveLength(1200);
+      expect(
+        plan.dayTypes.every(
+          (d) =>
+            d.mealTargets.length === 1 &&
+            d.mealTargets[0].mealSlotId === plan.mealSlots[0].id &&
+            d.mealTargets[0].kcal === '1.5',
+        ),
+      ).toBe(true);
+    }, 60000);
+  });
+
   // 11a-2: C15–C21 (PATCH /diet-plans/:id), mais o PATCH em C9 e C14.
   describe('Editar (tarefa 11a-2)', () => {
     const patch = (u: User, id: string, body: unknown) =>

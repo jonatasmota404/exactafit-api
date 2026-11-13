@@ -34,10 +34,62 @@ const values = (t: TargetValuesDto) =>
     (typeof VALUE_FIELDS)[number],
     number | null
   >;
+type Values = ReturnType<typeof values>;
+type TypeRow = Values & {
+  name: string;
+  order: number;
+  trainingDay: boolean;
+  restDay: boolean;
+};
+type TargetRow = Values & { dayTypeId: string; mealSlotId: string };
+type Created = { id: string; order: number };
 
 @Injectable()
 export class DietPlansService {
   constructor(private readonly prisma: PrismaService) {}
+
+  // Inserções em lote (POST e PATCH): um plano pode ter milhares de itens (D4) e a
+  // transação tem timeout de 5 s; uma query por item estourava e virava 500.
+  private async insertMealSlots(
+    tx: Tx,
+    planId: string,
+    rows: { name: string; order: number }[],
+  ) {
+    if (rows.length === 0) return [];
+    return tx.$queryRaw<Created[]>`
+      INSERT INTO meal_slots (id, diet_plan_id, name, "order", updated_at)
+      SELECT gen_random_uuid()::text, ${planId}, v.name, v."order", now()
+      FROM unnest(${rows.map((r) => r.name)}::text[], ${rows.map((r) => r.order)}::int[])
+        AS v(name, "order")
+      RETURNING id, "order"`;
+  }
+
+  private async insertDayTypes(tx: Tx, planId: string, rows: TypeRow[]) {
+    if (rows.length === 0) return [];
+    const col = <K extends keyof TypeRow>(k: K) => rows.map((r) => r[k]);
+    return tx.$queryRaw<Created[]>`
+      INSERT INTO day_types (id, diet_plan_id, name, "order", training_day, rest_day,
+        kcal, protein_g, carbs_g, fat_g, fiber_g, updated_at)
+      SELECT gen_random_uuid()::text, ${planId}, v.name, v."order", v.training_day, v.rest_day,
+        v.kcal, v.protein_g, v.carbs_g, v.fat_g, v.fiber_g, now()
+      FROM unnest(${col('name')}::text[], ${col('order')}::int[], ${col('trainingDay')}::boolean[],
+        ${col('restDay')}::boolean[], ${col('kcal')}::numeric[], ${col('proteinG')}::numeric[],
+        ${col('carbsG')}::numeric[], ${col('fatG')}::numeric[], ${col('fiberG')}::numeric[])
+        AS v(name, "order", training_day, rest_day, kcal, protein_g, carbs_g, fat_g, fiber_g)
+      RETURNING id, "order"`;
+  }
+
+  private async insertMealTargets(tx: Tx, rows: TargetRow[]) {
+    if (rows.length === 0) return;
+    const col = <K extends keyof TargetRow>(k: K) => rows.map((r) => r[k]);
+    await tx.$executeRaw`
+      INSERT INTO meal_targets (id, day_type_id, meal_slot_id, kcal, protein_g, carbs_g, fat_g, fiber_g, updated_at)
+      SELECT gen_random_uuid()::text, v.day_type_id, v.meal_slot_id,
+        v.kcal, v.protein_g, v.carbs_g, v.fat_g, v.fiber_g, now()
+      FROM unnest(${col('dayTypeId')}::text[], ${col('mealSlotId')}::text[], ${col('kcal')}::numeric[],
+        ${col('proteinG')}::numeric[], ${col('carbsG')}::numeric[], ${col('fatG')}::numeric[], ${col('fiberG')}::numeric[])
+        AS v(day_type_id, meal_slot_id, kcal, protein_g, carbs_g, fat_g, fiber_g)`;
+  }
 
   private out(plan: PlanRow) {
     const { userId: _userId, mealSlots, dayTypes, ...rest } = plan;
@@ -148,37 +200,36 @@ export class DietPlansService {
     this.validate(dto);
     return this.prisma.$transaction(async (tx) => {
       const plan = await tx.dietPlan.create({
-        data: {
-          userId,
-          name: dto.name,
-          mealSlots: {
-            create: (dto.mealSlots ?? []).map((s) => ({
-              name: s.name,
-              order: s.order,
-            })),
-          },
-        },
-        include: { mealSlots: true },
+        data: { userId, name: dto.name },
       });
-      const slotId = new Map(plan.mealSlots.map((s) => [s.order, s.id]));
-      for (const d of dto.dayTypes) {
-        await tx.dayType.create({
-          data: {
-            dietPlanId: plan.id,
-            name: d.name,
-            order: d.order,
-            trainingDay: d.order === dto.trainingDayTypeOrder,
-            restDay: d.order === dto.restDayTypeOrder,
-            ...values(d),
-            mealTargets: {
-              create: (d.mealTargets ?? []).map((t) => ({
-                mealSlotId: slotId.get(t.mealSlotOrder)!,
-                ...values(t),
-              })),
-            },
-          },
-        });
-      }
+      const slots = await this.insertMealSlots(
+        tx,
+        plan.id,
+        dto.mealSlots ?? [],
+      );
+      const slotId = new Map(slots.map((s) => [s.order, s.id]));
+      const types = await this.insertDayTypes(
+        tx,
+        plan.id,
+        dto.dayTypes.map((d) => ({
+          name: d.name,
+          order: d.order,
+          trainingDay: d.order === dto.trainingDayTypeOrder,
+          restDay: d.order === dto.restDayTypeOrder,
+          ...values(d),
+        })),
+      );
+      const typeId = new Map(types.map((t) => [t.order, t.id]));
+      await this.insertMealTargets(
+        tx,
+        dto.dayTypes.flatMap((d) =>
+          (d.mealTargets ?? []).map((t) => ({
+            dayTypeId: typeId.get(d.order)!,
+            mealSlotId: slotId.get(t.mealSlotOrder)!,
+            ...values(t),
+          })),
+        ),
+      );
       return this.load(tx, userId, plan.id);
     });
   }
@@ -277,12 +328,11 @@ export class DietPlansService {
           WHERE m.id = v.id AND m.diet_plan_id = ${id}`;
       }
       for (const s of slots) if (s.id) slotId.set(s.order, s.id);
-      const created = await tx.mealSlot.createManyAndReturn({
-        data: slots
-          .filter((s) => !s.id)
-          .map((s) => ({ dietPlanId: id, name: s.name, order: s.order })),
-        select: { id: true, order: true },
-      });
+      const created = await this.insertMealSlots(
+        tx,
+        id,
+        slots.filter((s) => !s.id),
+      );
       for (const m of created) slotId.set(m.order, m.id);
       const keptTypes = types.flatMap((d) => (d.id ? [d.id] : []));
       await tx.dayType.deleteMany({
@@ -330,21 +380,9 @@ export class DietPlansService {
       }
       const typeId = new Map<number, string>();
       for (const { d } of rows) if (d.id) typeId.set(d.order, d.id);
-      const fresh = rows.filter(({ d }) => !d.id);
-      if (fresh.length > 0) {
-        const col = <K extends keyof (typeof rows)[0]['data']>(k: K) =>
-          fresh.map((r) => r.data[k]);
-        const newTypes = await tx.$queryRaw<{ id: string; order: number }[]>`
-          INSERT INTO day_types (id, diet_plan_id, name, "order", training_day, rest_day,
-            kcal, protein_g, carbs_g, fat_g, fiber_g, updated_at)
-          SELECT gen_random_uuid()::text, ${id}, v.name, v."order", v.training_day, v.rest_day,
-            v.kcal, v.protein_g, v.carbs_g, v.fat_g, v.fiber_g, now()
-          FROM unnest(${col('name')}::text[], ${col('order')}::int[], ${col('trainingDay')}::boolean[],
-            ${col('restDay')}::boolean[], ${col('kcal')}::numeric[], ${col('proteinG')}::numeric[],
-            ${col('carbsG')}::numeric[], ${col('fatG')}::numeric[], ${col('fiberG')}::numeric[])
-            AS v(name, "order", training_day, rest_day, kcal, protein_g, carbs_g, fat_g, fiber_g)
-          RETURNING id, "order"`;
-        for (const t of newTypes) typeId.set(t.order, t.id);
+      const fresh = rows.filter(({ d }) => !d.id).map((r) => r.data);
+      for (const t of await this.insertDayTypes(tx, id, fresh)) {
+        typeId.set(t.order, t.id);
       }
       const targets = types.flatMap((d) =>
         (d.mealTargets ?? []).map((t) => ({
@@ -353,17 +391,7 @@ export class DietPlansService {
           ...values(t),
         })),
       );
-      if (targets.length > 0) {
-        const col = <K extends keyof (typeof targets)[0]>(k: K) =>
-          targets.map((t) => t[k]);
-        await tx.$executeRaw`
-          INSERT INTO meal_targets (id, day_type_id, meal_slot_id, kcal, protein_g, carbs_g, fat_g, fiber_g, updated_at)
-          SELECT gen_random_uuid()::text, v.day_type_id, v.meal_slot_id,
-            v.kcal, v.protein_g, v.carbs_g, v.fat_g, v.fiber_g, now()
-          FROM unnest(${col('dayTypeId')}::text[], ${col('mealSlotId')}::text[], ${col('kcal')}::numeric[],
-            ${col('proteinG')}::numeric[], ${col('carbsG')}::numeric[], ${col('fatG')}::numeric[], ${col('fiberG')}::numeric[])
-            AS v(day_type_id, meal_slot_id, kcal, protein_g, carbs_g, fat_g, fiber_g)`;
-      }
+      await this.insertMealTargets(tx, targets);
       return this.load(tx, userId, id);
     });
   }
