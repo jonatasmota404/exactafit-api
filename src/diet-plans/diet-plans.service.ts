@@ -262,18 +262,28 @@ export class DietPlansService {
       await tx.mealSlot.deleteMany({
         where: { dietPlanId: id, id: { notIn: keptSlots } },
       });
+      // Só o que mudou, em lote: um plano pode ter milhares de refeições (D4) e a transação tem timeout.
       const slotId = new Map<number, string>();
-      for (const s of slots) {
-        const row = s.id
-          ? await tx.mealSlot.update({
-              where: { id: s.id },
-              data: { name: s.name, order: s.order },
-            })
-          : await tx.mealSlot.create({
-              data: { dietPlanId: id, name: s.name, order: s.order },
-            });
-        slotId.set(row.order, row.id);
+      const curSlot = new Map(cur.mealSlots.map((m) => [m.id, m]));
+      const changed = slots.filter((s) => {
+        const c = s.id ? curSlot.get(s.id) : undefined;
+        return c && (c.name !== s.name || c.order !== s.order);
+      });
+      if (changed.length > 0) {
+        await tx.$executeRaw`UPDATE meal_slots AS m
+          SET name = v.name, "order" = v."order", updated_at = now()
+          FROM unnest(${changed.map((s) => s.id!)}::text[], ${changed.map((s) => s.name)}::text[], ${changed.map((s) => s.order)}::int[])
+            AS v(id, name, "order")
+          WHERE m.id = v.id AND m.diet_plan_id = ${id}`;
       }
+      for (const s of slots) if (s.id) slotId.set(s.order, s.id);
+      const created = await tx.mealSlot.createManyAndReturn({
+        data: slots
+          .filter((s) => !s.id)
+          .map((s) => ({ dietPlanId: id, name: s.name, order: s.order })),
+        select: { id: true, order: true },
+      });
+      for (const m of created) slotId.set(m.order, m.id);
       const keptTypes = types.flatMap((d) => (d.id ? [d.id] : []));
       await tx.dayType.deleteMany({
         where: { dietPlanId: id, id: { notIn: keptTypes } },
@@ -281,24 +291,78 @@ export class DietPlansService {
       await tx.mealTarget.deleteMany({
         where: { dayTypeId: { in: keptTypes } },
       });
-      for (const d of types) {
-        const data = {
+      const curType = new Map(cur.dayTypes.map((d) => [d.id, d]));
+      const rows = types.map((d) => ({
+        d,
+        data: {
           name: d.name,
           order: d.order,
           trainingDay: d.order === final.trainingDayTypeOrder,
           restDay: d.order === final.restDayTypeOrder,
           ...values(d),
-        };
-        const typeId = d.id
-          ? (await tx.dayType.update({ where: { id: d.id }, data })).id
-          : (await tx.dayType.create({ data: { ...data, dietPlanId: id } })).id;
-        await tx.mealTarget.createMany({
-          data: (d.mealTargets ?? []).map((t) => ({
-            dayTypeId: typeId,
-            mealSlotId: slotId.get(t.mealSlotOrder)!,
-            ...values(t),
-          })),
-        });
+        },
+      }));
+      const changedTypes = rows.filter(({ d, data }) => {
+        const c = d.id ? curType.get(d.id) : undefined;
+        return (
+          c &&
+          !(
+            c.name === data.name &&
+            c.order === data.order &&
+            c.trainingDay === data.trainingDay &&
+            c.restDay === data.restDay &&
+            VALUE_FIELDS.every((f) => (c[f]?.toNumber() ?? null) === data[f])
+          )
+        );
+      });
+      if (changedTypes.length > 0) {
+        const col = <K extends keyof (typeof rows)[0]['data']>(k: K) =>
+          changedTypes.map((r) => r.data[k]);
+        await tx.$executeRaw`UPDATE day_types AS t
+          SET name = v.name, "order" = v."order", training_day = v.training_day, rest_day = v.rest_day,
+            kcal = v.kcal, protein_g = v.protein_g, carbs_g = v.carbs_g, fat_g = v.fat_g, fiber_g = v.fiber_g,
+            updated_at = now()
+          FROM unnest(${changedTypes.map((r) => r.d.id!)}::text[], ${col('name')}::text[], ${col('order')}::int[],
+            ${col('trainingDay')}::boolean[], ${col('restDay')}::boolean[], ${col('kcal')}::numeric[],
+            ${col('proteinG')}::numeric[], ${col('carbsG')}::numeric[], ${col('fatG')}::numeric[], ${col('fiberG')}::numeric[])
+            AS v(id, name, "order", training_day, rest_day, kcal, protein_g, carbs_g, fat_g, fiber_g)
+          WHERE t.id = v.id AND t.diet_plan_id = ${id}`;
+      }
+      const typeId = new Map<number, string>();
+      for (const { d } of rows) if (d.id) typeId.set(d.order, d.id);
+      const fresh = rows.filter(({ d }) => !d.id);
+      if (fresh.length > 0) {
+        const col = <K extends keyof (typeof rows)[0]['data']>(k: K) =>
+          fresh.map((r) => r.data[k]);
+        const newTypes = await tx.$queryRaw<{ id: string; order: number }[]>`
+          INSERT INTO day_types (id, diet_plan_id, name, "order", training_day, rest_day,
+            kcal, protein_g, carbs_g, fat_g, fiber_g, updated_at)
+          SELECT gen_random_uuid()::text, ${id}, v.name, v."order", v.training_day, v.rest_day,
+            v.kcal, v.protein_g, v.carbs_g, v.fat_g, v.fiber_g, now()
+          FROM unnest(${col('name')}::text[], ${col('order')}::int[], ${col('trainingDay')}::boolean[],
+            ${col('restDay')}::boolean[], ${col('kcal')}::numeric[], ${col('proteinG')}::numeric[],
+            ${col('carbsG')}::numeric[], ${col('fatG')}::numeric[], ${col('fiberG')}::numeric[])
+            AS v(name, "order", training_day, rest_day, kcal, protein_g, carbs_g, fat_g, fiber_g)
+          RETURNING id, "order"`;
+        for (const t of newTypes) typeId.set(t.order, t.id);
+      }
+      const targets = types.flatMap((d) =>
+        (d.mealTargets ?? []).map((t) => ({
+          dayTypeId: typeId.get(d.order)!,
+          mealSlotId: slotId.get(t.mealSlotOrder)!,
+          ...values(t),
+        })),
+      );
+      if (targets.length > 0) {
+        const col = <K extends keyof (typeof targets)[0]>(k: K) =>
+          targets.map((t) => t[k]);
+        await tx.$executeRaw`
+          INSERT INTO meal_targets (id, day_type_id, meal_slot_id, kcal, protein_g, carbs_g, fat_g, fiber_g, updated_at)
+          SELECT gen_random_uuid()::text, v.day_type_id, v.meal_slot_id,
+            v.kcal, v.protein_g, v.carbs_g, v.fat_g, v.fiber_g, now()
+          FROM unnest(${col('dayTypeId')}::text[], ${col('mealSlotId')}::text[], ${col('kcal')}::numeric[],
+            ${col('proteinG')}::numeric[], ${col('carbsG')}::numeric[], ${col('fatG')}::numeric[], ${col('fiberG')}::numeric[])
+            AS v(day_type_id, meal_slot_id, kcal, protein_g, carbs_g, fat_g, fiber_g)`;
       }
       return this.load(tx, userId, id);
     });
