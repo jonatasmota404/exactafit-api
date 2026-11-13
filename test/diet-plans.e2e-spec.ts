@@ -1148,6 +1148,41 @@ describe('Plano de dieta (tarefa 11a-1)', () => {
       expect(res.status).toBe(401);
     });
 
+    // Sonda da revisão: plano grande (D4 não tem teto) estourava o timeout da transação → 500.
+    it('plano grande perto do teto do corpo: PATCH só de nome e PATCH que renomeia tudo dão 200 bem antes do timeout', async () => {
+      const u = await signUp();
+      const p = await create(u, {
+        ...minimal(),
+        mealSlots: Array.from({ length: 3300 }, (_, i) => ({
+          name: `R${i}`,
+          order: i,
+        })),
+      });
+      // Teto de tempo bem abaixo do timeout de 5 s da transação (antes: ~5 s e 500).
+      let t = Date.now();
+      const named = await patch(u, p.id, { name: 'Grande' });
+      expect(named.status).toBe(200);
+      expect(Date.now() - t).toBeLessThan(1500);
+      expect((named.body as Plan).mealSlots).toHaveLength(3300);
+
+      const kept = p.mealSlots.slice(0, 1400);
+      const body = {
+        mealSlots: kept.map((m) => ({
+          id: m.id,
+          name: `N${m.order}`,
+          order: m.order,
+        })),
+      };
+      expect(JSON.stringify(body).length).toBeLessThan(100 * 1024);
+      t = Date.now();
+      const renamed = await patch(u, p.id, body);
+      expect(renamed.status).toBe(200);
+      expect(Date.now() - t).toBeLessThan(1500);
+      const slots = (renamed.body as Plan).mealSlots;
+      expect(slots.map((m) => m.id)).toEqual(kept.map((m) => m.id));
+      expect(slots.every((m) => m.name === `N${m.order}`)).toBe(true);
+    }, 60000);
+
     describe('C21: PATCH concorrentes no mesmo plano, e PATCH com DELETE', () => {
       it('apagar e renomear a mesma refeição ao mesmo tempo: sem 500, plano íntegro', async () => {
         const u = await signUp();
