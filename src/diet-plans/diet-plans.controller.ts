@@ -5,6 +5,7 @@ import {
   Get,
   HttpCode,
   Param,
+  Patch,
   ParseUUIDPipe,
   Post,
   Req,
@@ -12,7 +13,10 @@ import {
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { AuthGuard } from '../auth/auth.guard';
-import { CreateDietPlanDto } from './dto/create-diet-plan.dto';
+import {
+  CreateDietPlanDto,
+  UpdateDietPlanDto,
+} from './dto/create-diet-plan.dto';
 import { DietPlansService } from './diet-plans.service';
 
 interface AuthenticatedRequest extends Request {
@@ -40,6 +44,15 @@ export class DietPlansController {
     @Param('id', new ParseUUIDPipe()) id: string,
   ) {
     return this.dietPlansService.findOne(req.user.sub, id);
+  }
+
+  @Patch(':id')
+  update(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() dto: UpdateDietPlanDto,
+  ) {
+    return this.dietPlansService.update(req.user.sub, id, dto);
   }
 
   @Delete(':id')

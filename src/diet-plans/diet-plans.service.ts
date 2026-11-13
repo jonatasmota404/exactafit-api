@@ -7,6 +7,8 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   CreateDietPlanDto,
+  type DayTypeDto,
+  UpdateDietPlanDto,
   VALUE_FIELDS,
   type TargetValuesDto,
 } from './dto/create-diet-plan.dto';
@@ -178,6 +180,191 @@ export class DietPlansService {
         });
       }
       return this.load(tx, userId, plan.id);
+    });
+  }
+
+  // Edição: a linha do plano é travada antes de ler e gravar (PATCH e DELETE em fila, sem P2025).
+  // O estado final é montado em memória, validado como no POST e só então gravado.
+  update(userId: string, id: string, dto: UpdateDietPlanDto) {
+    return this.prisma.$transaction(async (tx) => {
+      const locked = await tx.$queryRaw<
+        unknown[]
+      >`SELECT 1 FROM diet_plans WHERE id = ${id} AND user_id = ${userId} FOR UPDATE`;
+      if (locked.length === 0) throw new NotFoundException(NOT_FOUND);
+      const cur = await tx.dietPlan.findFirstOrThrow({
+        where: { id, userId },
+        include: full,
+      });
+
+      const checkIds = (sent: { id?: string }[], own: { id: string }[]) => {
+        const ids = sent.flatMap((i) => (i.id ? [i.id] : []));
+        if (new Set(ids).size !== ids.length) {
+          throw new BadRequestException('id repetido');
+        }
+        const mine = new Set(own.map((o) => o.id));
+        if (ids.some((i) => !mine.has(i))) {
+          throw new BadRequestException('id não pertence a este plano');
+        }
+      };
+      checkIds(dto.mealSlots ?? [], cur.mealSlots);
+      checkIds(dto.dayTypes ?? [], cur.dayTypes);
+
+      const slots: { id?: string; name: string; order: number }[] =
+        dto.mealSlots ??
+        cur.mealSlots.map(({ id, name, order }) => ({ id, name, order }));
+      // Sem dayTypes no corpo, os tipos atuais seguem; metas de refeição apagadas saem.
+      const slotOrderById = new Map(
+        slots.flatMap((s) => (s.id ? [[s.id, s.order] as const] : [])),
+      );
+      const nums = (
+        o: Record<(typeof VALUE_FIELDS)[number], Prisma.Decimal | null>,
+      ) =>
+        values(
+          Object.fromEntries(VALUE_FIELDS.map((f) => [f, o[f]?.toNumber()])),
+        );
+      const types: (DayTypeDto & { id?: string })[] =
+        dto.dayTypes ??
+        cur.dayTypes.map((d) => ({
+          id: d.id,
+          name: d.name,
+          order: d.order,
+          ...nums(d),
+          mealTargets: d.mealTargets
+            .filter((t) => slotOrderById.has(t.mealSlotId))
+            .map((t) => ({
+              mealSlotOrder: slotOrderById.get(t.mealSlotId)!,
+              ...nums(t),
+            })),
+        }));
+
+      const orderOfMarked = (flag: 'trainingDay' | 'restDay') => {
+        const markedId = cur.dayTypes.find((d) => d[flag])?.id;
+        const kept = types.find((d) => d.id === markedId);
+        if (!kept) {
+          throw new BadRequestException(
+            'O tipo de dia marcado foi removido; envie a order do novo',
+          );
+        }
+        return kept.order;
+      };
+      const final = {
+        name: dto.name ?? cur.name,
+        mealSlots: slots,
+        dayTypes: types,
+        trainingDayTypeOrder:
+          dto.trainingDayTypeOrder ?? orderOfMarked('trainingDay'),
+        restDayTypeOrder: dto.restDayTypeOrder ?? orderOfMarked('restDay'),
+      } as CreateDietPlanDto;
+      this.validate(final);
+
+      await tx.dietPlan.update({ where: { id }, data: { name: final.name } });
+      const keptSlots = slots.flatMap((s) => (s.id ? [s.id] : []));
+      await tx.mealSlot.deleteMany({
+        where: { dietPlanId: id, id: { notIn: keptSlots } },
+      });
+      // Só o que mudou, em lote: um plano pode ter milhares de refeições (D4) e a transação tem timeout.
+      const slotId = new Map<number, string>();
+      const curSlot = new Map(cur.mealSlots.map((m) => [m.id, m]));
+      const changed = slots.filter((s) => {
+        const c = s.id ? curSlot.get(s.id) : undefined;
+        return c && (c.name !== s.name || c.order !== s.order);
+      });
+      if (changed.length > 0) {
+        await tx.$executeRaw`UPDATE meal_slots AS m
+          SET name = v.name, "order" = v."order", updated_at = now()
+          FROM unnest(${changed.map((s) => s.id!)}::text[], ${changed.map((s) => s.name)}::text[], ${changed.map((s) => s.order)}::int[])
+            AS v(id, name, "order")
+          WHERE m.id = v.id AND m.diet_plan_id = ${id}`;
+      }
+      for (const s of slots) if (s.id) slotId.set(s.order, s.id);
+      const created = await tx.mealSlot.createManyAndReturn({
+        data: slots
+          .filter((s) => !s.id)
+          .map((s) => ({ dietPlanId: id, name: s.name, order: s.order })),
+        select: { id: true, order: true },
+      });
+      for (const m of created) slotId.set(m.order, m.id);
+      const keptTypes = types.flatMap((d) => (d.id ? [d.id] : []));
+      await tx.dayType.deleteMany({
+        where: { dietPlanId: id, id: { notIn: keptTypes } },
+      });
+      await tx.mealTarget.deleteMany({
+        where: { dayTypeId: { in: keptTypes } },
+      });
+      const curType = new Map(cur.dayTypes.map((d) => [d.id, d]));
+      const rows = types.map((d) => ({
+        d,
+        data: {
+          name: d.name,
+          order: d.order,
+          trainingDay: d.order === final.trainingDayTypeOrder,
+          restDay: d.order === final.restDayTypeOrder,
+          ...values(d),
+        },
+      }));
+      const changedTypes = rows.filter(({ d, data }) => {
+        const c = d.id ? curType.get(d.id) : undefined;
+        return (
+          c &&
+          !(
+            c.name === data.name &&
+            c.order === data.order &&
+            c.trainingDay === data.trainingDay &&
+            c.restDay === data.restDay &&
+            VALUE_FIELDS.every((f) => (c[f]?.toNumber() ?? null) === data[f])
+          )
+        );
+      });
+      if (changedTypes.length > 0) {
+        const col = <K extends keyof (typeof rows)[0]['data']>(k: K) =>
+          changedTypes.map((r) => r.data[k]);
+        await tx.$executeRaw`UPDATE day_types AS t
+          SET name = v.name, "order" = v."order", training_day = v.training_day, rest_day = v.rest_day,
+            kcal = v.kcal, protein_g = v.protein_g, carbs_g = v.carbs_g, fat_g = v.fat_g, fiber_g = v.fiber_g,
+            updated_at = now()
+          FROM unnest(${changedTypes.map((r) => r.d.id!)}::text[], ${col('name')}::text[], ${col('order')}::int[],
+            ${col('trainingDay')}::boolean[], ${col('restDay')}::boolean[], ${col('kcal')}::numeric[],
+            ${col('proteinG')}::numeric[], ${col('carbsG')}::numeric[], ${col('fatG')}::numeric[], ${col('fiberG')}::numeric[])
+            AS v(id, name, "order", training_day, rest_day, kcal, protein_g, carbs_g, fat_g, fiber_g)
+          WHERE t.id = v.id AND t.diet_plan_id = ${id}`;
+      }
+      const typeId = new Map<number, string>();
+      for (const { d } of rows) if (d.id) typeId.set(d.order, d.id);
+      const fresh = rows.filter(({ d }) => !d.id);
+      if (fresh.length > 0) {
+        const col = <K extends keyof (typeof rows)[0]['data']>(k: K) =>
+          fresh.map((r) => r.data[k]);
+        const newTypes = await tx.$queryRaw<{ id: string; order: number }[]>`
+          INSERT INTO day_types (id, diet_plan_id, name, "order", training_day, rest_day,
+            kcal, protein_g, carbs_g, fat_g, fiber_g, updated_at)
+          SELECT gen_random_uuid()::text, ${id}, v.name, v."order", v.training_day, v.rest_day,
+            v.kcal, v.protein_g, v.carbs_g, v.fat_g, v.fiber_g, now()
+          FROM unnest(${col('name')}::text[], ${col('order')}::int[], ${col('trainingDay')}::boolean[],
+            ${col('restDay')}::boolean[], ${col('kcal')}::numeric[], ${col('proteinG')}::numeric[],
+            ${col('carbsG')}::numeric[], ${col('fatG')}::numeric[], ${col('fiberG')}::numeric[])
+            AS v(name, "order", training_day, rest_day, kcal, protein_g, carbs_g, fat_g, fiber_g)
+          RETURNING id, "order"`;
+        for (const t of newTypes) typeId.set(t.order, t.id);
+      }
+      const targets = types.flatMap((d) =>
+        (d.mealTargets ?? []).map((t) => ({
+          dayTypeId: typeId.get(d.order)!,
+          mealSlotId: slotId.get(t.mealSlotOrder)!,
+          ...values(t),
+        })),
+      );
+      if (targets.length > 0) {
+        const col = <K extends keyof (typeof targets)[0]>(k: K) =>
+          targets.map((t) => t[k]);
+        await tx.$executeRaw`
+          INSERT INTO meal_targets (id, day_type_id, meal_slot_id, kcal, protein_g, carbs_g, fat_g, fiber_g, updated_at)
+          SELECT gen_random_uuid()::text, v.day_type_id, v.meal_slot_id,
+            v.kcal, v.protein_g, v.carbs_g, v.fat_g, v.fiber_g, now()
+          FROM unnest(${col('dayTypeId')}::text[], ${col('mealSlotId')}::text[], ${col('kcal')}::numeric[],
+            ${col('proteinG')}::numeric[], ${col('carbsG')}::numeric[], ${col('fatG')}::numeric[], ${col('fiberG')}::numeric[])
+            AS v(day_type_id, meal_slot_id, kcal, protein_g, carbs_g, fat_g, fiber_g)`;
+      }
+      return this.load(tx, userId, id);
     });
   }
 
