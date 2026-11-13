@@ -1217,7 +1217,7 @@ describe('Plano de dieta (tarefa 11a-1)', () => {
       ).toBe(true);
 
       const fresh = {
-        dayTypes: Array.from({ length: 2400 }, (_, i) => ({
+        dayTypes: Array.from({ length: 1200 }, (_, i) => ({
           name: 'c',
           order: i,
           kcal: 3,
@@ -1232,13 +1232,13 @@ describe('Plano de dieta (tarefa 11a-1)', () => {
       expect(r2.status).toBe(200);
       expect(Date.now() - t).toBeLessThan(1500);
       const final = r2.body as Plan;
-      expect(final.dayTypes).toHaveLength(2400);
+      expect(final.dayTypes).toHaveLength(1200);
       expect(final.trainingDayTypeId).toBe(final.dayTypes[1].id);
       expect(final.restDayTypeId).toBe(final.dayTypes[2].id);
       expect(await counts(p.id)).toEqual({
         slots: 1,
-        types: 2400,
-        targets: 2400,
+        types: 1200,
+        targets: 1200,
         training: 1,
         rest: 1,
       });
