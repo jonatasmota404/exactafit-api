@@ -1183,6 +1183,67 @@ describe('Plano de dieta (tarefa 11a-1)', () => {
       expect(slots.every((m) => m.name === `N${m.order}`)).toBe(true);
     }, 60000);
 
+    it('muitos tipos de dia: PATCH que atualiza ou cria todos dá 200 bem antes do timeout', async () => {
+      const u = await signUp();
+      const p = await create(u, {
+        name: 'Muitos tipos',
+        mealSlots: [{ name: 'Café', order: 0 }],
+        dayTypes: Array.from({ length: 1500 }, (_, i) => ({
+          name: 'a',
+          order: i,
+          kcal: 1,
+        })),
+        trainingDayTypeOrder: 0,
+        restDayTypeOrder: 0,
+      });
+      const kept = p.dayTypes.slice(0, 1200);
+      const updated = {
+        dayTypes: kept.map((d) => ({
+          id: d.id,
+          name: 'b',
+          order: d.order,
+          kcal: 2,
+        })),
+      };
+      expect(JSON.stringify(updated).length).toBeLessThan(100 * 1024);
+      let t = Date.now();
+      const r1 = await patch(u, p.id, updated);
+      expect(r1.status).toBe(200);
+      expect(Date.now() - t).toBeLessThan(1500);
+      const after = r1.body as Plan;
+      expect(after.dayTypes.map((d) => d.id)).toEqual(kept.map((d) => d.id));
+      expect(
+        after.dayTypes.every((d) => d.name === 'b' && d.kcal === '2'),
+      ).toBe(true);
+
+      const fresh = {
+        dayTypes: Array.from({ length: 2400 }, (_, i) => ({
+          name: 'c',
+          order: i,
+          kcal: 3,
+          mealTargets: [{ mealSlotOrder: 0, kcal: 1 }],
+        })),
+        trainingDayTypeOrder: 1,
+        restDayTypeOrder: 2,
+      };
+      expect(JSON.stringify(fresh).length).toBeLessThan(100 * 1024);
+      t = Date.now();
+      const r2 = await patch(u, p.id, fresh);
+      expect(r2.status).toBe(200);
+      expect(Date.now() - t).toBeLessThan(1500);
+      const final = r2.body as Plan;
+      expect(final.dayTypes).toHaveLength(2400);
+      expect(final.trainingDayTypeId).toBe(final.dayTypes[1].id);
+      expect(final.restDayTypeId).toBe(final.dayTypes[2].id);
+      expect(await counts(p.id)).toEqual({
+        slots: 1,
+        types: 2400,
+        targets: 2400,
+        training: 1,
+        rest: 1,
+      });
+    }, 60000);
+
     describe('C21: PATCH concorrentes no mesmo plano, e PATCH com DELETE', () => {
       it('apagar e renomear a mesma refeição ao mesmo tempo: sem 500, plano íntegro', async () => {
         const u = await signUp();
