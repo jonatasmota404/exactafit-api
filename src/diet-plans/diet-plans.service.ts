@@ -7,6 +7,8 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   CreateDietPlanDto,
+  type DayTypeDto,
+  UpdateDietPlanDto,
   VALUE_FIELDS,
   type TargetValuesDto,
 } from './dto/create-diet-plan.dto';
@@ -178,6 +180,127 @@ export class DietPlansService {
         });
       }
       return this.load(tx, userId, plan.id);
+    });
+  }
+
+  // Edição: a linha do plano é travada antes de ler e gravar (PATCH e DELETE em fila, sem P2025).
+  // O estado final é montado em memória, validado como no POST e só então gravado.
+  update(userId: string, id: string, dto: UpdateDietPlanDto) {
+    return this.prisma.$transaction(async (tx) => {
+      const locked = await tx.$queryRaw<
+        unknown[]
+      >`SELECT 1 FROM diet_plans WHERE id = ${id} AND user_id = ${userId} FOR UPDATE`;
+      if (locked.length === 0) throw new NotFoundException(NOT_FOUND);
+      const cur = await tx.dietPlan.findFirstOrThrow({
+        where: { id, userId },
+        include: full,
+      });
+
+      const checkIds = (sent: { id?: string }[], own: { id: string }[]) => {
+        const ids = sent.flatMap((i) => (i.id ? [i.id] : []));
+        if (new Set(ids).size !== ids.length) {
+          throw new BadRequestException('id repetido');
+        }
+        const mine = new Set(own.map((o) => o.id));
+        if (ids.some((i) => !mine.has(i))) {
+          throw new BadRequestException('id não pertence a este plano');
+        }
+      };
+      checkIds(dto.mealSlots ?? [], cur.mealSlots);
+      checkIds(dto.dayTypes ?? [], cur.dayTypes);
+
+      const slots: { id?: string; name: string; order: number }[] =
+        dto.mealSlots ??
+        cur.mealSlots.map(({ id, name, order }) => ({ id, name, order }));
+      // Sem dayTypes no corpo, os tipos atuais seguem; metas de refeição apagadas saem.
+      const slotOrderById = new Map(
+        slots.flatMap((s) => (s.id ? [[s.id, s.order] as const] : [])),
+      );
+      const nums = (
+        o: Record<(typeof VALUE_FIELDS)[number], Prisma.Decimal | null>,
+      ) =>
+        values(
+          Object.fromEntries(VALUE_FIELDS.map((f) => [f, o[f]?.toNumber()])),
+        );
+      const types: (DayTypeDto & { id?: string })[] =
+        dto.dayTypes ??
+        cur.dayTypes.map((d) => ({
+          id: d.id,
+          name: d.name,
+          order: d.order,
+          ...nums(d),
+          mealTargets: d.mealTargets
+            .filter((t) => slotOrderById.has(t.mealSlotId))
+            .map((t) => ({
+              mealSlotOrder: slotOrderById.get(t.mealSlotId)!,
+              ...nums(t),
+            })),
+        }));
+
+      const orderOfMarked = (flag: 'trainingDay' | 'restDay') => {
+        const markedId = cur.dayTypes.find((d) => d[flag])?.id;
+        const kept = types.find((d) => d.id === markedId);
+        if (!kept) {
+          throw new BadRequestException(
+            'O tipo de dia marcado foi removido; envie a order do novo',
+          );
+        }
+        return kept.order;
+      };
+      const final = {
+        name: dto.name ?? cur.name,
+        mealSlots: slots,
+        dayTypes: types,
+        trainingDayTypeOrder:
+          dto.trainingDayTypeOrder ?? orderOfMarked('trainingDay'),
+        restDayTypeOrder: dto.restDayTypeOrder ?? orderOfMarked('restDay'),
+      } as CreateDietPlanDto;
+      this.validate(final);
+
+      await tx.dietPlan.update({ where: { id }, data: { name: final.name } });
+      const keptSlots = slots.flatMap((s) => (s.id ? [s.id] : []));
+      await tx.mealSlot.deleteMany({
+        where: { dietPlanId: id, id: { notIn: keptSlots } },
+      });
+      const slotId = new Map<number, string>();
+      for (const s of slots) {
+        const row = s.id
+          ? await tx.mealSlot.update({
+              where: { id: s.id },
+              data: { name: s.name, order: s.order },
+            })
+          : await tx.mealSlot.create({
+              data: { dietPlanId: id, name: s.name, order: s.order },
+            });
+        slotId.set(row.order, row.id);
+      }
+      const keptTypes = types.flatMap((d) => (d.id ? [d.id] : []));
+      await tx.dayType.deleteMany({
+        where: { dietPlanId: id, id: { notIn: keptTypes } },
+      });
+      await tx.mealTarget.deleteMany({
+        where: { dayTypeId: { in: keptTypes } },
+      });
+      for (const d of types) {
+        const data = {
+          name: d.name,
+          order: d.order,
+          trainingDay: d.order === final.trainingDayTypeOrder,
+          restDay: d.order === final.restDayTypeOrder,
+          ...values(d),
+        };
+        const typeId = d.id
+          ? (await tx.dayType.update({ where: { id: d.id }, data })).id
+          : (await tx.dayType.create({ data: { ...data, dietPlanId: id } })).id;
+        await tx.mealTarget.createMany({
+          data: (d.mealTargets ?? []).map((t) => ({
+            dayTypeId: typeId,
+            mealSlotId: slotId.get(t.mealSlotOrder)!,
+            ...values(t),
+          })),
+        });
+      }
+      return this.load(tx, userId, id);
     });
   }
 

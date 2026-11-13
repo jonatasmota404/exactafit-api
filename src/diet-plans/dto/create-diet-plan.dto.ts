@@ -4,6 +4,7 @@ import {
   ArrayNotEmpty,
   IsArray,
   IsInt,
+  IsUUID,
   IsNotEmpty,
   IsNumber,
   IsObject,
@@ -95,4 +96,49 @@ export class CreateDietPlanDto {
 
   @Order() trainingDayTypeOrder!: number;
   @Order() restDayTypeOrder!: number;
+}
+
+// PATCH (11a-2): cada item é o estado completo; com `id` mantém o item, sem `id` cria.
+const Id = () =>
+  applyDecorators(
+    ValidateIf((_, v) => v !== undefined),
+    IsUUID(),
+  );
+
+export class MealSlotPatchDto extends MealSlotDto {
+  @Id() id?: string;
+}
+
+export class DayTypePatchDto extends DayTypeDto {
+  @Id() id?: string;
+}
+
+// Campos omitidos não mudam; `null` não vale em nenhum (400).
+export class UpdateDietPlanDto {
+  @ValidateIf((_, v) => v !== undefined)
+  @Name()
+  name?: string;
+
+  @ValidateIf((_, v) => v !== undefined)
+  @IsArray()
+  @IsObject({ each: true })
+  @ValidateNested({ each: true })
+  @Type(() => MealSlotPatchDto)
+  mealSlots?: MealSlotPatchDto[];
+
+  @ValidateIf((_, v) => v !== undefined)
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsObject({ each: true })
+  @ValidateNested({ each: true })
+  @Type(() => DayTypePatchDto)
+  dayTypes?: DayTypePatchDto[];
+
+  @ValidateIf((_, v) => v !== undefined)
+  @Order()
+  trainingDayTypeOrder?: number;
+
+  @ValidateIf((_, v) => v !== undefined)
+  @Order()
+  restDayTypeOrder?: number;
 }
