@@ -1,6 +1,7 @@
 # Plano de risco: tarefa 13 — registro de refeição (`MealLog`, `MealLogItem`)
 
 Aprovado por: humano em 2026-11-23 (na conversa). R6 e as decisões técnicas do agente foram delegadas pelo humano a um agente avaliador; o veredito dele está abaixo.
+Veredito do avaliador (2026-11-23): MANTER R6 e as decisões técnicas, com três precisões aplicadas: travas sem o plano, ordem das travas no `PUT` e início do dia sem "meia-noite".
 Revisão do plano: AJUSTAR nas duas rodadas de 2026-11-23. Os 11 pontos e os 3 riscos da 1ª rodada foram resolvidos na 2ª. O único ponto da 2ª (dividir a 13a em 13a-1 e 13a-2 já no plano, com o limite de ~300 linhas) foi aplicado e não passou por uma 3ª rodada.
 
 A tarefa 13 de `docs/produto.md` sai em **três PRs** (regra 6, limite de ~300 linhas). A estimativa vem da 11b-1 (#51), que teve ~380 linhas de `src` + schema e mais 64 de migration, para 3 tabelas e 4 rotas.
@@ -47,7 +48,7 @@ Proposta do agente, que o avaliador delegado confirma:
   3. Referências: refeição e refeição modelo → 400; alimento → 404.
   4. `create` → 201.
 
-  A transação do `create` trava a refeição e a refeição modelo (`FOR SHARE`) e os alimentos (`FOR SHARE`, ordenados por id). Um `P2002` (dois envios ao mesmo tempo) aborta a transação. A releitura pelo `id` roda **fora** dela e aplica o passo 2.
+  A transação do `create` trava **só as linhas** da refeição (`FOR SHARE OF meal_slots`) e da refeição modelo (`FOR SHARE` em `meal_templates`), sem travar `diet_plans`, e depois os alimentos (`FOR SHARE`, ordenados por id), nessa ordem. Travar o plano junto daria deadlock com o `PATCH` do plano, que trava o plano e depois as refeições. Um `P2002` (dois envios ao mesmo tempo) aborta a transação. A releitura pelo `id` roda **fora** dela e aplica o passo 2.
 - **Snapshot por item:** `foodId` (FK `SET NULL`), `foodName`, `foodState`, `grams` e os macros para as gramas: `kcal`, `proteinG`, `carbsG`, `fatG` e `fiberG` (`null` se o alimento não tem fibra).
   - Cada macro é o valor por 100 g × gramas ÷ 100, em décimos inteiros (sem ponto flutuante, como na tarefa 12), arredondado a 1 casa com o meio para cima. Ex.: gordura 2.5 × 150 g = 3.75 → `"3.8"`.
   - O tipo é `Decimal(8,1)`, porque 900 kcal × 99999.9 g ÷ 100 = 899999.1.
@@ -55,7 +56,8 @@ Proposta do agente, que o avaliador delegado confirma:
   - **`totals` soma os snapshots já arredondados dos itens**, de propósito: o total bate com a soma dos itens que o usuário vê, e o histórico é a cópia gravada. A refeição modelo (11b-2) arredonda a soma, porque calcula com o alimento atual.
   - O `fiberG` dos `totals` é `null` se nenhum item tem fibra.
 - **Listagem:** `GET /meal-logs?date=AAAA-MM-DD` devolve os registros do usuário com `eatenAt` naquele dia, no fuso do perfil (R5), ordenados por `eatenAt` e `id`. `date` ausente ou inválida dá 400.
-  - Os limites do dia (meia-noite local e a meia-noite seguinte) são calculados **no Node**, com o mesmo `Intl` que valida o fuso do perfil. O SQL só recebe instantes UTC, porque o Postgres pode não conhecer um fuso que o ICU aceita.
+  - Os limites do dia são calculados **no Node**, com o mesmo `Intl` que valida o fuso do perfil. O SQL só recebe instantes UTC, porque o Postgres pode não conhecer um fuso que o ICU aceita.
+  - O início do dia D é o **primeiro instante UTC cuja data local, no fuso do perfil, é D**. O intervalo é `[início(D), início(D+1))`. Isso cobre fusos em que a meia-noite não existe, como `America/Santiago` em 2026-09-06, quando o relógio pula de 23:59 para 01:00. Não dá para usar `Temporal`, porque CI e Docker rodam Node 24.
 - **Tabelas (13a):**
   - `meal_logs`: `id` PK vindo do cliente; `user_id` FK `RESTRICT`; `eaten_at`; `meal_slot_id` FK `SET NULL`; `meal_slot_name` `VarChar(100)` nulo; `meal_template_id` FK `SET NULL`; timestamps; índice (`user_id`, `eaten_at`).
   - `meal_log_items`: `meal_log_id` FK **`RESTRICT`** (histórico não usa cascade, ADR 0001; análogo a `SetLog.sessionId`); `food_id` FK `SET NULL`; `position`; snapshot; índices em `meal_log_id` e `food_id`.
@@ -66,7 +68,7 @@ Proposta do agente, que o avaliador delegado confirma:
   - O reenvio do `POST` pelo dono dá **410** `"Registro de refeição apagado"`; ele não é recriado. Por outro usuário, dá 409, sem revelar que o registro foi apagado.
   - O `PUT` substitui `eatenAt`, as refeições e os itens (apaga os itens antigos e cria os novos), com os snapshots recalculados com o alimento atual, e mantém o `id`.
   - O `DELETE` dá 204 e grava `deleted_at`. Os itens ficam.
-  - A escrita é em transação, com a linha do registro travada (`FOR UPDATE`).
+  - Ordem na transação: primeiro refeição, refeição modelo e alimentos com `FOR SHARE`; depois o registro com `FOR UPDATE`, filtrando `user_id` e `deleted_at IS NULL` (404 se sumiu); depois apagar e recriar os itens. Travar o registro antes daria deadlock com o `PATCH` do plano que apaga a refeição, porque o `SET NULL` em `meal_logs` precisa da linha do registro.
 
 ## Critérios de aceite
 
@@ -106,7 +108,7 @@ Testes em `test/meal-logs.e2e-spec.ts`.
   - registros de outro usuário não aparecem;
   - com o perfil trocado para `Asia/Tokyo`, o mesmo registro muda de dia.
 
-  `date` ausente, impossível (`2026-02-30`) ou em outro formato → 400.
+  `date` ausente, impossível (`2026-02-30`) ou em outro formato → 400. Teste unitário da função dos limites do dia: em `America/Santiago`, `2026-09-06` começa em `2026-09-06T04:00:00Z` (01:00 local, porque a meia-noite não existe); em `America/Sao_Paulo`, `2026-11-23` começa em `2026-11-23T03:00:00Z`.
 - [ ] C10: `GET /meal-logs/:id` do próprio → 200 no formato de C1, também com o id em maiúsculas. Registro de outro usuário ou inexistente → 404 `"Registro de refeição não encontrado"`. Id que não é uuid → 400. Teste.
 - [ ] C11: corridas, nos dois casos sem 500:
   - 10 rodadas de `POST` com um alimento próprio e `DELETE /foods/:id` desse alimento ao mesmo tempo → no fim, ou o registro existe com o snapshot completo, ou o `POST` deu 404;
@@ -120,7 +122,7 @@ Testes em `test/meal-logs.e2e-spec.ts`.
 - [ ] C14: `DELETE /meal-logs/:id` → 204. Depois disso, `GET`, `PUT` e um segundo `DELETE` dão 404, e o registro some da listagem do dia. Teste.
 - [ ] C15: reenvio do `POST` com o `id` de um registro apagado → pelo dono, 410 `"Registro de refeição apagado"`, sem recriar (contagem no banco); por outro usuário, 409 `"Registro de refeição já existe"`. Teste.
 - [ ] C16: registro de outro usuário ou inexistente → 404 em `PUT` e `DELETE`. Teste.
-- [ ] C17: 10 rodadas de `PUT` e `DELETE` do mesmo registro ao mesmo tempo → sem 500. No fim o registro está apagado (o `PUT` deu 200 antes ou 404 depois). Teste.
+- [ ] C17: 10 rodadas de `PUT` e `DELETE` do mesmo registro ao mesmo tempo → sem 500. No fim o registro está apagado (o `PUT` deu 200 antes ou 404 depois). Também 10 rodadas de `PUT` (que reenvia a mesma refeição) com `PATCH` do plano que apaga essa refeição → sem 500 (o `PUT` dá 200, e o registro fica com `mealSlotId: null`, ou 400). Teste.
 
 Fora de escopo:
 - a tela Hoje: soma do dia contra a meta do tipo de dia e por refeição (tarefa 15);
@@ -148,6 +150,8 @@ Fora de escopo:
   - o histórico muda quando o alimento é editado → snapshot (C5);
   - apagar o plano apaga o histórico → `SET NULL`, com o nome copiado (C6);
   - a refeição é apagada entre a validação e o `INSERT` e vira `P2003` (500) → `FOR SHARE` na refeição e na refeição modelo (C11);
+  - deadlock com o `PATCH` do plano → travar só as linhas da refeição e da refeição modelo, sem o plano (C11); na 13b, travar as referências antes do registro (C17);
+  - a meia-noite não existe em alguns fusos (horário de verão) → início do dia = primeiro instante com aquela data local (teste unitário em C9);
   - o dia errado por fuso desloca refeições da noite para o dia seguinte → R5 (C9);
   - um fuso aceito pelo ICU do Node e desconhecido do Postgres faz a listagem dar 500 → limites do dia calculados no Node;
   - um aparelho antigo ressuscita um registro apagado → 410 (C15);
