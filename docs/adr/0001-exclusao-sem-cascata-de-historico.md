@@ -30,3 +30,4 @@ Todas as FKs do schema usam `onDelete: Cascade`. Apagar um `Exercise` apaga os `
 - **Em aberto (`TODO(humano)`):** o processo do pedido do titular (canal de contato e prazo), antes de haver usuários de terceiros.
 - **Revisão em 2026-10-14 ([ADR 0009](0009-catalogo-de-exercicios-fechado.md)):** o catálogo é fechado e usuários não criam exercícios. Deixam de valer, neste ADR, a menção aos "exercícios criados por ele" na exclusão de conta e a exceção de `Exercise.userId` em cascata: essa FK não será criada. O texto acima é mantido como registro.
 - Regras: `docs/domain.md` E6, F9, F10, C1–C3, S9.
+- **Nota (2026-11-23, [ADR 0015](0015-registro-de-refeicao-offline.md)):** o registro de refeição pode ser apagado (com marcador, na 13b); a **sessão de treino continua sem exclusão** (S9).
