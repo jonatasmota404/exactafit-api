@@ -43,7 +43,7 @@ Proposta do agente, que o avaliador delegado confirma:
   - `mealSlotId` precisa ser uma refeição de um plano do usuário, ativo ou não.
 - **Corpo do `PUT` (13b):** o mesmo do `POST`, **sem** `id`. Um `id` no corpo dá 400 pela whitelist.
 - **Idempotência (ADR 0013):** a ordem das checagens é esta:
-  1. DTO → 400.
+  1. DTO e alimento repetido (R6) → 400. Por isso, um reenvio com alimento repetido no corpo dá 400, não 200 nem 409.
   2. Busca pelo `id`. Se é do usuário e não está apagado, devolve 200 com o registro original, sem alterar nada, mesmo com corpo diferente. Se é do usuário e está apagado (13b), devolve 410. Se é de outro usuário, apagado ou não, devolve 409 `"Registro de refeição já existe"`, sem dados.
   3. Referências: refeição e refeição modelo → 400; alimento → 404.
   4. `create` → 201.
