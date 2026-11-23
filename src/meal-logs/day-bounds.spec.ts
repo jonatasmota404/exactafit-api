@@ -33,4 +33,11 @@ describe('dayBounds', () => {
     expect(start.toISOString()).toBe('9999-12-31T03:00:00.000Z');
     expect(end.toISOString()).toBe('+010000-01-01T03:00:00.000Z');
   });
+
+  // Sonda do revisor: LMT acima de +14h (America/Juneau, +15:02:19 antes de 1867).
+  it('America/Juneau em 1800-01-01 começa no primeiro instante com essa data local', () => {
+    const { start, end } = dayBounds('1800-01-01', 'America/Juneau');
+    expect(start.toISOString()).toBe('1799-12-31T08:57:41.000Z');
+    expect(end.toISOString()).toBe('1800-01-01T08:57:41.000Z');
+  });
 });
