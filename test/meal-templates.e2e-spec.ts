@@ -843,4 +843,267 @@ describe('Refeição modelo (tarefa 11b-1)', () => {
       expect(await templatesOfPlan(plan)).toBe(0);
     });
   });
+
+  // Tarefa 11b-2: composição livre (C13–C16).
+  describe('11b-2: composição livre', () => {
+    const food = async (
+      u: User,
+      name: string,
+      v: Record<string, number>,
+    ): Promise<Food> => {
+      const res = await request(http())
+        .post('/foods')
+        .set(auth(u))
+        .send({
+          name: `${name} ${randomUUID().slice(0, 8)}`,
+          state: 'COOKED',
+          ...v,
+        });
+      expect(res.status).toBe(201);
+      return res.body as Food;
+    };
+    // Ovo sem fibra; aveia com fibra.
+    const ovo = (u: User) =>
+      food(u, 'Ovo', { kcal: 143, proteinG: 12.6, carbsG: 0.7, fatG: 9.5 });
+    const aveia = (u: User) =>
+      food(u, 'Aveia', {
+        kcal: 394,
+        proteinG: 13.9,
+        carbsG: 66.6,
+        fatG: 8.5,
+        fiberG: 9.1,
+      });
+    const free = (
+      mealSlotId: string,
+      items: { foodId: string; grams: unknown }[],
+      extra: Record<string, unknown> = {},
+    ) => ({
+      mealSlotId,
+      name: `Livre ${randomUUID().slice(0, 8)}`,
+      order: 1,
+      kind: 'FREE',
+      items,
+      ...extra,
+    });
+    const itemsOf = (templateId: string) =>
+      count(
+        'SELECT count(*)::int AS n FROM meal_template_items WHERE meal_template_id = $1',
+        templateId,
+      );
+
+    it('C13: ovo 100 g + aveia 30 g → 201 com itens e totals somados (1 casa, meio para cima); fibra só de quem tem', async () => {
+      const u = await signUp();
+      const plan = await createPlan(u);
+      const [o, a] = [await ovo(u), await aveia(u)];
+      const res = await post(
+        u,
+        plan.id,
+        free(slot(plan, 'Almoço'), [
+          { foodId: o.id, grams: 100 },
+          { foodId: a.id, grams: 30 },
+        ]),
+      );
+      expect(res.status).toBe(201);
+      const t = res.body as Template & Record<string, unknown>;
+      expect(Object.keys(t).sort()).toEqual(
+        [
+          'components',
+          'createdAt',
+          'id',
+          'items',
+          'kind',
+          'mealSlotId',
+          'name',
+          'order',
+          'totals',
+          'updatedAt',
+        ].sort(),
+      );
+      expect(t.kind).toBe('FREE');
+      expect(t.components).toEqual([]);
+      expect(t.items).toEqual([
+        { foodId: o.id, name: o.name, state: 'COOKED', grams: '100' },
+        { foodId: a.id, name: a.name, state: 'COOKED', grams: '30' },
+      ]);
+      // kcal 143 + 118.2; proteína 12.6 + 4.17; carbo 0.7 + 19.98;
+      // gordura 9.5 + 2.55 = 12.05 → 12.1; fibra só da aveia: 2.73.
+      expect(t.totals).toEqual({
+        kcal: '261.2',
+        proteinG: '16.8',
+        carbsG: '20.7',
+        fatG: '12.1',
+        fiberG: '2.7',
+      });
+      expect((await getOne(u, plan.id, t.id)).body).toEqual(t);
+    });
+
+    it('C13: sem nenhum alimento com fibra → fiberG null', async () => {
+      const u = await signUp();
+      const plan = await createPlan(u);
+      const o = await ovo(u);
+      const t = await create(
+        u,
+        plan.id,
+        free(slot(plan, 'Almoço'), [{ foodId: o.id, grams: 100 }]),
+      );
+      expect(t.totals).toEqual({
+        kcal: '143',
+        proteinG: '12.6',
+        carbsG: '0.7',
+        fatG: '9.5',
+        fiberG: null,
+      });
+    });
+
+    describe('C14: corpo inválido na composição livre', () => {
+      let u: User;
+      let plan: Plan;
+      let o: Food;
+      let s: string;
+      beforeAll(async () => {
+        u = await signUp();
+        plan = await createPlan(u);
+        o = await ovo(u);
+        s = slot(plan, 'Almoço');
+      });
+      const cases: [string, (foodId: string) => Record<string, unknown>][] = [
+        ['items ausente', () => ({ items: undefined })],
+        ['items: []', () => ({ items: [] })],
+        [
+          'FREE com components',
+          (id) => ({
+            components: [
+              {
+                name: 'C',
+                targetType: 'WEIGHT',
+                targetValue: 1,
+                foodIds: [id],
+              },
+            ],
+          }),
+        ],
+        ['grams negativo', (id) => ({ items: [{ foodId: id, grams: -1 }] })],
+        [
+          'grams com 2 casas',
+          (id) => ({ items: [{ foodId: id, grams: 1.25 }] }),
+        ],
+        [
+          'grams acima de 99999.9',
+          (id) => ({ items: [{ foodId: id, grams: 100000 }] }),
+        ],
+        ['grams texto', (id) => ({ items: [{ foodId: id, grams: 'abc' }] })],
+        [
+          'foodId que não é uuid',
+          () => ({ items: [{ foodId: 'abc', grams: 1 }] }),
+        ],
+        [
+          'campo desconhecido no item',
+          (id) => ({ items: [{ foodId: id, grams: 1, foo: 1 }] }),
+        ],
+      ];
+      for (const [name, extra] of cases) {
+        it(`400 e nada gravado: ${name}`, async () => {
+          const res = await post(u, plan.id, {
+            ...free(s, [{ foodId: o.id, grams: 100 }]),
+            ...extra(o.id),
+          });
+          expect(res.status).toBe(400);
+          expect(await templatesOfPlan(plan)).toBe(0);
+        });
+      }
+      it('400 "Alimento repetido": mesmo alimento duas vezes nos itens', async () => {
+        const res = await post(
+          u,
+          plan.id,
+          free(s, [
+            { foodId: o.id, grams: 100 },
+            { foodId: o.id, grams: 50 },
+          ]),
+        );
+        expect(res.status).toBe(400);
+        expect(message(res)).toBe(REPEATED_FOOD);
+        expect(await templatesOfPlan(plan)).toBe(0);
+      });
+      it('404 "Alimento não encontrado": alimento alheio ou inexistente num item', async () => {
+        const other = await signUp();
+        const theirs = await ovo(other);
+        for (const foodId of [theirs.id, randomUUID()]) {
+          const res = await post(
+            u,
+            plan.id,
+            free(s, [
+              { foodId: o.id, grams: 100 },
+              { foodId, grams: 10 },
+            ]),
+          );
+          expect(res.status).toBe(404);
+          expect(message(res)).toBe(FOOD_NOT_FOUND);
+        }
+        expect(await templatesOfPlan(plan)).toBe(0);
+      });
+      it('201 na borda: grams 0 e 99999.9', async () => {
+        const u2 = await signUp();
+        const plan2 = await createPlan(u2);
+        const [o2, a2] = [await ovo(u2), await aveia(u2)];
+        const t = await create(
+          u2,
+          plan2.id,
+          free(slot(plan2, 'Almoço'), [
+            { foodId: o2.id, grams: 0 },
+            { foodId: a2.id, grams: 99999.9 },
+          ]),
+        );
+        expect(t.items.map((i) => (i as { grams: string }).grams)).toEqual([
+          '0',
+          '99999.9',
+        ]);
+      });
+    });
+
+    it('C15: DELETE /foods de alimento em item livre → 409; 204 depois de apagar a refeição modelo', async () => {
+      const u = await signUp();
+      const plan = await createPlan(u);
+      const o = await ovo(u);
+      const t = await create(
+        u,
+        plan.id,
+        free(slot(plan, 'Almoço'), [{ foodId: o.id, grams: 100 }]),
+      );
+      const res = await delFood(u, o.id);
+      expect(res.status).toBe(409);
+      expect(message(res)).toBe(IN_TEMPLATE);
+      expect(await foodExists(o.id)).toBe(true);
+      expect((await del(u, plan.id, t.id)).status).toBe(204);
+      expect((await delFood(u, o.id)).status).toBe(204);
+    });
+
+    it('C16: DELETE da refeição modelo livre, PATCH que apaga a refeição e DELETE do plano apagam os itens', async () => {
+      const u = await signUp();
+      const o = await ovo(u);
+      const items = [{ foodId: o.id, grams: 100 }];
+
+      const p1 = await createPlan(u);
+      const t1 = await create(u, p1.id, free(slot(p1, 'Almoço'), items));
+      expect(await itemsOf(t1.id)).toBe(1);
+      expect((await del(u, p1.id, t1.id)).status).toBe(204);
+      expect(await itemsOf(t1.id)).toBe(0);
+
+      const p2 = await createPlan(u);
+      const t2 = await create(u, p2.id, free(slot(p2, 'Almoço'), items));
+      const jantar = p2.mealSlots.find((m) => m.name === 'Jantar')!;
+      expect((await patchPlan(u, p2.id, { mealSlots: [jantar] })).status).toBe(
+        200,
+      );
+      expect(await itemsOf(t2.id)).toBe(0);
+
+      const p3 = await createPlan(u);
+      const t3 = await create(u, p3.id, free(slot(p3, 'Almoço'), items));
+      expect(
+        (await request(http()).delete(`/diet-plans/${p3.id}`).set(auth(u)))
+          .status,
+      ).toBe(204);
+      expect(await itemsOf(t3.id)).toBe(0);
+      expect(await foodExists(o.id)).toBe(true);
+    });
+  });
 });
