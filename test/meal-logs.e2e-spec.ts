@@ -936,5 +936,85 @@ describe('Registro de refeição (tarefa 13a)', () => {
         }
       }
     });
+
+    // Sonda S1 do revisor: o PATCH apaga a refeição antiga (SET NULL trava o registro) e
+    // renomeia a nova, que o PUT já travou. Uma terceira transação segura o registro para
+    // forçar essa ordem e solta antes de o ciclo se fechar.
+    it('C17: PUT para outra refeição e PATCH do plano que apaga a antiga e renomeia a nova: sem 500 (deadlock)', async () => {
+      const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+      const u = await signUp();
+      const a = await arroz(u);
+      for (let i = 0; i < 3; i++) {
+        const plan = await createPlan(u);
+        const almoco = slot(plan, 'Almoço');
+        const jantar = plan.mealSlots.find((m) => m.name === 'Jantar')!;
+        const log = await create(
+          u,
+          body([{ foodId: a.id, grams: 100 }], { mealSlotId: almoco }),
+        );
+        const hold = prisma.$transaction(
+          async (tx) => {
+            await tx.$queryRawUnsafe(
+              'SELECT 1 FROM meal_logs WHERE id = $1 FOR UPDATE',
+              log.id,
+            );
+            await sleep(1500);
+          },
+          { timeout: 20000 },
+        );
+        await sleep(200);
+        const patchP = request(http())
+          .patch(`/diet-plans/${plan.id}`)
+          .set(auth(u))
+          .send({ mealSlots: [{ ...jantar, name: 'Ceia' }] })
+          .then((r) => r);
+        await sleep(400);
+        const putP = put(
+          u,
+          log.id,
+          putBody([{ foodId: a.id, grams: 150 }], { mealSlotId: jantar.id }),
+        ).then((r) => r);
+        await hold;
+        const [patched, p] = await Promise.all([patchP, putP]);
+        expect(patched.status).toBe(200);
+        expect(p.status).toBe(200);
+        const after = (await getOne(u, log.id)).body as Log;
+        expect(after.items[0].grams).toBe('150');
+        expect(after.mealSlotId).toBe(jantar.id);
+      }
+    }, 60000);
+
+    it('C12: PUT troca a refeição modelo e atualiza updatedAt', async () => {
+      const u = await signUp();
+      const plan = await createPlan(u);
+      const a = await arroz(u);
+      const almoco = slot(plan, 'Almoço');
+      const [t1, t2] = [
+        await createTemplate(u, plan, almoco, a.id),
+        await createTemplate(u, plan, almoco, a.id),
+      ];
+      const log = await create(
+        u,
+        body([{ foodId: a.id, grams: 100 }], {
+          mealSlotId: almoco,
+          mealTemplateId: t1,
+        }),
+      );
+      const res = await put(
+        u,
+        log.id,
+        putBody([{ foodId: a.id, grams: 100 }], {
+          mealSlotId: almoco,
+          mealTemplateId: t2,
+        }),
+      );
+      expect(res.status).toBe(200);
+      const updated = res.body as Log;
+      expect(updated.mealTemplateId).toBe(t2);
+      expect(updated.createdAt).toBe(log.createdAt);
+      expect(Date.parse(updated.updatedAt)).toBeGreaterThan(
+        Date.parse(log.updatedAt),
+      );
+    });
   });
 });
