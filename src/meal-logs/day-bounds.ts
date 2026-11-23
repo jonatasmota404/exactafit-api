@@ -1,6 +1,6 @@
 const SEC = 1000;
 const HOUR = 3600 * SEC;
-const MAX_HOURS = 48;
+const MAX_HOURS = 56;
 
 // Início do dia D: primeiro instante cuja data local no fuso é D. Intervalo [start, end).
 export function dayBounds(
@@ -32,9 +32,9 @@ export function dayBounds(
 
   const startOf = (day: Date) => {
     const target = keyOf(day);
-    // O maior deslocamento é UTC+14: em (00:00Z - 14h) a data local é, no mínimo, D.
-    let t = day.getTime() - 14 * HOUR;
-    if (localKey(t) >= target) return t;
+    // Nenhum deslocamento (nem LMT, até +15:13) chega a 24h: em (00:00Z - 24h) a data local é anterior a D.
+    let t = day.getTime() - 24 * HOUR;
+    if (localKey(t) >= target) throw new Error('Dia fora do alcance do fuso');
     for (let i = 0; localKey(t + HOUR) < target; i++) {
       if (i >= MAX_HOURS) throw new Error('Dia fora do alcance do fuso');
       t += HOUR;
