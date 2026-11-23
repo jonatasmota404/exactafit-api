@@ -8,6 +8,7 @@ import {
 import { FoodState, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateMealLogDto } from './dto/create-meal-log.dto';
+import { dayBounds } from './day-bounds';
 
 const EXISTS = 'Registro de refeição já existe';
 const NOT_FOUND = 'Registro de refeição não encontrado';
@@ -119,6 +120,20 @@ export class MealLogsService {
     });
     if (!log) throw new NotFoundException(NOT_FOUND);
     return out(log);
+  }
+
+  async list(userId: string, date: string) {
+    const { timezone } = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { timezone: true },
+    });
+    const { start, end } = dayBounds(date, timezone);
+    const logs = await this.prisma.mealLog.findMany({
+      where: { userId, eatenAt: { gte: start, lt: end } },
+      orderBy: [{ eatenAt: 'asc' }, { id: 'asc' }],
+      include: withItems,
+    });
+    return logs.map(out);
   }
 
   private load(id: string) {
