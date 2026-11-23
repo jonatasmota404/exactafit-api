@@ -16,6 +16,7 @@ import { UpdateFoodDto } from './dto/update-food.dto';
 
 const NOT_FOUND = 'Alimento não encontrado';
 const IN_USE = 'Alimento em uso em rendimento';
+const IN_TEMPLATE = 'Alimento em uso em refeição modelo';
 const CATALOG_LOCKED = 'Alimento do catálogo não pode ser alterado';
 
 // Sem userId: o dono nunca sai na resposta.
@@ -277,6 +278,14 @@ export class FoodsService {
     });
   }
 
+  private async assertNotInTemplate(tx: Prisma.TransactionClient, id: string) {
+    const used = await tx.mealTemplateOption.findFirst({
+      where: { foodId: id },
+      select: { id: true },
+    });
+    if (used) throw new ConflictException(IN_TEMPLATE);
+  }
+
   private async assertNotInYield(tx: Prisma.TransactionClient, id: string) {
     const used = await tx.foodYield.findFirst({
       where: { OR: [{ rawFoodId: id }, { cookedFoodId: id }] },
@@ -297,15 +306,19 @@ export class FoodsService {
           throw new ForbiddenException(CATALOG_LOCKED);
         }
         await this.assertNotInYield(tx, id);
+        await this.assertNotInTemplate(tx, id);
         await tx.food.deleteMany({ where: { id, userId } });
       });
     } catch (e) {
-      // Rede de segurança: a FK RESTRICT barrou um rendimento que escapou da checagem.
+      // Rede de segurança: a FK RESTRICT barrou um uso que escapou da checagem. Não lê o
+      // meta do erro: refaz as checagens fora da transação abortada (rendimento primeiro).
       if (
         e instanceof Prisma.PrismaClientKnownRequestError &&
         e.code === 'P2003'
       ) {
-        throw new ConflictException(IN_USE);
+        await this.assertNotInYield(this.prisma, id);
+        await this.assertNotInTemplate(this.prisma, id);
+        throw new ConflictException(IN_TEMPLATE);
       }
       throw e;
     }
