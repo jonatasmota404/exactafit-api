@@ -1,5 +1,5 @@
-// Tarefa 13a: registro de refeição (/meal-logs): criar (idempotente), ler e listar por dia.
-// Plano: docs/plans/2026-11-23-registro-de-refeicao.md (C1–C11).
+// Tarefa 13: registro de refeição (/meal-logs): criar (idempotente), ler, listar por dia, corrigir e apagar.
+// Critérios C1–C17 do plano docs/plans/2026-11-23-registro-de-refeicao.md (removido no PR da 13b; ver o git).
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
@@ -678,6 +678,343 @@ describe('Registro de refeição (tarefa 13a)', () => {
 
     it('sem token dá 401', async () => {
       await request(http()).get('/meal-logs?date=2026-11-23').expect(401);
+    });
+  });
+
+  // Tarefa 13b: corrigir (PUT) e apagar (DELETE, com marcador de exclusão).
+  describe('13b: corrigir e apagar', () => {
+    const LOG_DELETED = 'Registro de refeição apagado';
+    const put = (u: User, id: string, b: unknown) =>
+      request(http())
+        .put(`/meal-logs/${id}`)
+        .set(auth(u))
+        .send(b as object);
+    const del = (u: User, id: string) =>
+      request(http()).delete(`/meal-logs/${id}`).set(auth(u));
+    const itemsOf = (id: string) =>
+      count(
+        'SELECT count(*)::int AS n FROM meal_log_items WHERE meal_log_id = $1',
+        id,
+      );
+    const dayIds = async (u: User, date: string) => {
+      const res = await request(http())
+        .get(`/meal-logs?date=${date}`)
+        .set(auth(u));
+      expect(res.status).toBe(200);
+      return (res.body as Log[]).map((l) => l.id);
+    };
+    // Corpo do PUT: o do POST sem o id.
+    const putBody = (
+      items: { foodId: string; grams: unknown }[],
+      extra: Record<string, unknown> = {},
+    ) => ({ eatenAt: '2026-11-23T20:00:00-03:00', items, ...extra });
+
+    it('C12: PUT substitui eatenAt, refeição e itens, recalcula com o alimento atual e mantém o id (também em maiúsculas)', async () => {
+      const u = await signUp();
+      const plan = await createPlan(u);
+      const [f, a] = [await frango(u), await arroz(u)];
+      const extra = await createFood(u, 'Ovo', {
+        kcal: 143,
+        proteinG: 13,
+        carbsG: 1,
+        fatG: 10,
+      });
+      const log = await create(
+        u,
+        body(
+          [
+            { foodId: f.id, grams: 150 },
+            { foodId: a.id, grams: 100 },
+            { foodId: extra.id, grams: 50 },
+          ],
+          { mealSlotId: slot(plan, 'Almoço') },
+        ),
+      );
+      expect(await itemsOf(log.id)).toBe(3);
+      await request(http())
+        .patch(`/foods/${f.id}`)
+        .set(auth(u))
+        .send({ kcal: 200 })
+        .expect(200);
+
+      const res = await put(
+        u,
+        log.id.toUpperCase(),
+        putBody(
+          [
+            { foodId: a.id, grams: 200 },
+            { foodId: f.id, grams: 100 },
+          ],
+          { mealSlotId: slot(plan, 'Jantar') },
+        ),
+      );
+      expect(res.status).toBe(200);
+      const updated = res.body as Log;
+      expect(updated.id).toBe(log.id);
+      expect(updated.eatenAt).toBe('2026-11-23T23:00:00.000Z');
+      expect(updated.mealSlotId).toBe(slot(plan, 'Jantar'));
+      expect(updated.mealSlotName).toBe('Jantar');
+      expect(updated.mealTemplateId).toBeNull();
+      expect(updated.items).toEqual([
+        {
+          foodId: a.id,
+          name: a.name,
+          state: 'COOKED',
+          grams: '200',
+          kcal: '260',
+          proteinG: '5',
+          carbsG: '56',
+          fatG: '0.6',
+          fiberG: null,
+        },
+        {
+          foodId: f.id,
+          name: f.name,
+          state: 'COOKED',
+          grams: '100',
+          kcal: '200',
+          proteinG: '32',
+          carbsG: '0',
+          fatG: '2.5',
+          fiberG: null,
+        },
+      ]);
+      expect(updated.totals).toEqual({
+        kcal: '460',
+        proteinG: '37',
+        carbsG: '56',
+        fatG: '3.1',
+        fiberG: null,
+      });
+      expect(updated.createdAt).toBe(log.createdAt);
+      expect(await itemsOf(log.id)).toBe(2);
+      expect((await getOne(u, log.id)).body).toEqual(updated);
+    });
+
+    it('C13: PUT segue C7 e C8, recusa id no corpo e não altera nada no erro', async () => {
+      const u = await signUp();
+      const other = await signUp();
+      const a = await arroz(u);
+      const alheio = await arroz(other);
+      const alheioPlan = await createPlan(other);
+      const log = await create(u, body([{ foodId: a.id, grams: 100 }]));
+      const ok = [{ foodId: a.id, grams: 150 }];
+
+      const cases: [unknown, number, string?][] = [
+        [{ ...putBody(ok), id: log.id }, 400],
+        [putBody([]), 400],
+        [
+          putBody(ok, { mealSlotId: slot(alheioPlan, 'Almoço') }),
+          400,
+          SLOT_NOT_FOUND,
+        ],
+        [putBody([{ foodId: alheio.id, grams: 100 }]), 404, FOOD_NOT_FOUND],
+      ];
+      for (const [b, status, msg] of cases) {
+        const res = await put(u, log.id, b);
+        expect(res.status).toBe(status);
+        if (msg) expect(message(res)).toBe(msg);
+        expect((await getOne(u, log.id)).body).toEqual(log);
+        expect(await itemsOf(log.id)).toBe(1);
+      }
+    });
+
+    it('C14: DELETE dá 204; depois GET, PUT e outro DELETE dão 404 e o registro some da listagem; os itens ficam', async () => {
+      const u = await signUp();
+      const a = await arroz(u);
+      const log = await create(u, body([{ foodId: a.id, grams: 100 }]));
+      expect(await dayIds(u, '2026-11-23')).toEqual([log.id]);
+
+      expect((await del(u, log.id.toUpperCase())).status).toBe(204);
+
+      const got = await getOne(u, log.id);
+      expect(got.status).toBe(404);
+      expect(message(got)).toBe(LOG_NOT_FOUND);
+      const putRes = await put(
+        u,
+        log.id,
+        putBody([{ foodId: a.id, grams: 1 }]),
+      );
+      expect(putRes.status).toBe(404);
+      expect(message(putRes)).toBe(LOG_NOT_FOUND);
+      const again = await del(u, log.id);
+      expect(again.status).toBe(404);
+      expect(message(again)).toBe(LOG_NOT_FOUND);
+      expect(await dayIds(u, '2026-11-23')).toEqual([]);
+      expect(await logsWithId(log.id)).toBe(1);
+      expect(await itemsOf(log.id)).toBe(1);
+    });
+
+    it('C15: reenvio do POST de um registro apagado: 410 para o dono, sem recriar; 409 para outro usuário', async () => {
+      const u = await signUp();
+      const other = await signUp();
+      const a = await arroz(u);
+      const b = body([{ foodId: a.id, grams: 100 }]);
+      await create(u, b);
+      expect((await del(u, b.id)).status).toBe(204);
+
+      const mine = await post(u, b);
+      expect(mine.status).toBe(410);
+      expect(message(mine)).toBe(LOG_DELETED);
+      expect(await logsWithId(b.id)).toBe(1);
+      expect((await getOne(u, b.id)).status).toBe(404);
+
+      const ao = await arroz(other);
+      const theirs = await post(other, {
+        ...body([{ foodId: ao.id, grams: 100 }]),
+        id: b.id,
+      });
+      expect(theirs.status).toBe(409);
+      expect(message(theirs)).toBe(LOG_EXISTS);
+      expect(theirs.body).not.toHaveProperty('id');
+      expect(await logsWithId(b.id)).toBe(1);
+    });
+
+    it('C16: PUT e DELETE em registro de outro usuário ou inexistente dão 404 e não alteram nada', async () => {
+      const u = await signUp();
+      const other = await signUp();
+      const ao = await arroz(other);
+      const theirs = await create(other, body([{ foodId: ao.id, grams: 100 }]));
+      const a = await arroz(u);
+      for (const id of [theirs.id, randomUUID()]) {
+        const p = await put(u, id, putBody([{ foodId: a.id, grams: 1 }]));
+        expect(p.status).toBe(404);
+        expect(message(p)).toBe(LOG_NOT_FOUND);
+        const d = await del(u, id);
+        expect(d.status).toBe(404);
+        expect(message(d)).toBe(LOG_NOT_FOUND);
+      }
+      expect((await getOne(other, theirs.id)).body).toEqual(theirs);
+    });
+
+    it('C17: PUT e DELETE do mesmo registro ao mesmo tempo: sem 500 e no fim apagado', async () => {
+      const u = await signUp();
+      const a = await arroz(u);
+      for (let i = 0; i < 10; i++) {
+        const log = await create(u, body([{ foodId: a.id, grams: 100 }]));
+        const [p, d] = await Promise.all([
+          put(u, log.id, putBody([{ foodId: a.id, grams: 200 }])),
+          del(u, log.id),
+        ]);
+        expect(d.status).toBe(204);
+        expect([200, 404]).toContain(p.status);
+        expect((await getOne(u, log.id)).status).toBe(404);
+      }
+    });
+
+    it('C17: PUT que reenvia a refeição e PATCH do plano que apaga a refeição ao mesmo tempo: sem 500', async () => {
+      const u = await signUp();
+      const a = await arroz(u);
+      for (let i = 0; i < 10; i++) {
+        const plan = await createPlan(u);
+        const almoco = slot(plan, 'Almoço');
+        const jantar = plan.mealSlots.find((m) => m.name === 'Jantar')!;
+        const log = await create(
+          u,
+          body([{ foodId: a.id, grams: 100 }], { mealSlotId: almoco }),
+        );
+        const [p, patched] = await Promise.all([
+          put(
+            u,
+            log.id,
+            putBody([{ foodId: a.id, grams: 150 }], { mealSlotId: almoco }),
+          ),
+          request(http())
+            .patch(`/diet-plans/${plan.id}`)
+            .set(auth(u))
+            .send({ mealSlots: [jantar] }),
+        ]);
+        expect(patched.status).toBe(200);
+        const after = (await getOne(u, log.id)).body as Log;
+        expect(after.mealSlotId).toBeNull();
+        if (p.status === 200) {
+          expect(after.items[0].grams).toBe('150');
+        } else {
+          expect(p.status).toBe(400);
+          expect(message(p)).toBe(SLOT_NOT_FOUND);
+          expect(after.items[0].grams).toBe('100');
+        }
+      }
+    });
+
+    // Sonda S1 do revisor: o PATCH apaga a refeição antiga (SET NULL trava o registro) e
+    // renomeia a nova, que o PUT já travou. Uma terceira transação segura o registro para
+    // forçar essa ordem e solta antes de o ciclo se fechar.
+    it('C17: PUT para outra refeição e PATCH do plano que apaga a antiga e renomeia a nova: sem 500 (deadlock)', async () => {
+      const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+      const u = await signUp();
+      const a = await arroz(u);
+      for (let i = 0; i < 3; i++) {
+        const plan = await createPlan(u);
+        const almoco = slot(plan, 'Almoço');
+        const jantar = plan.mealSlots.find((m) => m.name === 'Jantar')!;
+        const log = await create(
+          u,
+          body([{ foodId: a.id, grams: 100 }], { mealSlotId: almoco }),
+        );
+        const hold = prisma.$transaction(
+          async (tx) => {
+            await tx.$queryRawUnsafe(
+              'SELECT 1 FROM meal_logs WHERE id = $1 FOR UPDATE',
+              log.id,
+            );
+            await sleep(1500);
+          },
+          { timeout: 20000 },
+        );
+        await sleep(200);
+        const patchP = request(http())
+          .patch(`/diet-plans/${plan.id}`)
+          .set(auth(u))
+          .send({ mealSlots: [{ ...jantar, name: 'Ceia' }] })
+          .then((r) => r);
+        await sleep(400);
+        const putP = put(
+          u,
+          log.id,
+          putBody([{ foodId: a.id, grams: 150 }], { mealSlotId: jantar.id }),
+        ).then((r) => r);
+        await hold;
+        const [patched, p] = await Promise.all([patchP, putP]);
+        expect(patched.status).toBe(200);
+        expect(p.status).toBe(200);
+        const after = (await getOne(u, log.id)).body as Log;
+        expect(after.items[0].grams).toBe('150');
+        expect(after.mealSlotId).toBe(jantar.id);
+      }
+    }, 60000);
+
+    it('C12: PUT troca a refeição modelo e atualiza updatedAt', async () => {
+      const u = await signUp();
+      const plan = await createPlan(u);
+      const a = await arroz(u);
+      const almoco = slot(plan, 'Almoço');
+      const [t1, t2] = [
+        await createTemplate(u, plan, almoco, a.id),
+        await createTemplate(u, plan, almoco, a.id),
+      ];
+      const log = await create(
+        u,
+        body([{ foodId: a.id, grams: 100 }], {
+          mealSlotId: almoco,
+          mealTemplateId: t1,
+        }),
+      );
+      const res = await put(
+        u,
+        log.id,
+        putBody([{ foodId: a.id, grams: 100 }], {
+          mealSlotId: almoco,
+          mealTemplateId: t2,
+        }),
+      );
+      expect(res.status).toBe(200);
+      const updated = res.body as Log;
+      expect(updated.mealTemplateId).toBe(t2);
+      expect(updated.createdAt).toBe(log.createdAt);
+      expect(Date.parse(updated.updatedAt)).toBeGreaterThan(
+        Date.parse(log.updatedAt),
+      );
     });
   });
 });

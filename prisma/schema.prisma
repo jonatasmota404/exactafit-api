@@ -416,6 +416,7 @@ model MealLog {
   mealSlotName   String?       @map("meal_slot_name") @db.VarChar(100)
   mealTemplateId String?       @map("meal_template_id")
   mealTemplate   MealTemplate? @relation(fields: [mealTemplateId], references: [id], onDelete: SetNull)
+  deletedAt      DateTime?     @map("deleted_at")
 
   items MealLogItem[]
 
