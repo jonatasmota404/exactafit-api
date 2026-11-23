@@ -1,5 +1,5 @@
-// Tarefa 13a: registro de refeição (/meal-logs): criar (idempotente), ler e listar por dia.
-// Plano: docs/plans/2026-11-23-registro-de-refeicao.md (C1–C11).
+// Tarefa 13: registro de refeição (/meal-logs): criar (idempotente), ler, listar por dia, corrigir e apagar.
+// Critérios C1–C17 do plano docs/plans/2026-11-23-registro-de-refeicao.md (removido no PR da 13b; ver o git).
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
