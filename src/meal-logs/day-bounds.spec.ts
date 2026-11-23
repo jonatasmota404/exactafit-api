@@ -20,4 +20,17 @@ describe('dayBounds', () => {
     expect(start.toISOString()).toBe('2026-11-23T15:00:00.000Z');
     expect(end.toISOString()).toBe('2026-11-24T15:00:00.000Z');
   });
+
+  // Sondas da revisão: ano com menos de 4 dígitos no formato local, fim do ano 9999
+  // e deslocamento histórico em segundos (LMT de São Paulo: -03:06:28).
+  it('America/Sao_Paulo em 1000-01-01 começa no segundo exato do LMT', () => {
+    const { start } = dayBounds('1000-01-01', 'America/Sao_Paulo');
+    expect(start.toISOString()).toBe('1000-01-01T03:06:28.000Z');
+  });
+
+  it('America/Sao_Paulo em 9999-12-31 termina no início de 10000-01-01', () => {
+    const { start, end } = dayBounds('9999-12-31', 'America/Sao_Paulo');
+    expect(start.toISOString()).toBe('9999-12-31T03:00:00.000Z');
+    expect(end.toISOString()).toBe('+010000-01-01T03:00:00.000Z');
+  });
 });
