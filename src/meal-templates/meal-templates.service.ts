@@ -121,105 +121,41 @@ export class MealTemplatesService {
     if (rows.length === 0) throw new NotFoundException(PLAN_NOT_FOUND);
   }
 
-  async create(userId: string, planId: string, dto: CreateMealTemplateDto) {
+  create(userId: string, planId: string, dto: CreateMealTemplateDto) {
+    return this.inPlan(userId, planId, (tx) =>
+      this.save(tx, userId, planId, dto),
+    );
+  }
+
+  update(
+    userId: string,
+    planId: string,
+    id: string,
+    dto: CreateMealTemplateDto,
+  ) {
+    return this.inPlan(userId, planId, async (tx) => {
+      const current = await tx.mealTemplate.findFirst({
+        where: { id, mealSlot: { dietPlanId: planId } },
+        select: { id: true },
+      });
+      if (!current) throw new NotFoundException(NOT_FOUND);
+      return this.save(tx, userId, planId, dto, id);
+    });
+  }
+
+  // Transação com o plano travado. Dois pedidos com o mesmo order ao mesmo tempo:
+  // o índice único barra o segundo.
+  private async inPlan<T>(
+    userId: string,
+    planId: string,
+    fn: (tx: Tx) => Promise<T>,
+  ) {
     try {
       return await this.prisma.$transaction(async (tx) => {
         await this.lockPlan(tx, userId, planId);
-        const slot = await tx.mealSlot.findFirst({
-          where: { id: dto.mealSlotId, dietPlanId: planId },
-          select: { id: true },
-        });
-        if (!slot) {
-          throw new BadRequestException('Refeição não pertence ao plano');
-        }
-        const taken = await tx.mealTemplate.findFirst({
-          where: { mealSlotId: slot.id, order: dto.order },
-          select: { id: true },
-        });
-        if (taken) throw new BadRequestException(ORDER_TAKEN);
-
-        const components = dto.components ?? [];
-        const items = dto.items ?? [];
-        const lists = [
-          ...components.map((c) => c.foodIds),
-          items.map((i) => i.foodId),
-        ];
-        if (lists.some((l) => new Set(l).size !== l.length)) {
-          throw new BadRequestException('Alimento repetido');
-        }
-        const foodIds = [...new Set(lists.flat())];
-        // Uma só consulta ordenada por id (sem deadlock); FOR SHARE conflita com o
-        // FOR UPDATE do DELETE /foods.
-        const foods = await tx.$queryRaw<FoodRow[]>`
-          SELECT id, name, state, kcal, protein_g, carbs_g FROM foods
-          WHERE id IN (${Prisma.join(foodIds)})
-            AND (user_id = ${userId} OR user_id IS NULL)
-          ORDER BY id FOR SHARE`;
-        const byId = new Map(foods.map((f) => [f.id, f]));
-        if (byId.size !== foodIds.length) {
-          throw new NotFoundException(FOOD_NOT_FOUND);
-        }
-        for (const c of components) {
-          if (c.targetType === 'WEIGHT') continue;
-          const col = NUTRIENT[c.targetType];
-          for (const id of c.foodIds) {
-            const f = byId.get(id)!;
-            if (Number(f[col]) === 0) {
-              throw new BadRequestException(
-                `Alimento sem o nutriente da meta: ${f.name}`,
-              );
-            }
-          }
-        }
-
-        // Ids gerados aqui e createMany por tabela: uma query por item estourava o
-        // timeout da transação (#50).
-        const templateId = randomUUID();
-        const comps = components.map((c) => ({ ...c, id: randomUUID() }));
-        await tx.mealTemplate.create({
-          data: {
-            id: templateId,
-            mealSlotId: slot.id,
-            name: dto.name,
-            order: dto.order,
-            kind: dto.kind,
-          },
-        });
-        await tx.mealTemplateComponent.createMany({
-          data: comps.map((c, position) => ({
-            id: c.id,
-            mealTemplateId: templateId,
-            position,
-            name: c.name,
-            targetType: c.targetType,
-            targetValue: c.targetValue,
-          })),
-        });
-        await tx.mealTemplateOption.createMany({
-          data: comps.flatMap((c) =>
-            c.foodIds.map((foodId, position) => ({
-              componentId: c.id,
-              foodId,
-              position,
-            })),
-          ),
-        });
-        await tx.mealTemplateItem.createMany({
-          data: items.map((i, position) => ({
-            mealTemplateId: templateId,
-            foodId: i.foodId,
-            position,
-            grams: i.grams,
-          })),
-        });
-        const created = await tx.mealTemplate.findUniqueOrThrow({
-          where: { id: templateId },
-          include: full,
-        });
-        return out(created);
+        return fn(tx);
       });
     } catch (e) {
-      // Dois POST com o mesmo order ao mesmo tempo: o índice único barra o segundo.
       if (
         e instanceof Prisma.PrismaClientKnownRequestError &&
         e.code === 'P2002'
@@ -228,6 +164,120 @@ export class MealTemplatesService {
       }
       throw e;
     }
+  }
+
+  // Valida e grava; com `id` substitui o estado da refeição modelo existente.
+  private async save(
+    tx: Tx,
+    userId: string,
+    planId: string,
+    dto: CreateMealTemplateDto,
+    id?: string,
+  ) {
+    const slot = await tx.mealSlot.findFirst({
+      where: { id: dto.mealSlotId, dietPlanId: planId },
+      select: { id: true },
+    });
+    if (!slot) {
+      throw new BadRequestException('Refeição não pertence ao plano');
+    }
+    const taken = await tx.mealTemplate.findFirst({
+      where: {
+        mealSlotId: slot.id,
+        order: dto.order,
+        ...(id && { id: { not: id } }),
+      },
+      select: { id: true },
+    });
+    if (taken) throw new BadRequestException(ORDER_TAKEN);
+
+    const components = dto.components ?? [];
+    const items = dto.items ?? [];
+    const lists = [
+      ...components.map((c) => c.foodIds),
+      items.map((i) => i.foodId),
+    ];
+    if (lists.some((l) => new Set(l).size !== l.length)) {
+      throw new BadRequestException('Alimento repetido');
+    }
+    const foodIds = [...new Set(lists.flat())];
+    // Uma só consulta ordenada por id (sem deadlock); FOR SHARE conflita com o
+    // FOR UPDATE do DELETE /foods.
+    const foods = await tx.$queryRaw<FoodRow[]>`
+          SELECT id, name, state, kcal, protein_g, carbs_g FROM foods
+          WHERE id IN (${Prisma.join(foodIds)})
+            AND (user_id = ${userId} OR user_id IS NULL)
+          ORDER BY id FOR SHARE`;
+    const byId = new Map(foods.map((f) => [f.id, f]));
+    if (byId.size !== foodIds.length) {
+      throw new NotFoundException(FOOD_NOT_FOUND);
+    }
+    for (const c of components) {
+      if (c.targetType === 'WEIGHT') continue;
+      const col = NUTRIENT[c.targetType];
+      for (const id of c.foodIds) {
+        const f = byId.get(id)!;
+        if (Number(f[col]) === 0) {
+          throw new BadRequestException(
+            `Alimento sem o nutriente da meta: ${f.name}`,
+          );
+        }
+      }
+    }
+
+    // Ids gerados aqui e createMany por tabela: uma query por item estourava o
+    // timeout da transação (#50).
+    const templateId = id ?? randomUUID();
+    const comps = components.map((c) => ({ ...c, id: randomUUID() }));
+    const fields = {
+      mealSlotId: slot.id,
+      name: dto.name,
+      order: dto.order,
+      kind: dto.kind,
+    };
+    if (id) {
+      await tx.mealTemplateComponent.deleteMany({
+        where: { mealTemplateId: id },
+      });
+      await tx.mealTemplateItem.deleteMany({
+        where: { mealTemplateId: id },
+      });
+      await tx.mealTemplate.update({ where: { id }, data: fields });
+    } else {
+      await tx.mealTemplate.create({ data: { id: templateId, ...fields } });
+    }
+    await tx.mealTemplateComponent.createMany({
+      data: comps.map((c, position) => ({
+        id: c.id,
+        mealTemplateId: templateId,
+        position,
+        name: c.name,
+        targetType: c.targetType,
+        targetValue: c.targetValue,
+      })),
+    });
+    await tx.mealTemplateOption.createMany({
+      data: comps.flatMap((c) =>
+        c.foodIds.map((foodId, position) => ({
+          componentId: c.id,
+          foodId,
+          position,
+        })),
+      ),
+    });
+    await tx.mealTemplateItem.createMany({
+      data: items.map((i, position) => ({
+        mealTemplateId: templateId,
+        foodId: i.foodId,
+        position,
+        grams: i.grams,
+      })),
+    });
+    const created = await tx.mealTemplate.findUniqueOrThrow({
+      where: { id: templateId },
+      include: full,
+    });
+    return out(created);
   }
 
   private async assertPlan(userId: string, planId: string) {

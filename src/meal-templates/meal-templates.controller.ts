@@ -7,6 +7,7 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Put,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -48,6 +49,16 @@ export class MealTemplatesController {
     @Param('id', new ParseUUIDPipe()) id: string,
   ) {
     return this.service.findOne(req.user.sub, planId, id);
+  }
+
+  @Put(':id')
+  update(
+    @Req() req: AuthenticatedRequest,
+    @Param('planId', new ParseUUIDPipe()) planId: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() dto: CreateMealTemplateDto,
+  ) {
+    return this.service.update(req.user.sub, planId, id, dto);
   }
 
   @Delete(':id')
