@@ -107,12 +107,20 @@ export class MealLogsService {
     }
   }
 
-  // Estado completo: refeição, refeição modelo e alimentos (FOR SHARE) antes do registro
-  // (FOR UPDATE): travar o registro antes daria deadlock com o PATCH do plano.
+  // Estado completo. Ordem das travas, a mesma do PATCH/DELETE do plano: plano (FOR SHARE),
+  // refeição, refeição modelo e alimentos (FOR SHARE), e só então o registro (FOR UPDATE).
+  // Sem travar o plano, o PUT que troca de refeição fazia deadlock com o PATCH do plano.
   async replace(userId: string, rawId: string, dto: UpdateMealLogDto) {
     const id = rawId.toLowerCase();
     const { slotId, templateId, items } = this.normalize(dto);
     const log = await this.prisma.$transaction(async (tx) => {
+      if (slotId) {
+        await tx.$queryRaw`
+          SELECT 1 FROM diet_plans dp
+          JOIN meal_slots ms ON ms.diet_plan_id = dp.id
+          WHERE ms.id = ${slotId} AND dp.user_id = ${userId}
+          FOR SHARE OF dp`;
+      }
       const refs = await this.lockRefs(tx, userId, slotId, templateId, items);
       const rows = await tx.$queryRaw<unknown[]>`
         SELECT 1 FROM meal_logs
