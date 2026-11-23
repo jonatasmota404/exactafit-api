@@ -1,10 +1,13 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
   Param,
   ParseUUIDPipe,
   Post,
+  Put,
   Query,
   Req,
   Res,
@@ -13,6 +16,7 @@ import {
 import type { Request, Response } from 'express';
 import { AuthGuard } from '../auth/auth.guard';
 import { CreateMealLogDto } from './dto/create-meal-log.dto';
+import { UpdateMealLogDto } from './dto/update-meal-log.dto';
 import { ListMealLogsDto } from './dto/list-meal-logs.dto';
 import { MealLogsService } from './meal-logs.service';
 
@@ -47,5 +51,23 @@ export class MealLogsController {
     @Param('id', new ParseUUIDPipe()) id: string,
   ) {
     return this.service.findOne(req.user.sub, id);
+  }
+
+  @Put(':id')
+  replace(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() dto: UpdateMealLogDto,
+  ) {
+    return this.service.replace(req.user.sub, id, dto);
+  }
+
+  @Delete(':id')
+  @HttpCode(204)
+  remove(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
+    return this.service.remove(req.user.sub, id);
   }
 }
