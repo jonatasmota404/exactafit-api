@@ -5,6 +5,7 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Query,
   Req,
   Res,
   UseGuards,
@@ -12,6 +13,7 @@ import {
 import type { Request, Response } from 'express';
 import { AuthGuard } from '../auth/auth.guard';
 import { CreateMealLogDto } from './dto/create-meal-log.dto';
+import { ListMealLogsDto } from './dto/list-meal-logs.dto';
 import { MealLogsService } from './meal-logs.service';
 
 interface AuthenticatedRequest extends Request {
@@ -32,6 +34,11 @@ export class MealLogsController {
     const { created, log } = await this.service.create(req.user.sub, dto);
     res.status(created ? 201 : 200);
     return log;
+  }
+
+  @Get()
+  list(@Req() req: AuthenticatedRequest, @Query() query: ListMealLogsDto) {
+    return this.service.list(req.user.sub, query.date);
   }
 
   @Get(':id')
