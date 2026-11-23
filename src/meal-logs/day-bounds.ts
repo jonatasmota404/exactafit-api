@@ -1,35 +1,58 @@
-const MIN = 60_000;
-const HOUR = 60 * MIN;
+const SEC = 1000;
+const HOUR = 3600 * SEC;
+const MAX_HOURS = 48;
 
 // Início do dia D: primeiro instante cuja data local no fuso é D. Intervalo [start, end).
 export function dayBounds(
   date: string,
   timeZone: string,
 ): { start: Date; end: Date } {
-  const fmt = new Intl.DateTimeFormat('en-CA', {
+  const fmt = new Intl.DateTimeFormat('en-US', {
     timeZone,
+    era: 'short',
     year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
+    month: 'numeric',
+    day: 'numeric',
   });
-  const localDate = (ms: number) => fmt.format(ms); // AAAA-MM-DD
-  const startOf = (day: string) => {
-    // O maior deslocamento é UTC+14: às (00:00Z - 14h) a data local já é, no mínimo, D-1.
-    let t = Date.parse(`${day}T00:00:00Z`) - 14 * HOUR;
-    if (localDate(t) >= day) return t;
-    while (localDate(t + HOUR) < day) t += HOUR;
-    // Aqui t não chegou em D e t + 1h chegou: busca o minuto exato (deslocamentos em minutos).
-    let lo = 0; // minutos a partir de t, ainda antes de D
-    let hi = 60; // já em D
+  // Data local como número ano*10000+mês*100+dia (comparável; ano ≤ 0 vira 1 - ano da era).
+  const localKey = (ms: number) => {
+    const p = Object.fromEntries(
+      fmt.formatToParts(ms).map((x) => [x.type, x.value]),
+    );
+    const y = /^b/i.test(p.era) ? 1 - Number(p.year) : Number(p.year);
+    return y * 10000 + Number(p.month) * 100 + Number(p.day);
+  };
+  const utcMidnight = (y: number, m: number, d: number) => {
+    const t = new Date(0); // setUTCFullYear evita que ano 0..99 vire 1900..1999
+    t.setUTCFullYear(y, m - 1, d);
+    return t;
+  };
+  const keyOf = (t: Date) =>
+    t.getUTCFullYear() * 10000 + (t.getUTCMonth() + 1) * 100 + t.getUTCDate();
+
+  const startOf = (day: Date) => {
+    const target = keyOf(day);
+    // O maior deslocamento é UTC+14: em (00:00Z - 14h) a data local é, no mínimo, D.
+    let t = day.getTime() - 14 * HOUR;
+    if (localKey(t) >= target) return t;
+    for (let i = 0; localKey(t + HOUR) < target; i++) {
+      if (i >= MAX_HOURS) throw new Error('Dia fora do alcance do fuso');
+      t += HOUR;
+    }
+    // t ainda não chegou em D e t + 1h chegou: busca o segundo exato.
+    let lo = 0;
+    let hi = 3600;
     while (hi - lo > 1) {
       const mid = (lo + hi) >> 1;
-      if (localDate(t + mid * MIN) >= day) hi = mid;
+      if (localKey(t + mid * SEC) >= target) hi = mid;
       else lo = mid;
     }
-    return t + hi * MIN;
+    return t + hi * SEC;
   };
-  const next = new Date(Date.parse(`${date}T00:00:00Z`) + 24 * HOUR)
-    .toISOString()
-    .slice(0, 10);
-  return { start: new Date(startOf(date)), end: new Date(startOf(next)) };
+
+  const [y, m, d] = date.split('-').map(Number);
+  const day = utcMidnight(y, m, d);
+  const next = new Date(day);
+  next.setUTCDate(next.getUTCDate() + 1);
+  return { start: new Date(startOf(day)), end: new Date(startOf(next)) };
 }
