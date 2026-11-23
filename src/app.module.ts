@@ -11,6 +11,7 @@ import { MeModule } from './me/me.module';
 import { FoodsModule } from './foods/foods.module';
 import { FoodYieldsModule } from './food-yields/food-yields.module';
 import { DietPlansModule } from './diet-plans/diet-plans.module';
+import { MealTemplatesModule } from './meal-templates/meal-templates.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { DietPlansModule } from './diet-plans/diet-plans.module';
     FoodsModule,
     FoodYieldsModule,
     DietPlansModule,
+    MealTemplatesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

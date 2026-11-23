@@ -72,7 +72,7 @@ Esforço P/M/G. Risco B/M/A.
 
 **Princípio:** o plano é dado, não código. Dieta e treino são estruturas configuráveis; os PDFs entram como linhas nessas tabelas.
 
-**Dieta (novas):** `DietPlan`, `MealSlot` (quantas refeições e com que nome o usuário quiser), `DayTarget` (metas de kcal, proteína, carboidrato e gordura por tipo de dia e por refeição), `Food` (macros por 100 g, estado cru ou pronto, tags), `FoodYield`, `MealTemplate` (composição livre ou por componentes, com meta por componente), `PlannedMeal`, `PlannedMealItem`, `MealLog` e `MealLogItem` (com snapshot dos macros). A porção de qualquer item sai da meta escolhida (kcal, proteína ou carboidrato) dividida pelo valor por 100 g.
+**Dieta (novas):** `DietPlan`, `MealSlot` (quantas refeições e com que nome o usuário quiser), `DayTarget` (metas de kcal, proteína, carboidrato e gordura por tipo de dia e por refeição), `Food` (macros por 100 g, estado cru ou pronto, tags), `FoodYield`, `MealTemplate` (composição livre ou por componentes, com meta por componente), `PlannedMeal`, `PlannedMealItem`, `MealLog` e `MealLogItem` (com snapshot dos macros). A porção de qualquer item sai da meta escolhida (kcal, proteína, carboidrato ou peso do alimento em gramas) dividida pelo valor por 100 g.
 
 **Treino (novas):** `Program` (ciclo semanal por dia da semana ou rotativo de N dias, com alternância por semana opcional), `ProgramDay`, `Workout`, `WorkoutItem` (substitui `RoutineItem`: série normal, aquecimento, até a falha ou drop; faixa de repetições, tempo ou por lado; descanso; grupo de superssérie; RIR ou RPE opcional; regra de progressão dupla, linear ou nenhuma, com passo percentual, decisão (d)), `Phase` (blocos definidos pelo usuário e semana leve a cada N semanas).
 

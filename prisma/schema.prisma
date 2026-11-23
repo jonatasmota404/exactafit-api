@@ -58,6 +58,7 @@ model Food {
   tags FoodTag[] @default([])
   rawYields    FoodYield[] @relation("RawFood")
   cookedYields FoodYield[] @relation("CookedFood")
+  templateOptions MealTemplateOption[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -273,6 +274,7 @@ model MealSlot {
   order Int
 
   targets MealTarget[]
+  templates MealTemplate[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -320,4 +322,61 @@ model MealTarget {
 
   @@unique([dayTypeId, mealSlotId])
   @@map("meal_targets")
+}
+
+enum MealTemplateKind {
+  COMPONENTS
+}
+
+enum ComponentTargetType {
+  KCAL
+  PROTEIN
+  CARBS
+  WEIGHT
+}
+
+// Refeição modelo (M1-M3): pertence a uma refeição do plano; por componentes na 11b-1.
+model MealTemplate {
+  id         String           @id @default(uuid())
+  mealSlotId String           @map("meal_slot_id")
+  mealSlot   MealSlot         @relation(fields: [mealSlotId], references: [id], onDelete: Cascade)
+  name       String           @db.VarChar(100)
+  order      Int
+  kind       MealTemplateKind
+
+  components MealTemplateComponent[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([mealSlotId, order])
+  @@map("meal_templates")
+}
+
+model MealTemplateComponent {
+  id             String              @id @default(uuid())
+  mealTemplateId String              @map("meal_template_id")
+  mealTemplate   MealTemplate        @relation(fields: [mealTemplateId], references: [id], onDelete: Cascade)
+  position       Int
+  name           String              @db.VarChar(100)
+  targetType     ComponentTargetType @map("target_type")
+  targetValue    Decimal             @map("target_value") @db.Decimal(6, 1)
+
+  options MealTemplateOption[]
+
+  @@index([mealTemplateId])
+  @@map("meal_template_components")
+}
+
+model MealTemplateOption {
+  id          String                @id @default(uuid())
+  componentId String                @map("component_id")
+  component   MealTemplateComponent @relation(fields: [componentId], references: [id], onDelete: Cascade)
+  foodId      String                @map("food_id")
+  food        Food                  @relation(fields: [foodId], references: [id], onDelete: Restrict)
+  position    Int
+
+  @@unique([componentId, foodId])
+  @@index([foodId])
+  @@map("meal_template_options")
 }
