@@ -60,6 +60,7 @@ model Food {
   cookedYields FoodYield[] @relation("CookedFood")
   templateOptions MealTemplateOption[]
   templateItems MealTemplateItem[]
+  mealLogItems MealLogItem[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -111,6 +112,7 @@ model User {
   foods           Food[]
   foodYields      FoodYield[]
   dietPlans       DietPlan[]
+  mealLogs        MealLog[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -276,6 +278,7 @@ model MealSlot {
 
   targets MealTarget[]
   templates MealTemplate[]
+  mealLogs MealLog[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -348,6 +351,7 @@ model MealTemplate {
 
   components MealTemplateComponent[]
   items      MealTemplateItem[]
+  mealLogs   MealLog[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -397,4 +401,49 @@ model MealTemplateItem {
   @@unique([mealTemplateId, foodId])
   @@index([foodId])
   @@map("meal_template_items")
+}
+
+
+// Registro de refeição (tarefa 13, R1-R3): o id vem do aparelho (ADR 0013, ADR 0015).
+// Histórico sem cascade (ADR 0001): as FKs de referência são SET NULL e o nome da refeição fica copiado.
+model MealLog {
+  id             String        @id
+  userId         String        @map("user_id")
+  user           User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+  eatenAt        DateTime      @map("eaten_at")
+  mealSlotId     String?       @map("meal_slot_id")
+  mealSlot       MealSlot?     @relation(fields: [mealSlotId], references: [id], onDelete: SetNull)
+  mealSlotName   String?       @map("meal_slot_name") @db.VarChar(100)
+  mealTemplateId String?       @map("meal_template_id")
+  mealTemplate   MealTemplate? @relation(fields: [mealTemplateId], references: [id], onDelete: SetNull)
+
+  items MealLogItem[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([userId, eatenAt])
+  @@map("meal_logs")
+}
+
+// Item do registro: alimento + gramas, com cópia (snapshot) do nome, do estado e dos macros (R3).
+model MealLogItem {
+  id         String   @id @default(uuid())
+  mealLogId  String   @map("meal_log_id")
+  mealLog    MealLog  @relation(fields: [mealLogId], references: [id], onDelete: Restrict)
+  foodId     String?  @map("food_id")
+  food       Food?    @relation(fields: [foodId], references: [id], onDelete: SetNull)
+  position   Int
+  foodName   String   @map("food_name") @db.VarChar(100)
+  foodState  FoodState @map("food_state")
+  grams      Decimal  @db.Decimal(6, 1)
+  kcal       Decimal  @db.Decimal(8, 1)
+  proteinG   Decimal  @map("protein_g") @db.Decimal(8, 1)
+  carbsG     Decimal  @map("carbs_g") @db.Decimal(8, 1)
+  fatG       Decimal  @map("fat_g") @db.Decimal(8, 1)
+  fiberG     Decimal? @map("fiber_g") @db.Decimal(8, 1)
+
+  @@index([mealLogId])
+  @@index([foodId])
+  @@map("meal_log_items")
 }
