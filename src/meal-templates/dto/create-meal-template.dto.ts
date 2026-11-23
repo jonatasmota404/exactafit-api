@@ -14,7 +14,9 @@ import {
   Max,
   MaxLength,
   Min,
+  ValidateIf,
   ValidateNested,
+  registerDecorator,
 } from 'class-validator';
 import { OneDecimal } from '../../foods/dto/create-food.dto';
 import { NO_NUL } from '../../programs/dto/create-program.dto';
@@ -48,7 +50,41 @@ export class ComponentDto {
   foodIds!: string[];
 }
 
-// Na 11b-1 só COMPONENTS; `items` (FREE) entra na 11b-2 e hoje cai na whitelist (400).
+export class ItemDto {
+  @IsUUID()
+  foodId!: string;
+
+  @IsNumber({ allowNaN: false, allowInfinity: false })
+  @OneDecimal()
+  @Min(0)
+  @Max(99999.9)
+  grams!: number;
+}
+
+// Lista exigida só para um `kind` e recusada no outro (COMPONENTS x FREE).
+const ListFor = (kind: 'COMPONENTS' | 'FREE', prop: string) =>
+  applyDecorators(
+    ValidateIf(
+      (o: Record<string, unknown>) => o.kind === kind || o[prop] !== undefined,
+    ),
+    (target: object, key: string) =>
+      registerDecorator({
+        name: 'listFor',
+        target: target.constructor,
+        propertyName: key,
+        options: {
+          message: `${prop} não é aceito para o kind informado`,
+        },
+        validator: {
+          validate: (_: unknown, args) =>
+            (args?.object as { kind?: string }).kind === kind,
+        },
+      }),
+    IsArray(),
+    ArrayNotEmpty(),
+    IsObject({ each: true }),
+  );
+
 export class CreateMealTemplateDto {
   @IsUUID()
   mealSlotId!: string;
@@ -60,13 +96,16 @@ export class CreateMealTemplateDto {
   @Max(INT4_MAX)
   order!: number;
 
-  @IsIn(['COMPONENTS'])
-  kind!: 'COMPONENTS';
+  @IsIn(['COMPONENTS', 'FREE'])
+  kind!: 'COMPONENTS' | 'FREE';
 
-  @IsArray()
-  @ArrayNotEmpty()
-  @IsObject({ each: true })
+  @ListFor('COMPONENTS', 'components')
   @ValidateNested({ each: true })
   @Type(() => ComponentDto)
-  components!: ComponentDto[];
+  components?: ComponentDto[];
+
+  @ListFor('FREE', 'items')
+  @ValidateNested({ each: true })
+  @Type(() => ItemDto)
+  items?: ItemDto[];
 }

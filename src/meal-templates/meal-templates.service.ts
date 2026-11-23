@@ -31,7 +31,20 @@ const NUTRIENT = {
 } as const;
 
 // Sem userId: o dono nunca sai na resposta.
+const macros = {
+  name: true,
+  state: true,
+  kcal: true,
+  proteinG: true,
+  carbsG: true,
+  fatG: true,
+  fiberG: true,
+} as const;
 const full = {
+  items: {
+    orderBy: { position: 'asc' },
+    include: { food: { select: macros } },
+  },
   components: {
     orderBy: { position: 'asc' },
     include: {
@@ -43,6 +56,30 @@ const full = {
   },
 } satisfies Prisma.MealTemplateInclude;
 type Row = Prisma.MealTemplateGetPayload<{ include: typeof full }>;
+
+// Σ(valor por 100 g × gramas ÷ 100), 1 casa, meio para cima; fibra só de quem tem.
+const totalsOf = (items: Row['items']) => {
+  const sum = (
+    pick: (f: Row['items'][number]['food']) => Prisma.Decimal | null,
+  ) => {
+    const vals = items.flatMap((i) => {
+      const v = pick(i.food);
+      return v ? [v.mul(i.grams).div(100)] : [];
+    });
+    return vals.length === 0
+      ? null
+      : Prisma.Decimal.sum(...vals)
+          .toDecimalPlaces(1, Prisma.Decimal.ROUND_HALF_UP)
+          .toString();
+  };
+  return {
+    kcal: sum((f) => f.kcal),
+    proteinG: sum((f) => f.proteinG),
+    carbsG: sum((f) => f.carbsG),
+    fatG: sum((f) => f.fatG),
+    fiberG: sum((f) => f.fiberG),
+  };
+};
 
 const out = (t: Row) => ({
   id: t.id,
@@ -61,8 +98,13 @@ const out = (t: Row) => ({
       state: o.food.state,
     })),
   })),
-  items: [],
-  totals: null,
+  items: t.items.map((i) => ({
+    foodId: i.foodId,
+    name: i.food.name,
+    state: i.food.state,
+    grams: i.grams,
+  })),
+  totals: t.kind === 'FREE' ? totalsOf(t.items) : null,
   createdAt: t.createdAt,
   updatedAt: t.updatedAt,
 });
@@ -96,12 +138,16 @@ export class MealTemplatesService {
         });
         if (taken) throw new BadRequestException(ORDER_TAKEN);
 
-        for (const c of dto.components) {
-          if (new Set(c.foodIds).size !== c.foodIds.length) {
-            throw new BadRequestException('Alimento repetido');
-          }
+        const components = dto.components ?? [];
+        const items = dto.items ?? [];
+        const lists = [
+          ...components.map((c) => c.foodIds),
+          items.map((i) => i.foodId),
+        ];
+        if (lists.some((l) => new Set(l).size !== l.length)) {
+          throw new BadRequestException('Alimento repetido');
         }
-        const foodIds = [...new Set(dto.components.flatMap((c) => c.foodIds))];
+        const foodIds = [...new Set(lists.flat())];
         // Uma só consulta ordenada por id (sem deadlock); FOR SHARE conflita com o
         // FOR UPDATE do DELETE /foods.
         const foods = await tx.$queryRaw<FoodRow[]>`
@@ -113,7 +159,7 @@ export class MealTemplatesService {
         if (byId.size !== foodIds.length) {
           throw new NotFoundException(FOOD_NOT_FOUND);
         }
-        for (const c of dto.components) {
+        for (const c of components) {
           if (c.targetType === 'WEIGHT') continue;
           const col = NUTRIENT[c.targetType];
           for (const id of c.foodIds) {
@@ -129,7 +175,7 @@ export class MealTemplatesService {
         // Ids gerados aqui e createMany por tabela: uma query por item estourava o
         // timeout da transação (#50).
         const templateId = randomUUID();
-        const comps = dto.components.map((c) => ({ ...c, id: randomUUID() }));
+        const comps = components.map((c) => ({ ...c, id: randomUUID() }));
         await tx.mealTemplate.create({
           data: {
             id: templateId,
@@ -157,6 +203,14 @@ export class MealTemplatesService {
               position,
             })),
           ),
+        });
+        await tx.mealTemplateItem.createMany({
+          data: items.map((i, position) => ({
+            mealTemplateId: templateId,
+            foodId: i.foodId,
+            position,
+            grams: i.grams,
+          })),
         });
         const created = await tx.mealTemplate.findUniqueOrThrow({
           where: { id: templateId },

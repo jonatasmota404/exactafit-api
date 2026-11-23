@@ -59,6 +59,7 @@ model Food {
   rawYields    FoodYield[] @relation("RawFood")
   cookedYields FoodYield[] @relation("CookedFood")
   templateOptions MealTemplateOption[]
+  templateItems MealTemplateItem[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -326,6 +327,7 @@ model MealTarget {
 
 enum MealTemplateKind {
   COMPONENTS
+  FREE
 }
 
 enum ComponentTargetType {
@@ -345,6 +347,7 @@ model MealTemplate {
   kind       MealTemplateKind
 
   components MealTemplateComponent[]
+  items      MealTemplateItem[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -379,4 +382,19 @@ model MealTemplateOption {
   @@unique([componentId, foodId])
   @@index([foodId])
   @@map("meal_template_options")
+}
+
+// Item da composição livre (M5): alimento com gramas.
+model MealTemplateItem {
+  id             String       @id @default(uuid())
+  mealTemplateId String       @map("meal_template_id")
+  mealTemplate   MealTemplate @relation(fields: [mealTemplateId], references: [id], onDelete: Cascade)
+  foodId         String       @map("food_id")
+  food           Food         @relation(fields: [foodId], references: [id], onDelete: Restrict)
+  position       Int
+  grams          Decimal      @db.Decimal(6, 1)
+
+  @@unique([mealTemplateId, foodId])
+  @@index([foodId])
+  @@map("meal_template_items")
 }

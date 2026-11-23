@@ -279,10 +279,11 @@ export class FoodsService {
   }
 
   private async assertNotInTemplate(tx: Prisma.TransactionClient, id: string) {
-    const used = await tx.mealTemplateOption.findFirst({
-      where: { foodId: id },
-      select: { id: true },
-    });
+    const where = { foodId: id };
+    const select = { id: true };
+    const used =
+      (await tx.mealTemplateOption.findFirst({ where, select })) ??
+      (await tx.mealTemplateItem.findFirst({ where, select }));
     if (used) throw new ConflictException(IN_TEMPLATE);
   }
 
