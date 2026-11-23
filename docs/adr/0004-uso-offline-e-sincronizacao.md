@@ -29,3 +29,4 @@ Na academia o sinal pode faltar. Hoje a API gera os ids, o início da sessão é
 - Formato do endpoint de sincronismo: `ADIADO (decidir no plano)`.
 - **Em aberto (`TODO(humano)`):** como o aparelho lida com a resposta de uma sessão encerrada automaticamente.
 - Regras: `docs/domain.md` S1, S3, S4, S5, S8 e bloco (a).
+- **Revisado pelo [ADR 0015](0015-registro-de-refeicao-offline.md) (2026-11-23):** o alcance do offline passa a incluir o registro de refeição.
