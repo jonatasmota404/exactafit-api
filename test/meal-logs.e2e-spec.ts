@@ -1,5 +1,5 @@
-// Tarefa 13a-1: registro de refeição (/meal-logs): criar (idempotente) e ler.
-// Plano: docs/plans/2026-11-23-registro-de-refeicao.md (C1–C8, C10, C11).
+// Tarefa 13a: registro de refeição (/meal-logs): criar (idempotente), ler e listar por dia.
+// Plano: docs/plans/2026-11-23-registro-de-refeicao.md (C1–C11).
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
@@ -44,7 +44,7 @@ const TEMPLATE_NOT_IN_SLOT = 'Refeição modelo não pertence à refeição';
 const FOOD_NOT_FOUND = 'Alimento não encontrado';
 const REPEATED_FOOD = 'Alimento repetido';
 
-describe('Registro de refeição (tarefa 13a-1)', () => {
+describe('Registro de refeição (tarefa 13a)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
   const userIds: string[] = [];
@@ -595,6 +595,89 @@ describe('Registro de refeição (tarefa 13a-1)', () => {
       const res = await post(u, b);
       expect(res.status).toBe(413);
       expect(await logsOf(u.id)).toBe(0);
+    });
+  });
+
+  // Tarefa 13a-2: listagem por dia no fuso do perfil.
+  describe('C9: GET /meal-logs?date= lista o dia no fuso do perfil', () => {
+    const list = (u: User, query: string) =>
+      request(http()).get(`/meal-logs${query}`).set(auth(u));
+    const ids = async (u: User, date: string) => {
+      const res = await list(u, `?date=${date}`);
+      expect(res.status).toBe(200);
+      return (res.body as Log[]).map((l) => l.id);
+    };
+
+    it('separa os dias no fuso do perfil, ordena por eatenAt e id, ignora outro usuário e muda com o fuso', async () => {
+      const u = await signUp(); // perfil começa em America/Sao_Paulo
+      const a = await arroz(u);
+      const at = (eatenAt: string, id: string = randomUUID()) =>
+        create(u, { ...body([{ foodId: a.id, grams: 100 }]), id, eatenAt });
+
+      const prev = await at('2026-11-23T02:59:59Z'); // 23:59:59 do dia 22 em SP
+      const l0 = await at('2026-11-23T03:00:00Z'); // 00:00 do dia 23 em SP
+      const [idA, idB] = [randomUUID(), randomUUID()].sort();
+      const l1b = await at('2026-11-23T12:00:00-03:00', idB); // mesmo eatenAt: desempata pelo id
+      const l1a = await at('2026-11-23T12:00:00-03:00', idA);
+      const l2 = await at('2026-11-23T23:30:00-03:00');
+      const l3 = await at('2026-11-24T01:00:00Z'); // 22h do dia 23 em SP
+      const next = await at('2026-11-24T03:00:00Z'); // 00:00 do dia 24 em SP
+
+      const other = await signUp();
+      const ao = await arroz(other);
+      await create(other, {
+        ...body([{ foodId: ao.id, grams: 100 }]),
+        eatenAt: '2026-11-23T12:00:00-03:00',
+      });
+
+      expect(await ids(u, '2026-11-22')).toEqual([prev.id]);
+      expect(await ids(u, '2026-11-23')).toEqual([
+        l0.id,
+        l1a.id,
+        l1b.id,
+        l3.id,
+        l2.id,
+      ]);
+      expect(await ids(u, '2026-11-24')).toEqual([next.id]);
+
+      // Cada registro sai no formato de C1, igual ao GET por id.
+      const day = await list(u, '?date=2026-11-23');
+      expect((day.body as Log[])[3]).toEqual((await getOne(u, l3.id)).body);
+
+      await request(http())
+        .patch('/me/profile')
+        .set(auth(u))
+        .send({ timezone: 'Asia/Tokyo' })
+        .expect(200);
+      expect(await ids(u, '2026-11-23')).toEqual([prev.id, l0.id]);
+      expect(await ids(u, '2026-11-24')).toEqual([
+        l1a.id,
+        l1b.id,
+        l3.id,
+        l2.id,
+        next.id,
+      ]);
+    });
+
+    it('dia sem registro devolve lista vazia', async () => {
+      const u = await signUp();
+      expect(await ids(u, '2026-11-23')).toEqual([]);
+    });
+
+    it.each([
+      ['date ausente', ''],
+      ['date vazia', '?date='],
+      ['data impossível', '?date=2026-02-30'],
+      ['outro formato', '?date=23/11/2026'],
+      ['sem zero à esquerda', '?date=2026-1-5'],
+      ['com hora', '?date=2026-11-23T00:00:00Z'],
+    ])('400: %s', async (_, query) => {
+      const u = await signUp();
+      expect((await list(u, query)).status).toBe(400);
+    });
+
+    it('sem token dá 401', async () => {
+      await request(http()).get('/meal-logs?date=2026-11-23').expect(401);
     });
   });
 });
