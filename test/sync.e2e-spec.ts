@@ -379,6 +379,49 @@ describe('Sincronismo (tarefa 17a)', () => {
   });
 
   describe('C7: disputa com a sessão aberta no servidor', () => {
+    // Revisão do 17a-2 (rodada 1): a aberta do servidor que o próprio lote encerra (C4, closed)
+    // sai da disputa; o finishedAt do lote vale e ela não aparece como encerrada automaticamente.
+    it('aberta encerrada pelo lote + nova aberta mais recente: finishedAt do lote vale', async () => {
+      const u = await signUp();
+      const x = randomUUID();
+      expect((await startOnline(u, x, T(5))).status).toBe(201);
+      const n = session(u, T(7));
+      const r = await syncOk(u, {
+        sessions: [
+          { id: x, workoutId: u.workoutId, startedAt: T(5), finishedAt: T(6) },
+          n,
+        ],
+      });
+      expect(r.sessions).toEqual([
+        { id: x, status: 'closed' },
+        { id: n.id, status: 'created' },
+      ]);
+      expect(r.autoClosedSessionIds).toEqual([]);
+      expect((await sessionRow(x))!.finishedAt!.toISOString()).toBe(T(6));
+      expect((await openOf(u)).map((s) => s.id)).toEqual([n.id]);
+    });
+
+    it('aberta encerrada pelo lote + nova aberta mais antiga: a nova fica aberta', async () => {
+      const u = await signUp();
+      const x = randomUUID();
+      expect((await startOnline(u, x, T(9))).status).toBe(201);
+      const n = session(u, T(7));
+      const r = await syncOk(u, {
+        sessions: [
+          {
+            id: x,
+            workoutId: u.workoutId,
+            startedAt: T(9),
+            finishedAt: T(10),
+          },
+          n,
+        ],
+      });
+      expect(r.autoClosedSessionIds).toEqual([]);
+      expect((await sessionRow(x))!.finishedAt!.toISOString()).toBe(T(10));
+      expect((await openOf(u)).map((s) => s.id)).toEqual([n.id]);
+    });
+
     it('a do lote é mais recente: a do servidor é encerrada', async () => {
       const u = await signUp();
       const server = randomUUID();
