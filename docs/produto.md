@@ -155,7 +155,8 @@ Cada linha é uma tarefa, uma branch e um PR. O risco segue a tabela "Risco: que
 | 12 | Cálculo da porção como função pura, sem rede (o front reutiliza) | (c) | 3 | baixo | 10 |
 | 13 | Registro de refeição: `MealLog` e `MealLogItem` com snapshot dos macros | (c), inv. 16 | 4 | alto | 11 |
 | 14 | Modelos: `PlanTemplate`, carga dos perfis A e B, `/templates` (usar e copiar) | inv. 15 | 1 | médio | 7a, 7b, 11, **P4** (só o B) |
-| 15 | `GET /today`: refeições do plano ativo, treino do dia pelo ciclo, passos | (c), (d), (e) | 4 | médio | 7a, 13 |
+| 15 | `GET /today`: refeições do plano ativo, treino do dia pelo ciclo (passos saíram para a 15b, decisão do humano em 2026-11-25). **Feito em 2026-11-25** | (c), (d) | 4 | médio | 7a, 13 |
+| 15b | Passos: `DayLog` (passos, meta configurável por pessoa, marcar com um toque) e passos no `GET /today` | (e) | 4 | alto | 15 |
 | 16 | Household: `Household`, `HouseholdMember`, convite por código, visão da cozinha, teste de acesso cruzado | (f), inv. 12, 13 | 7 | alto | 11, 13 |
 | 17 | `POST /sync` idempotente (enviar o lote duas vezes não duplica) | (a), S3, S8 | 5 | alto | 3 |
 | 18 | Front PWA: repositório novo com o kit, Hoje, prato, treino e editores, offline-first | ADR 0012 | 4, 5 | alto | 3, 7a, 7b, 11, 12 |

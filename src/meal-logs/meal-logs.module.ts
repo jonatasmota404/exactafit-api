@@ -4,6 +4,7 @@ import { MealLogsService } from './meal-logs.service';
 
 @Module({
   providers: [MealLogsService],
+  exports: [MealLogsService],
   controllers: [MealLogsController],
 })
 export class MealLogsModule {}
