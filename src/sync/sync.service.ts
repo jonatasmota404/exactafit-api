@@ -162,9 +162,13 @@ export class SyncService {
         }
 
         // Disputa de S3: abertas do servidor + candidatas sem finishedAt; vence (startedAt, id) maior.
-        const serverOpen = await tx.workoutSession.findMany({
-          where: { userId, finishedAt: null },
-        });
+        // As abertas que o próprio lote encerra (closed) já não disputam: o UPDATE vem depois.
+        const closing = new Set(toClose.map((c) => c.id));
+        const serverOpen = (
+          await tx.workoutSession.findMany({
+            where: { userId, finishedAt: null },
+          })
+        ).filter((s) => !closing.has(s.id));
         const pool = [
           ...serverOpen.map((s) => ({
             id: s.id,
