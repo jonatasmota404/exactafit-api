@@ -4,7 +4,8 @@
 // Get a free hosted Postgres database in seconds: `npx create-db`
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["partialIndexes"]
 }
 
 datasource db {
@@ -231,6 +232,8 @@ model WorkoutSession {
 
   setLogs SetLog[]
 
+  // S3: uma sessão aberta por usuário (índice parcial; preview partialIndexes).
+  @@unique([userId], map: "workout_sessions_one_open_per_user", where: raw("finished_at IS NULL"))
   @@map("workout_sessions")
 }
 

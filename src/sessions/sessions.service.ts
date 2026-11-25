@@ -21,46 +21,54 @@ export class SessionsService {
   async create(userId: string, dto: CreateSessionDto) {
     // UUID é o mesmo valor em qualquer caixa; grava e busca sempre em minúsculas.
     dto = { ...dto, id: dto.id.toLowerCase() };
-    const existing = await this.prisma.workoutSession.findUnique({
-      where: { id: dto.id },
-    });
-    if (existing) return this.reenvio(userId, existing);
-
-    const workout = await this.prisma.workout.findFirst({
-      where: { id: dto.workoutId, userId },
-    });
-    if (!workout) {
-      throw new NotFoundException('Treino não encontrado');
-    }
-
-    const items = await this.prisma.workoutItem.count({
-      where: { workoutId: dto.workoutId },
-    });
-    if (items === 0) {
-      throw new BadRequestException('Treino sem exercícios');
-    }
-
-    const open = await this.prisma.workoutSession.findFirst({
-      where: { userId, finishedAt: null },
-    });
-    if (open) throw new ConflictException('Já existe uma sessão aberta');
-
     try {
-      const session = await this.prisma.workoutSession.create({
-        data: {
-          id: dto.id,
-          userId,
-          workoutId: dto.workoutId,
-          startedAt: new Date(dto.startedAt),
-        },
+      // A linha do usuário é travada para pôr em fila os inícios dele, inclusive os do POST /sync.
+      // Dentro da trava: reenvio pelo id → treino → itens → aberta → create.
+      return await this.prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT 1 FROM users WHERE id = ${userId} FOR NO KEY UPDATE`;
+        const existing = await tx.workoutSession.findUnique({
+          where: { id: dto.id },
+        });
+        if (existing) return this.reenvio(userId, existing);
+
+        const workout = await tx.workout.findFirst({
+          where: { id: dto.workoutId, userId },
+        });
+        if (!workout) {
+          throw new NotFoundException('Treino não encontrado');
+        }
+
+        const items = await tx.workoutItem.count({
+          where: { workoutId: dto.workoutId },
+        });
+        if (items === 0) {
+          throw new BadRequestException('Treino sem exercícios');
+        }
+
+        const open = await tx.workoutSession.findFirst({
+          where: { userId, finishedAt: null },
+        });
+        if (open) throw new ConflictException('Já existe uma sessão aberta');
+
+        const session = await tx.workoutSession.create({
+          data: {
+            id: dto.id,
+            userId,
+            workoutId: dto.workoutId,
+            startedAt: new Date(dto.startedAt),
+          },
+        });
+        return { created: true, session };
       });
-      return { created: true, session };
     } catch (e) {
+      // P2002 aborta a transação (25P02): a releitura é fora dela. Pode ser a corrida do mesmo id
+      // ou o índice de uma aberta por usuário (versão antiga do app durante o deploy).
       if (isP2002(e)) {
         const winner = await this.prisma.workoutSession.findUnique({
           where: { id: dto.id },
         });
         if (winner) return this.reenvio(userId, winner);
+        throw new ConflictException('Já existe uma sessão aberta');
       }
       throw e;
     }
