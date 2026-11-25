@@ -13,6 +13,7 @@ import { FoodYieldsModule } from './food-yields/food-yields.module';
 import { DietPlansModule } from './diet-plans/diet-plans.module';
 import { MealTemplatesModule } from './meal-templates/meal-templates.module';
 import { MealLogsModule } from './meal-logs/meal-logs.module';
+import { TodayModule } from './today/today.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { MealLogsModule } from './meal-logs/meal-logs.module';
     DietPlansModule,
     MealTemplatesModule,
     MealLogsModule,
+    TodayModule,
   ],
   controllers: [AppController],
   providers: [AppService],
