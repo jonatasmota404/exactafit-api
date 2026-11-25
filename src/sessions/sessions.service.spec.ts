@@ -50,8 +50,18 @@ describe('SessionsService', () => {
     expect(service).toBeDefined();
   });
 
+  // Tarefa 17a: a checagem e o create rodam numa transação que trava o usuário;
+  // o mock executa o callback com o próprio objeto como `tx`.
+  const withTransaction = () => {
+    Object.assign(prisma, {
+      $transaction: jest.fn((fn: (tx: unknown) => unknown) => fn(prisma)),
+      $queryRaw: jest.fn().mockResolvedValue([]),
+    });
+  };
+
   describe('P2002 na criação', () => {
     beforeEach(() => {
+      withTransaction();
       prisma.workout.findFirst.mockResolvedValue({
         id: dto.workoutId,
         userId: 'user-a',
@@ -79,6 +89,16 @@ describe('SessionsService', () => {
 
       await expect(service.create('user-a', dto)).rejects.toBeInstanceOf(
         ConflictException,
+      );
+    });
+
+    // Tarefa 17a (C10): P2002 do índice de uma aberta por usuário (ex.: versão antiga do app
+    // no deploy) e nenhuma sessão com esse id na releitura → 409, nunca 500.
+    it('lança 409 "Já existe uma sessão aberta" se a releitura pelo id não acha nada', async () => {
+      prisma.workoutSession.findUnique.mockResolvedValue(null);
+
+      await expect(service.create('user-a', dto)).rejects.toEqual(
+        new ConflictException('Já existe uma sessão aberta'),
       );
     });
   });
