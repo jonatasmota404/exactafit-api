@@ -23,7 +23,7 @@ Leva critérios aprovados até um PR pronto para o humano mergear. Nunca mergeia
    - Na 3ª sem aprovação, **pare**: entregue ao humano o que falhou em cada rodada, a causa provável (critério, teste, ambiente ou código) e o que ele precisa decidir. Não abra o PR.
 6. **Domínio.** Regra de negócio nova ou alterada: `docs/domain.md` no mesmo PR; decisão difícil de reverter: ADR.
 7. **PR** com o template de `.github/pull_request_template.md`: critérios → testes, "Decisões e suposições do agente" e "O que os checks não provam" (copiadas da saída do implementador, ajustadas pelas rodadas de revisão), evidência (comandos e saídas, veredito do revisor e do testador), pendências, riscos. Risco alto: copie o passo "Validação do humano" do plano para o PR e depois `git rm` do plano (`chore(docs): remove plano concluído`). Declaração que só existia no plano (`Teste alterado: <motivo>`) vai para a mensagem de um commit. `git add` só dos arquivos da tarefa, push da branch, acompanhe o CI até terminar.
-8. **Entrega:** link do PR, resultado do CI, veredito do revisor (e do testador, se entrou), as "Decisões e suposições do agente" e "O que os checks não provam" (ou "Nenhuma") e "pronto para você mergear" ou o que impede.
+8. **Entrega:** link do PR, resultado do CI, veredito do revisor (e do testador, se entrou, com os caminhos dos prints de tela para o humano abrir), as "Decisões e suposições do agente" e "O que os checks não provam" (ou "Nenhuma") e "pronto para você mergear" ou o que impede.
 
 ## Regras
 - Nunca mergeie nem faça push na `main`.

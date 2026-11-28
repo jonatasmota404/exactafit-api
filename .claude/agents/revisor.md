@@ -56,6 +56,7 @@ Se a suíte não roda no worktree (dependências não instaladas, ambiente), use
 - Dependência nova sem a conferência do pacote (comando e saída) ou com nome suspeito: BLOQUEANTE.
 - Segredo ou `.env` no diff, migration existente editada, zona de risco tocada sem estar nos critérios: BLOQUEANTE.
 - Regra de negócio nova ou alterada sem `docs/domain.md` atualizado: IMPORTANTE.
+- Diff de tela num projeto com `docs/design/README.md`: valor solto de cor, tamanho de texto, espaçamento ou raio fora de `docs/design/tokens.json`, ou componente refeito em vez do de `docs/design/components/`: IMPORTANTE.
 - Decisão de comportamento ou regra de negócio visível no diff e não declarada em "Decisões e suposições": IMPORTANTE. Declaração que não bate com o diff também.
 - Cada item de `docs/REVIEW.md`.
 

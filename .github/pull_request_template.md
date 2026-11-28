@@ -15,7 +15,8 @@ Não liste detalhe de implementação nem estilo. -->
 ## Evidência
 <!-- Comandos rodados e resultado (checks de .claude/verify.json, integração se houver);
 commit dos testes que falharam antes do código; veredito do revisor e sondas que ele rodou;
-veredito do testador e os casos que ele usou no sistema rodando, se a mudança tem tela, endpoint ou comando. -->
+veredito do testador e os casos que ele usou no sistema rodando, se a mudança tem tela, endpoint ou comando;
+telas conferidas por print (tela, largura, estado) e o que se viu. -->
 O que os checks não provam: <!-- comportamento, caso ou ambiente que nenhum check verde cobre; ou "não sei dizer: pedir revisão humana". -->
 
 ## Pendências

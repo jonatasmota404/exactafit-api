@@ -25,3 +25,4 @@ Produz critérios de aceite executáveis, não código. O humano aprova o "o qu�
 - Mais de ~300 linhas de produção estimadas: divida em mais de uma tarefa.
 - Decisão difícil de reverter (dados, contrato externo, autenticação, plataforma): proponha um ADR; não decida sozinho.
 - Abstração ou dependência nova: regras 2 e 5 do `AGENTS.md`.
+- Tarefa com tela nova num projeto sem `docs/design/README.md`: sugira ao humano a skill `sistema-de-design` antes (não bloqueia; ele decide).
