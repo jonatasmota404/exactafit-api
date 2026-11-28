@@ -12,7 +12,7 @@ Os critérios de aceite aprovados, cada um com o teste que o prova, e o "Fora de
 
 ## Passos
 1. **Teste primeiro.** Os testes dos critérios já existem (escritos pela skill `executar-tarefa`)? Rode-os, confirme que falham e **não os altere**. Não existem? Escreva só os que os critérios pedem, rode e confirme que falham pelo motivo certo (não por sintaxe ou import). Cole o trecho da falha no relatório.
-2. Faça a menor mudança que faz os testes passarem. Precisa de abstração nova, dependência nova ou de tocar algo em "Fora de escopo"? **Pare e pergunte.**
+2. Faça a menor mudança que faz os testes passarem. Precisa de abstração nova, dependência nova ou de tocar algo em "Fora de escopo"? **Pare e pergunte.** Tela: se existe `docs/design/README.md`, use só os tokens e componentes de lá; token ou componente novo é decisão do humano, então pare e pergunte.
 3. Rode e leia a saída dos comandos da tabela "Comandos" do `AGENTS.md`: typecheck, testes unitários, lint que só verifica e, se tocou banco ou rotas com o ambiente no ar, integração.
 4. Só com tudo verde: `git add <arquivos da tarefa>` (nunca `git add -A` ou `.`) e commit em Conventional Commits. Commits pequenos e coesos.
 

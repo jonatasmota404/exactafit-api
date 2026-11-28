@@ -1,0 +1,1 @@
+Origem: https://github.com/anthropics/skills/tree/main/skills/webapp-testing (commit e4bb5d9), licença Apache 2.0 (LICENSE.txt). Copiada sem alteração; para atualizar, copie de novo e anote o commit aqui. Os exemplos citam caminhos e portas de exemplo do original; o projeto define os seus na linha "print de tela" do AGENTS.md.
