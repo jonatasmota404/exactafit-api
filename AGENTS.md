@@ -45,7 +45,7 @@ API do Exacta Fit (treino, dieta e acompanhamento): NestJS 11 + TypeScript + Pri
 | Médio | regra de negócio nova ou alterada | aprova só os critérios de aceite (na conversa ou no PR), não o código | skills `planejar-tarefa` e `executar-tarefa`; critérios viram testes antes do código |
 | Alto | dinheiro, dados, autenticação, migrations, contrato externo, zona de risco | aprova critérios e plano de risco; valida rodando o comportamento | como no médio, mais plano em `docs/plans/`, `revisor-de-plano` e skill `seguranca` |
 
-Na dúvida entre dois níveis, use o maior. Bug fora de zona de risco: skill `corrigir-bug`. Todo PR passa pelo subagente `revisor`, em contexto limpo, antes de abrir; se tem tela, endpoint ou comando que alguém usa, também pelo `testador`.
+Na dúvida entre dois níveis, use o maior. Bug fora de zona de risco: skill `corrigir-bug`. Mudança de infraestrutura (imagem, CI, deploy, variáveis de ambiente) é do subagente `infra`, não do `implementador`. Todo PR passa pelo subagente `revisor`, em contexto limpo, antes de abrir; se tem tela, endpoint ou comando que alguém usa, também pelo `testador`.
 
 ## Zonas de risco (pedem confirmação)
 `prisma/migrations/`, `prisma/schema.prisma`, `src/auth/`, `.github/workflows/`, `package.json`, `.claude/`. Comandos `npx prisma migrate *` e `npx prisma db *` também pedem confirmação.
