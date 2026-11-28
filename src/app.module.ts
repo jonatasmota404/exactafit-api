@@ -14,6 +14,7 @@ import { DietPlansModule } from './diet-plans/diet-plans.module';
 import { MealTemplatesModule } from './meal-templates/meal-templates.module';
 import { MealLogsModule } from './meal-logs/meal-logs.module';
 import { TodayModule } from './today/today.module';
+import { SyncModule } from './sync/sync.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { TodayModule } from './today/today.module';
     MealTemplatesModule,
     MealLogsModule,
     TodayModule,
+    SyncModule,
   ],
   controllers: [AppController],
   providers: [AppService],
