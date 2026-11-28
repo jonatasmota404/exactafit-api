@@ -158,7 +158,7 @@ Cada linha é uma tarefa, uma branch e um PR. O risco segue a tabela "Risco: que
 | 15 | `GET /today`: refeições do plano ativo, treino do dia pelo ciclo (passos saíram para a 15b, decisão do humano em 2026-11-25). **Feito em 2026-11-25** | (c), (d) | 4 | médio | 7a, 13 |
 | 15b | Passos: `DayLog` (passos, meta configurável por pessoa, marcar com um toque) e passos no `GET /today` | (e) | 4 | alto | 15 |
 | 16 | Household: `Household`, `HouseholdMember`, convite por código, visão da cozinha, teste de acesso cruzado | (f), inv. 12, 13 | 7 | alto | 11, 13 |
-| 17 | `POST /sync` idempotente (enviar o lote duas vezes não duplica) | (a), S3, S8 | 5 | alto | 3 |
+| 17 | `POST /sync` idempotente (enviar o lote duas vezes não duplica). Plano: `docs/plans/2026-11-25-sincronismo.md`. 17a (sessões, séries e índice de S3) **feito em 2026-11-25**; 17b (registros de refeição no lote) pendente | (a), S3, S8 | 5 | alto | 3 |
 | 18 | Front PWA: repositório novo com o kit, Hoje, prato, treino e editores, offline-first | ADR 0012 | 4, 5 | alto | 3, 7a, 7b, 11, 12 |
 
 Tarefas sem dependência entre si (por exemplo 4, 9 e 10) podem andar em paralelo, cada uma na própria branch a partir da `main`. A Fase 2 em diante é quebrada do mesmo jeito quando a Fase 1 fechar.
