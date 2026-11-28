@@ -1,0 +1,1 @@
+Origem: https://github.com/anthropics/skills/tree/main/skills/frontend-design (commit 41bbe19), licença Apache 2.0 (LICENSE.txt). Copiada sem alteração; para atualizar, copie de novo e anote o commit aqui.
